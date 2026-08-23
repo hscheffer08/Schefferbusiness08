@@ -1,0 +1,1 @@
+INSERT INTO question_dimensions (question_id, dimension_id) VALUES ('Q12', 'startup_founder_fit');
