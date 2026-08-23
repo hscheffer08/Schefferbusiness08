@@ -126,7 +126,33 @@ export type Screen =
   | 'faq'
   | 'privacy'
   | 'terms'
+  | 'faculty-questionnaire'
   | 'admin';
+
+export type FacultyEvidenceCategory =
+  | 'extracurriculars'
+  | 'grades'
+  | 'languages'
+  | 'awards'
+  | 'projects'
+  | 'experience';
+
+export interface FacultyEvidence {
+  id: string;
+  user_id: string;
+  category: FacultyEvidenceCategory;
+  title: string;
+  institution: string | null;
+  details: string | null;
+  occurred_on: string | null;
+  file_path: string;
+  file_name: string;
+  mime_type: string;
+  file_size: number;
+  verification_status: 'pending' | 'verified' | 'rejected';
+  created_at: string;
+  updated_at: string;
+}
 
 export interface UserProfile {
   id: string;
