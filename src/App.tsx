@@ -179,24 +179,7 @@ function AppContent() {
     setScreen('quiz');
   };
 
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-6 text-center">
-        <div>
-          <p className="text-ink-300 text-lg mb-2">Não foi possível carregar os dados.</p>
-          <p className="text-ink-500 text-sm mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-ink-950 font-semibold transition-colors"
-          >
-            Tentar novamente
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!dbData) {
+  if (!dbData && !error) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-brand-400" />
@@ -208,7 +191,7 @@ function AppContent() {
     return (
       <Home
         onStart={handleStart}
-        onProfile={() => setScreen('profile')}
+        onProfile={() => setScreen(user ? 'profile' : 'auth')}
         onAuth={() => setScreen('auth')}
         onNavigate={(s) => setScreen(s)}
       />
@@ -216,6 +199,23 @@ function AppContent() {
 
   if (screen === 'auth')
     return <Auth onBack={() => setScreen('home')} onSuccess={handleAuthSuccess} onPrivacy={() => setScreen('privacy')} onTerms={() => setScreen('terms')} />;
+
+  if (screen === 'howitworks' || screen === 'methodology' || screen === 'faq' || screen === 'privacy' || screen === 'terms')
+    return <InfoPages page={screen} onBack={() => setScreen('home')} />;
+
+  if (error || !dbData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6 text-center">
+        <div>
+          <p className="text-ink-300 text-lg mb-2">Não foi possível carregar os dados.</p>
+          <p className="text-ink-500 text-sm mb-4">{error ?? 'Tente novamente em instantes.'}</p>
+          <button onClick={() => window.location.reload()} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-ink-950 font-semibold transition-colors">
+            Tentar novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (screen === 'onboarding')
     return (
@@ -292,13 +292,10 @@ function AppContent() {
   if (screen === 'admin')
     return <Admin onBack={() => setScreen('home')} />;
 
-  if (screen === 'howitworks' || screen === 'methodology' || screen === 'faq' || screen === 'privacy' || screen === 'terms')
-    return <InfoPages page={screen} onBack={() => setScreen('home')} />;
-
   return (
     <Home
       onStart={handleStart}
-      onProfile={() => setScreen('profile')}
+      onProfile={() => setScreen(user ? 'profile' : 'auth')}
       onAuth={() => setScreen('auth')}
       onNavigate={(s) => setScreen(s)}
     />
