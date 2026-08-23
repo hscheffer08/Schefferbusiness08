@@ -17,6 +17,8 @@ import type { DatabaseData } from '@/lib/api';
 
 type QueryResult<T> = { data: T[] | null; error: unknown };
 
+const LOAD_TIMEOUT_MS = 12_000;
+
 async function safeQuery<T>(name: string, query: PromiseLike<QueryResult<T>>): Promise<T[]> {
   try {
     const { data, error } = await query;
@@ -29,6 +31,18 @@ async function safeQuery<T>(name: string, query: PromiseLike<QueryResult<T>>): P
     console.warn(`Supabase request failed: ${name}`, error);
     return [];
   }
+}
+
+async function requiredQuery<T>(name: string, query: PromiseLike<QueryResult<T>>): Promise<T[]> {
+  const result = await Promise.race([
+    Promise.resolve(query),
+    new Promise<never>((_, reject) =>
+      window.setTimeout(() => reject(new Error(`Timeout loading ${name}`)), LOAD_TIMEOUT_MS)
+    ),
+  ]);
+  if (result.error) throw new Error(`Required table unavailable: ${name}`);
+  if (!result.data?.length) throw new Error(`Required table is empty: ${name}`);
+  return result.data;
 }
 
 export async function loadDatabaseDataSafe(): Promise<DatabaseData> {
@@ -64,10 +78,10 @@ export async function loadDatabaseDataSafe(): Promise<DatabaseData> {
     evidenceDimensions,
     sources,
   ] = await Promise.all([
-    safeQuery<University>('universities', supabase.from('universities').select('*')),
-    safeQuery<Dimension>('dimensions', supabase.from('dimensions').select('*')),
+    requiredQuery<University>('universities', supabase.from('universities').select('*')),
+    requiredQuery<Dimension>('dimensions', supabase.from('dimensions').select('*')),
     safeQuery<CulturalAxis>('cultural_axes', supabase.from('cultural_axes').select('*')),
-    safeQuery<Question>('questions', supabase.from('questions').select('*').order('question_id')),
+    requiredQuery<Question>('questions', supabase.from('questions').select('*').order('question_id')),
     safeQuery<TextRubric>('text_rubrics', supabase.from('text_rubrics').select('*')),
     safeQuery<PillarWeight>('pillar_weights', supabase.from('pillar_weights').select('*')),
     safeQuery<UniversityDimensionWeight>('university_dimension_weights', supabase.from('university_dimension_weights').select('*')),
