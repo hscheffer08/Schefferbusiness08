@@ -6,11 +6,13 @@ import { trackEvent } from '@/lib/analytics';
 interface AuthProps {
   onBack: () => void;
   onSuccess: () => void;
+  onPrivacy: () => void;
+  onTerms: () => void;
 }
 
 type Mode = 'login' | 'signup' | 'reset';
 
-export default function Auth({ onBack, onSuccess }: AuthProps) {
+export default function Auth({ onBack, onSuccess, onPrivacy, onTerms }: AuthProps) {
   const { signIn, signUp, resetPassword } = useAuth();
   const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
@@ -167,6 +169,15 @@ export default function Auth({ onBack, onSuccess }: AuthProps) {
               )}
             </button>
           </form>
+
+          {mode === 'signup' && (
+            <p className="mt-4 text-center text-xs leading-relaxed text-ink-500">
+              Ao criar sua conta, você concorda com os{' '}
+              <button type="button" onClick={onTerms} className="text-brand-400 hover:text-brand-300">Termos de Uso</button>
+              {' '}e confirma que leu a{' '}
+              <button type="button" onClick={onPrivacy} className="text-brand-400 hover:text-brand-300">Política de Privacidade</button>.
+            </p>
+          )}
 
           <div className="mt-6 text-center space-y-2 text-sm text-ink-400">
             {mode === 'login' && (
