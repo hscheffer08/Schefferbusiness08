@@ -508,10 +508,10 @@ export function getSubScoreValue(
   key: string
 ): number {
   if (key === 'cultural_fit') {
-    return result.culturalFitScore;
+    return Math.round(result.culturalFitScore);
   }
   if (result.subScores && result.subScores[key] !== undefined) {
-    return result.subScores[key];
+    return Math.round(result.subScores[key]);
   }
   return 50;
 }
