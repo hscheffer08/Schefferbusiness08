@@ -1,4 +1,4 @@
-import { ArrowRight, Sparkles, GraduationCap, Compass, Trophy, User as UserIcon, BookOpen, FlaskConical, HelpCircle, Shield, GitCompare, FileText, Zap, Clock, BadgeCheck } from 'lucide-react';
+import { ArrowRight, Sparkles, GraduationCap, Compass, Trophy, User as UserIcon, BookOpen, FlaskConical, HelpCircle, Shield, GitCompare, FileText, Zap, Clock, BadgeCheck, FileCheck2, LockKeyhole } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { trackEvent, initSessionId } from '@/lib/analytics';
 import { useEffect } from 'react';
@@ -8,7 +8,7 @@ interface HomeProps {
   onStart: (mode: QuizMode) => void;
   onProfile: () => void;
   onAuth: () => void;
-  onNavigate: (screen: 'howitworks' | 'methodology' | 'faq' | 'privacy' | 'terms' | 'compare' | 'admin') => void;
+  onNavigate: (screen: 'howitworks' | 'methodology' | 'faq' | 'privacy' | 'terms' | 'compare' | 'admin' | 'faculty-questionnaire') => void;
 }
 
 export default function Home({ onStart, onProfile, onAuth, onNavigate }: HomeProps) {
@@ -157,6 +157,26 @@ export default function Home({ onStart, onProfile, onAuth, onNavigate }: HomePro
             </div>
           </button>
         </div>
+
+        <button
+          onClick={() => onNavigate('faculty-questionnaire')}
+          className="animate-fade-up mt-5 w-full max-w-3xl group relative overflow-hidden rounded-2xl border border-violet-500/35 bg-gradient-to-r from-violet-500/10 via-brand-500/5 to-accent-500/10 p-5 md:p-6 text-left hover:border-violet-400/60 transition-all"
+          style={{ animationDelay: '0.3s' }}
+        >
+          <div className="relative flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-violet-500/15 text-violet-300 flex items-center justify-center flex-shrink-0">
+              <FileCheck2 className="w-6 h-6" />
+            </div>
+            <div className="flex-1">
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                <h3 className="text-lg font-bold text-ink-50">Questionário para as Faculdades</h3>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-ink-800 text-ink-400 text-[11px] font-medium"><LockKeyhole className="w-3 h-3" /> Requer conta</span>
+              </div>
+              <p className="text-sm text-ink-400 leading-relaxed">Crie seu dossiê acadêmico com notas, extracurriculares, idiomas, conquistas e comprovantes.</p>
+            </div>
+            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-violet-300 group-hover:gap-2.5 transition-all">Abrir meu hub <ArrowRight className="w-4 h-4" /></span>
+          </div>
+        </button>
 
         <p className="mt-6 text-sm text-ink-500">Gratuito por tempo limitado · Sem documentos para o Match Rápido</p>
 
