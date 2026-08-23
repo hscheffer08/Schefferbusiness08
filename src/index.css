@@ -32,6 +32,12 @@
   }
 }
 
+@layer components {
+  .field {
+    @apply w-full px-4 py-3 rounded-xl bg-ink-800/50 border border-ink-700 text-ink-100 placeholder-ink-600 focus:outline-none focus:border-brand-500 focus:bg-ink-800 transition-colors;
+  }
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
