@@ -55,6 +55,16 @@ export default function Comparator({ dbData, matchResults, onBack }: ComparatorP
           Selecione 2 ou 3 faculdades para comparar lado a lado. {selected.length} de {maxSelect} selecionadas.
         </p>
 
+        {universities.length === 0 && (
+          <div role="alert" className="glass rounded-2xl border border-amber-500/30 p-6 text-center">
+            <p className="font-semibold text-ink-100 mb-2">As faculdades não puderam ser carregadas.</p>
+            <p className="text-sm text-ink-400 mb-4">Tente novamente em alguns instantes.</p>
+            <button onClick={() => window.location.reload()} className="px-4 py-2 rounded-xl bg-brand-500 text-ink-950 font-semibold">
+              Tentar novamente
+            </button>
+          </div>
+        )}
+
         {selected.length < 2 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
             {universities.map((uni: University) => {
