@@ -215,7 +215,7 @@ function AppContent() {
     );
 
   if (screen === 'auth')
-    return <Auth onBack={() => setScreen('home')} onSuccess={handleAuthSuccess} />;
+    return <Auth onBack={() => setScreen('home')} onSuccess={handleAuthSuccess} onPrivacy={() => setScreen('privacy')} onTerms={() => setScreen('terms')} />;
 
   if (screen === 'onboarding')
     return (
