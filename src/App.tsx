@@ -13,7 +13,8 @@ import InfoPages from '@/components/InfoPages';
 import ConsentStep from '@/components/ConsentStep';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import type { AnswerMap, Screen, MatchResult, QuizMode } from '@/types';
-import { loadDatabaseData, saveSession, saveMatchHistory, clearProgress, getSharingConsent, validateReferralCode, createReferral, updateReferralStatus, findReferralByUser, type DatabaseData } from '@/lib/api';
+import { saveSession, saveMatchHistory, clearProgress, getSharingConsent, validateReferralCode, createReferral, updateReferralStatus, findReferralByUser, type DatabaseData } from '@/lib/api';
+import { loadDatabaseDataSafe } from '@/lib/safe-database';
 import { calculateMatches } from '@/lib/matching-engine';
 import { trackEvent } from '@/lib/analytics';
 
@@ -47,11 +48,12 @@ function AppContent() {
     let cancelled = false;
     (async () => {
       try {
-        const data = await loadDatabaseData();
-        if (!cancelled) setDbData(data);
+        const data = await loadDatabaseDataSafe();
+        if (!cancelled) {
+          setDbData(data);
+          setError(null);
+        }
       } catch (err) {
-        // Never render the underlying error: it can name tables, constraints and
-        // access rules. Log it and show a fixed, non-technical message.
         console.error('Failed to load data', err);
         if (!cancelled) setError('Não foi possível carregar os dados agora. Tente novamente em instantes.');
       }
