@@ -106,7 +106,7 @@ function Methodology() {
       </Section>
       <Section title="Como o match é calculado">
         <p>Cada resposta é convertida em uma pontuação por dimensão. Essas pontuações são comparadas com o perfil de cada universidade, ponderadas por pilar (acadêmico, comportamental, evidências, objetivos e cultura).</p>
-        <p>O resultado final é normalizado de 0 a 100% para cada uma das 7 instituições.</p>
+        <p>O resultado final é normalizado de 0 a 100% para cada uma das 9 instituições.</p>
         <p>O algoritmo é <strong>determinístico</strong>: as mesmas respostas sempre produzem o mesmo resultado.</p>
       </Section>
       <Section title="Transparência">
