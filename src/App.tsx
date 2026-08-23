@@ -11,6 +11,7 @@ import Comparator from '@/components/Comparator';
 import Admin from '@/components/Admin';
 import InfoPages from '@/components/InfoPages';
 import ConsentStep from '@/components/ConsentStep';
+import FacultyQuestionnaireHub from '@/components/FacultyQuestionnaireHub';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import type { AnswerMap, Screen, MatchResult, QuizMode } from '@/types';
 import { saveSession, saveMatchHistory, clearProgress, getSharingConsent, validateReferralCode, createReferral, updateReferralStatus, findReferralByUser, type DatabaseData } from '@/lib/api';
@@ -31,6 +32,7 @@ function AppContent() {
   const [quizMode, setQuizMode] = useState<QuizMode>('quick');
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [referrerId, setReferrerId] = useState<string | null>(null);
+  const [authDestination, setAuthDestination] = useState<Screen | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -141,7 +143,17 @@ function AppContent() {
   };
 
   const handleAuthSuccess = () => {
-    setScreen('home');
+    setScreen(authDestination ?? 'home');
+    setAuthDestination(null);
+  };
+
+  const handleFacultyQuestionnaireAccess = () => {
+    if (user) {
+      setScreen('faculty-questionnaire');
+    } else {
+      setAuthDestination('faculty-questionnaire');
+      setScreen('auth');
+    }
   };
 
   const handleOnboardingComplete = () => {
@@ -193,15 +205,18 @@ function AppContent() {
         onStart={handleStart}
         onProfile={() => setScreen(user ? 'profile' : 'auth')}
         onAuth={() => setScreen('auth')}
-        onNavigate={(s) => setScreen(s)}
+        onNavigate={(s) => s === 'faculty-questionnaire' ? handleFacultyQuestionnaireAccess() : setScreen(s)}
       />
     );
 
   if (screen === 'auth')
-    return <Auth onBack={() => setScreen('home')} onSuccess={handleAuthSuccess} onPrivacy={() => setScreen('privacy')} onTerms={() => setScreen('terms')} />;
+    return <Auth onBack={() => { setAuthDestination(null); setScreen('home'); }} onSuccess={handleAuthSuccess} onPrivacy={() => setScreen('privacy')} onTerms={() => setScreen('terms')} />;
 
   if (screen === 'howitworks' || screen === 'methodology' || screen === 'faq' || screen === 'privacy' || screen === 'terms')
     return <InfoPages page={screen} onBack={() => setScreen('home')} />;
+
+  if (screen === 'faculty-questionnaire' && user)
+    return <FacultyQuestionnaireHub onBack={() => setScreen('home')} />;
 
   if (error || !dbData) {
     return (
@@ -297,7 +312,7 @@ function AppContent() {
       onStart={handleStart}
       onProfile={() => setScreen(user ? 'profile' : 'auth')}
       onAuth={() => setScreen('auth')}
-      onNavigate={(s) => setScreen(s)}
+      onNavigate={(s) => s === 'faculty-questionnaire' ? handleFacultyQuestionnaireAccess() : setScreen(s)}
     />
   );
 }
