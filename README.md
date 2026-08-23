@@ -28,4 +28,6 @@ npm run preview
 
 ## Deploy
 
-O projeto está preparado para deploy direto do GitHub em plataformas compatíveis com Vite, como Vercel. Build command: `npm run build`. Output directory: `dist`.
+O projeto está preparado para deploy direto do GitHub no Vercel. Build command: `npm run build`. Output directory: `dist`.
+
+O ambiente de produção é publicado automaticamente a partir da branch `main`.
