@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
-import { ArrowRight, GraduationCap, Loader2, UserPlus } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowRight, GraduationCap, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { trackEvent } from '@/lib/analytics';
-import { validateReferralCode } from '@/lib/api';
-import type { Referrer } from '@/types';
+import { resolveOrCreateReferrer } from '@/lib/free-referrals';
 
 interface OnboardingProps {
   onComplete: (selectedReferralCode: string | null, selectedReferrerId: string | null) => void;
@@ -37,21 +36,10 @@ export default function Onboarding({ onComplete, preselectedReferralCode }: Onbo
   const [state, setState] = useState(profile?.state ?? '');
   const [ageRange, setAgeRange] = useState(profile?.age_range ?? '');
   const [referralInput, setReferralInput] = useState(preselectedReferralCode ?? '');
-  const [validatedReferrer, setValidatedReferrer] = useState<Referrer | null>(null);
-  const [referralTouched, setReferralTouched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const email = user?.email ?? '';
-
-  useEffect(() => {
-    if (preselectedReferralCode) {
-      setReferralInput(preselectedReferralCode);
-      validateReferralCode(preselectedReferralCode).then((r) => {
-        if (r) setValidatedReferrer(r);
-      });
-    }
-  }, [preselectedReferralCode]);
 
   const steps = [
     { label: 'Como podemos te chamar?', value: name, set: setName, type: 'text' as const, placeholder: 'Seu nome' },
@@ -85,10 +73,20 @@ export default function Onboarding({ onComplete, preselectedReferralCode }: Onbo
     }
     trackEvent('signup_completed', { onboarding: true }, user?.id);
 
-    const selectedCode = referralTouched && referralInput.trim() !== '' && referralInput !== NO_REFERRAL
-      ? (validatedReferrer?.referral_code ?? referralInput.trim().toUpperCase())
-      : (preselectedReferralCode && validatedReferrer ? validatedReferrer.referral_code : null);
-    const selectedId = selectedCode ? (validatedReferrer?.id ?? null) : null;
+    let selectedCode: string | null = null;
+    let selectedId: string | null = null;
+    const typedReferral = referralInput === NO_REFERRAL ? '' : referralInput.trim();
+
+    if (typedReferral) {
+      const resolved = await resolveOrCreateReferrer(typedReferral);
+      if (!resolved) {
+        setError('Não foi possível registrar a indicação. Tente novamente.');
+        setLoading(false);
+        return;
+      }
+      selectedCode = resolved.referral_code;
+      selectedId = resolved.id;
+    }
 
     setLoading(false);
     onComplete(selectedCode, selectedId);
@@ -152,43 +150,22 @@ export default function Onboarding({ onComplete, preselectedReferralCode }: Onbo
             ) : currentStep.type === 'referral' ? (
               <div className="space-y-3">
                 <p className="text-ink-500 text-center text-sm mb-4">
-                  Se alguém te apresentou o site, informe o código ou nome da pessoa. É opcional.
+                  Digite o nome e sobrenome de quem te indicou. Não é necessário que essa pessoa esteja cadastrada. É opcional.
                 </p>
                 <input
                   type="text"
                   value={referralInput === NO_REFERRAL ? '' : referralInput}
-                  onChange={(e) => {
-                    setReferralTouched(true);
-                    setReferralInput(e.target.value);
-                    setValidatedReferrer(null);
-                    if (e.target.value.trim().length >= 3) {
-                      validateReferralCode(e.target.value.trim().toUpperCase()).then((r) => {
-                        setValidatedReferrer(r);
-                      });
-                    }
-                  }}
-                  placeholder="Código de indicação (ex: ALLEGRA01)"
+                  onChange={(e) => setReferralInput(e.target.value)}
+                  placeholder="Nome e sobrenome"
                   autoFocus
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleNext(); }}
                   className="w-full px-5 py-4 rounded-2xl bg-ink-800/50 border border-ink-700 text-ink-100 placeholder-ink-600 focus:outline-none focus:border-brand-500 focus:bg-ink-800 transition-colors text-lg text-center"
                 />
-                {referralTouched && referralInput.trim() !== '' && referralInput !== NO_REFERRAL && (
-                  validatedReferrer ? (
-                    <div className="flex items-center justify-center gap-2 text-green-400 text-sm">
-                      <UserPlus className="w-4 h-4" />
-                      Indicado por {validatedReferrer.name}
-                    </div>
-                  ) : referralInput.trim().length >= 3 ? (
-                    <p className="text-ink-500 text-xs text-center">
-                      Código não encontrado — você pode digitar o nome de quem te indicou.
-                    </p>
-                  ) : null
-                )}
+                <p className="text-ink-600 text-xs text-center">
+                  Ex.: João Silva
+                </p>
                 <button
-                  onClick={() => {
-                    setReferralTouched(true);
-                    setReferralInput(NO_REFERRAL);
-                    setValidatedReferrer(null);
-                  }}
+                  onClick={() => setReferralInput(NO_REFERRAL)}
                   className={`w-full text-left p-4 rounded-2xl border transition-all ${
                     referralInput === NO_REFERRAL
                       ? 'bg-brand-500/15 border-brand-500 text-ink-50'
