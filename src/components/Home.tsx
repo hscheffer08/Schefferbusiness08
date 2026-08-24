@@ -1,4 +1,4 @@
-import { ArrowRight, Sparkles, GraduationCap, Compass, Trophy, User as UserIcon, BookOpen, FlaskConical, HelpCircle, Shield, GitCompare, FileText, Zap, Clock, BadgeCheck, FileCheck2, LockKeyhole } from 'lucide-react';
+import { ArrowRight, Sparkles, GraduationCap, Compass, Trophy, BookOpen, FlaskConical, HelpCircle, Shield, FileText, Zap, Clock, BadgeCheck, FileCheck2, LockKeyhole } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { trackEvent, initSessionId } from '@/lib/analytics';
 import { useEffect } from 'react';
@@ -45,6 +45,14 @@ export default function Home({ onStart, onProfile, onAuth, onNavigate }: HomePro
             <button onClick={() => onNavigate('compare')} className="hover:text-ink-200 transition-colors">Comparar</button>
             <button onClick={() => onNavigate('faq')} className="hover:text-ink-200 transition-colors">FAQ</button>
           </div>
+          <button
+            onClick={() => onNavigate('faculty-questionnaire')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-violet-500/40 bg-violet-500/10 hover:bg-violet-500/20 text-violet-200 text-sm font-semibold transition-colors"
+            title="Abrir Questionário para as Faculdades"
+          >
+            <FileCheck2 className="w-4 h-4" />
+            <span className="hidden md:inline">Faculdades</span>
+          </button>
           {user ? (
             <div className="flex items-center gap-2">
               {isAdmin && (
@@ -272,3 +280,4 @@ function FeatureCard({
     </div>
   );
 }
+
