@@ -48,8 +48,6 @@ export async function resolveOrCreateReferrer(input: string): Promise<Referrer |
 
   if (byCode) return byCode as Referrer;
 
-  // Any typed first + last name is valid. Reuse an existing row when the same
-  // name already exists so every indication accumulates under one person.
   const { data: allReferrers, error: readError } = await supabase
     .from('referrers')
     .select('*')
@@ -63,6 +61,9 @@ export async function resolveOrCreateReferrer(input: string): Promise<Referrer |
     if (existing) return existing;
   }
 
+  // This insert is best-effort and mainly keeps compatibility with the legacy
+  // code/link referral system. The prize/ranking count itself is recorded in
+  // analytics_events, which accepts anonymous and authenticated submissions.
   const base = referralCodeBase(cleaned);
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const suffix = `${Date.now().toString(36).slice(-4)}${Math.floor(Math.random() * 90 + 10)}`.toUpperCase();
@@ -83,52 +84,104 @@ export async function resolveOrCreateReferrer(input: string): Promise<Referrer |
   return null;
 }
 
+type ReferralSubmissionEvent = {
+  user_id: string | null;
+  session_id: string | null;
+  metadata: { referrer_name?: unknown; mode?: unknown } | null;
+  created_at: string;
+};
+
 export async function getReferralNameRanking(): Promise<ReferralNameRankingEntry[]> {
   if (!supabase) return [];
 
-  const [referrersRes, referralsRes] = await Promise.all([
+  // The completed-quiz event is the source of truth for new indications because
+  // analytics_events accepts both anonymous and authenticated inserts. Legacy
+  // referral rows are also included, with authenticated users deduplicated.
+  const [referrersRes, referralsRes, eventsRes] = await Promise.all([
     supabase.from('referrers').select('*'),
     supabase.from('referrals').select('*'),
+    supabase
+      .from('analytics_events')
+      .select('user_id, session_id, metadata, created_at')
+      .eq('event_type', 'referral_submitted'),
   ]);
 
-  if (referrersRes.error || referralsRes.error) return [];
+  if (eventsRes.error) return [];
 
   const referrers = (referrersRes.data ?? []) as Referrer[];
   const referrals = (referralsRes.data ?? []) as Referral[];
+  const events = (eventsRes.data ?? []) as ReferralSubmissionEvent[];
   const referrerById = new Map(referrers.map((r) => [r.id, r]));
   const groups = new Map<string, ReferralNameRankingEntry>();
+  const legacyUsersByKey = new Map<string, Set<string>>();
+
+  const ensureGroup = (name: string): ReferralNameRankingEntry => {
+    const cleaned = cleanReferralName(name);
+    const key = normalizeReferralName(cleaned);
+    const existing = groups.get(key);
+    if (existing) return existing;
+    const created: ReferralNameRankingEntry = {
+      key,
+      name: cleaned,
+      referrer_ids: [],
+      referral_codes: [],
+      total_indications: 0,
+      quizzes_started: 0,
+      quizzes_completed: 0,
+      valid_referrals: 0,
+    };
+    groups.set(key, created);
+    return created;
+  };
 
   for (const referrer of referrers) {
     const key = normalizeReferralName(referrer.name);
     if (!key) continue;
-    const current = groups.get(key);
-    if (current) {
-      current.referrer_ids.push(referrer.id);
-      current.referral_codes.push(referrer.referral_code);
-    } else {
-      groups.set(key, {
-        key,
-        name: cleanReferralName(referrer.name),
-        referrer_ids: [referrer.id],
-        referral_codes: [referrer.referral_code],
-        total_indications: 0,
-        quizzes_started: 0,
-        quizzes_completed: 0,
-        valid_referrals: 0,
-      });
-    }
+    const group = ensureGroup(referrer.name);
+    if (!group.referrer_ids.includes(referrer.id)) group.referrer_ids.push(referrer.id);
+    if (!group.referral_codes.includes(referrer.referral_code)) group.referral_codes.push(referrer.referral_code);
   }
 
+  // Keep previous referral records visible so historical counts are not lost.
   for (const referral of referrals) {
     const referrer = referrerById.get(referral.referrer_id);
     if (!referrer) continue;
     const key = normalizeReferralName(referrer.name);
-    const group = groups.get(key);
-    if (!group) continue;
+    if (!key) continue;
+    const group = ensureGroup(referrer.name);
     group.total_indications += 1;
     if (referral.quiz_started) group.quizzes_started += 1;
     if (referral.quiz_completed) group.quizzes_completed += 1;
     if (referral.is_valid) group.valid_referrals += 1;
+    if (referral.referred_user_id) {
+      const users = legacyUsersByKey.get(key) ?? new Set<string>();
+      users.add(referral.referred_user_id);
+      legacyUsersByKey.set(key, users);
+    }
+  }
+
+  const seenEventKeys = new Set<string>();
+  for (const event of events) {
+    const rawName = event.metadata?.referrer_name;
+    if (typeof rawName !== 'string') continue;
+    const cleaned = cleanReferralName(rawName);
+    const key = normalizeReferralName(cleaned);
+    if (!key) continue;
+
+    // A browser session should count once even if the completion handler fires twice.
+    const eventKey = `${key}:${event.session_id ?? event.user_id ?? event.created_at}`;
+    if (seenEventKeys.has(eventKey)) continue;
+    seenEventKeys.add(eventKey);
+
+    // If an authenticated user's legacy referral already exists for this same name,
+    // do not count the new completion event a second time.
+    if (event.user_id && legacyUsersByKey.get(key)?.has(event.user_id)) continue;
+
+    const group = ensureGroup(cleaned);
+    group.total_indications += 1;
+    group.quizzes_started += 1;
+    group.quizzes_completed += 1;
+    group.valid_referrals += 1;
   }
 
   return Array.from(groups.values())
