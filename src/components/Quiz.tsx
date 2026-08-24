@@ -77,6 +77,14 @@ export default function Quiz({ questions, mode, onComplete, onBack }: QuizProps)
     if (isLast) {
       const referralSource = answers['Q41'];
       const referrerName = answers['Q42']?.trim();
+
+      // Q42 is mandatory in both quiz modes. Record it directly so an indication
+      // counts even when the optional/source question Q41 is not part of Match Rápido
+      // and even when the visitor is anonymous.
+      if (referrerName) {
+        trackEvent('referral_submitted', { referrer_name: referrerName, mode }, user?.id);
+      }
+
       if (referralSource && referralSource !== 'nenhum') {
         trackEvent('referral_source', { source: referralSource, referrer_name: referrerName || null }, user?.id);
       }
@@ -85,7 +93,7 @@ export default function Quiz({ questions, mode, onComplete, onBack }: QuizProps)
     }
     setDirection('forward');
     setCurrentStep((s) => s + 1);
-  }, [isLast, answers, onComplete, user]);
+  }, [isLast, answers, onComplete, user, mode]);
 
 
   const skipSavedProgress = () => {
