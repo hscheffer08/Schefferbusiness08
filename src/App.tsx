@@ -19,9 +19,14 @@ import { loadDatabaseDataSafe } from '@/lib/safe-database';
 import { calculateMatches } from '@/lib/matching-engine';
 import { trackEvent } from '@/lib/analytics';
 
+const isFacultyQuestionnaireLink = () =>
+  new URLSearchParams(window.location.search).get('questionario') === 'faculdades';
+
 function AppContent() {
   const { user, profile } = useAuth();
-  const [screen, setScreen] = useState<Screen>('home');
+  const [screen, setScreen] = useState<Screen>(() =>
+    isFacultyQuestionnaireLink() ? 'faculty-questionnaire' : 'home'
+  );
   const [dbData, setDbData] = useState<DatabaseData | null>(null);
   const [answers, setAnswers] = useState<AnswerMap>({});
   const [matchResults, setMatchResults] = useState<MatchResult[]>([]);
@@ -32,7 +37,9 @@ function AppContent() {
   const [quizMode, setQuizMode] = useState<QuizMode>('quick');
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [referrerId, setReferrerId] = useState<string | null>(null);
-  const [authDestination, setAuthDestination] = useState<Screen | null>(null);
+  const [authDestination, setAuthDestination] = useState<Screen | null>(() =>
+    isFacultyQuestionnaireLink() ? 'faculty-questionnaire' : null
+  );
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -137,8 +144,15 @@ function AppContent() {
     setScreen('results');
   };
 
+  const clearFacultyQuestionnaireLink = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('questionario');
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+  };
+
   const handleBackToHome = () => {
     setSelectedUniversityId(null);
+    clearFacultyQuestionnaireLink();
     setScreen('home');
   };
 
@@ -148,16 +162,15 @@ function AppContent() {
   };
 
   const handleFacultyQuestionnaireAccess = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('questionario', 'faculdades');
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
     if (user) {
       setScreen('faculty-questionnaire');
     } else {
       setAuthDestination('faculty-questionnaire');
       setScreen('auth');
     }
-  };
-
-  const handleOnboardingComplete = () => {
-    setScreen('quiz');
   };
 
   const handleOnboardingCompleteWithReferral = async (selectedReferrerCode: string | null, selectedReferrerId: string | null) => {
@@ -210,13 +223,27 @@ function AppContent() {
     );
 
   if (screen === 'auth')
-    return <Auth onBack={() => { setAuthDestination(null); setScreen('home'); }} onSuccess={handleAuthSuccess} onPrivacy={() => setScreen('privacy')} onTerms={() => setScreen('terms')} />;
+    return <Auth onBack={() => { setAuthDestination(null); handleBackToHome(); }} onSuccess={handleAuthSuccess} onPrivacy={() => setScreen('privacy')} onTerms={() => setScreen('terms')} />;
 
   if (screen === 'howitworks' || screen === 'methodology' || screen === 'faq' || screen === 'privacy' || screen === 'terms')
-    return <InfoPages page={screen} onBack={() => setScreen('home')} />;
+    return <InfoPages page={screen} onBack={handleBackToHome} />;
 
-  if (screen === 'faculty-questionnaire' && user)
-    return <FacultyQuestionnaireHub onBack={() => setScreen('home')} />;
+  if (screen === 'faculty-questionnaire') {
+    if (!user) {
+      return (
+        <Auth
+          onBack={() => {
+            setAuthDestination(null);
+            handleBackToHome();
+          }}
+          onSuccess={handleAuthSuccess}
+          onPrivacy={() => setScreen('privacy')}
+          onTerms={() => setScreen('terms')}
+        />
+      );
+    }
+    return <FacultyQuestionnaireHub onBack={handleBackToHome} />;
+  }
 
   if (error || !dbData) {
     return (
@@ -326,3 +353,4 @@ export default function App() {
     </AuthProvider>
   );
 }
+
