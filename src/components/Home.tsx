@@ -9,11 +9,12 @@ interface HomeProps {
   onProfile: () => void;
   onAuth: () => void;
   country: CountryCode;
+  universityCount: number;
   onCountryChange: (country: CountryCode) => void;
   onNavigate: (screen: 'howitworks' | 'methodology' | 'faq' | 'privacy' | 'terms' | 'compare' | 'admin' | 'faculty-questionnaire') => void;
 }
 
-export default function Home({ onStart, onProfile, onAuth, country, onCountryChange, onNavigate }: HomeProps) {
+export default function Home({ onStart, onProfile, onAuth, country, universityCount, onCountryChange, onNavigate }: HomeProps) {
   const { user, profile } = useAuth();
   const isAdmin = user?.app_metadata?.role === 'admin';
 
@@ -49,8 +50,9 @@ export default function Home({ onStart, onProfile, onAuth, country, onCountryCha
           </div>
           <button
             onClick={() => onNavigate('faculty-questionnaire')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-violet-500/40 bg-violet-500/10 hover:bg-violet-500/20 text-violet-200 text-sm font-semibold transition-colors"
-            title="Abrir Questionário para as Faculdades"
+            disabled={country === 'US'}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-sm font-semibold transition-colors ${country === 'US' ? 'cursor-not-allowed border-ink-800 bg-ink-900/50 text-ink-600' : 'border-violet-500/40 bg-violet-500/10 hover:bg-violet-500/20 text-violet-200'}`}
+            title={country === 'US' ? 'Disponível apenas para faculdades brasileiras' : 'Abrir Questionário para as Faculdades'}
           >
             <FileCheck2 className="w-4 h-4" />
             <span className="hidden md:inline">Faculdades</span>
@@ -103,22 +105,26 @@ export default function Home({ onStart, onProfile, onAuth, country, onCountryCha
           Período de lançamento — gratuito
         </div>
 
-        <div role="tablist" aria-label="País das universidades" className="animate-fade-up mb-7 inline-flex rounded-2xl border border-ink-700 bg-ink-900/80 p-1.5">
+        <div role="tablist" aria-label="Escolha o país das universidades" className="animate-fade-up mb-7 inline-flex items-center gap-2 rounded-3xl border border-ink-700 bg-ink-900/80 p-2">
           <button
             role="tab"
             aria-selected={country === 'BR'}
+            aria-label="Universidades do Brasil"
+            title="Brasil"
             onClick={() => onCountryChange('BR')}
-            className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${country === 'BR' ? 'bg-brand-500 text-ink-950 shadow-lg shadow-brand-500/20' : 'text-ink-400 hover:text-ink-100'}`}
+            className={`flex h-16 w-20 items-center justify-center rounded-2xl text-4xl transition-all ${country === 'BR' ? 'scale-105 border-2 border-brand-400 bg-brand-500/20 shadow-lg shadow-brand-500/20' : 'border-2 border-transparent opacity-45 hover:opacity-80'}`}
           >
-            🇧🇷 Brasil · 9
+            <span aria-hidden="true">🇧🇷</span>
           </button>
           <button
             role="tab"
             aria-selected={country === 'US'}
+            aria-label="Universidades dos Estados Unidos"
+            title="Estados Unidos"
             onClick={() => onCountryChange('US')}
-            className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${country === 'US' ? 'bg-brand-500 text-ink-950 shadow-lg shadow-brand-500/20' : 'text-ink-400 hover:text-ink-100'}`}
+            className={`flex h-16 w-20 items-center justify-center rounded-2xl text-4xl transition-all ${country === 'US' ? 'scale-105 border-2 border-brand-400 bg-brand-500/20 shadow-lg shadow-brand-500/20' : 'border-2 border-transparent opacity-45 hover:opacity-80'}`}
           >
-            🇺🇸 Estados Unidos · 11
+            <span aria-hidden="true">🇺🇸</span>
           </button>
         </div>
 
@@ -128,8 +134,8 @@ export default function Home({ onStart, onProfile, onAuth, country, onCountryCha
 
         <p className="animate-fade-up text-lg md:text-xl text-ink-400 max-w-2xl mb-10 text-balance leading-relaxed" style={{ animationDelay: '0.1s' }}>
           {country === 'US'
-            ? 'Compare seu perfil com 11 das melhores graduações de Business dos Estados Unidos usando o Match Rápido ou o Perfil Verificado completo.'
-            : 'Compare seu perfil com 9 faculdades brasileiras usando o Match Rápido ou crie um Perfil Verificado completo para se conectar com instituições.'}
+            ? `Compare seu perfil com ${universityCount} das melhores graduações de Business dos Estados Unidos usando o Match Rápido ou o Perfil Verificado completo.`
+            : `Compare seu perfil com ${universityCount} faculdades brasileiras usando o Match Rápido ou crie um Perfil Verificado completo para se conectar com instituições.`}
         </p>
 
         {/* Two-track selection */}
@@ -191,7 +197,8 @@ export default function Home({ onStart, onProfile, onAuth, country, onCountryCha
 
         <button
           onClick={() => onNavigate('faculty-questionnaire')}
-          className="animate-fade-up mt-5 w-full max-w-3xl group relative overflow-hidden rounded-2xl border border-violet-500/35 bg-gradient-to-r from-violet-500/10 via-brand-500/5 to-accent-500/10 p-5 md:p-6 text-left hover:border-violet-400/60 transition-all"
+          disabled={country === 'US'}
+          className={`animate-fade-up mt-5 w-full max-w-3xl group relative overflow-hidden rounded-2xl border p-5 md:p-6 text-left transition-all ${country === 'US' ? 'cursor-not-allowed border-ink-800 bg-ink-900/40 opacity-55' : 'border-violet-500/35 bg-gradient-to-r from-violet-500/10 via-brand-500/5 to-accent-500/10 hover:border-violet-400/60'}`}
           style={{ animationDelay: '0.3s' }}
         >
           <div className="relative flex flex-col sm:flex-row sm:items-center gap-4">
@@ -201,11 +208,11 @@ export default function Home({ onStart, onProfile, onAuth, country, onCountryCha
             <div className="flex-1">
               <div className="flex flex-wrap items-center gap-2 mb-1">
                 <h3 className="text-lg font-bold text-ink-50">Questionário para as Faculdades</h3>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-ink-800 text-ink-400 text-[11px] font-medium"><LockKeyhole className="w-3 h-3" /> Requer conta</span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-ink-800 text-ink-400 text-[11px] font-medium"><LockKeyhole className="w-3 h-3" /> {country === 'US' ? 'Somente Brasil' : 'Requer conta'}</span>
               </div>
-              <p className="text-sm text-ink-400 leading-relaxed">Crie seu dossiê acadêmico com notas, extracurriculares, idiomas, conquistas e comprovantes.</p>
+              <p className="text-sm text-ink-400 leading-relaxed">{country === 'US' ? 'Este hub exclusivo para relacionamento com faculdades está disponível apenas na experiência brasileira.' : 'Crie seu dossiê acadêmico com notas, extracurriculares, idiomas, conquistas e comprovantes.'}</p>
             </div>
-            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-violet-300 group-hover:gap-2.5 transition-all">Abrir meu hub <ArrowRight className="w-4 h-4" /></span>
+            <span className={`inline-flex items-center gap-1.5 text-sm font-semibold transition-all ${country === 'US' ? 'text-ink-600' : 'text-violet-300 group-hover:gap-2.5'}`}>{country === 'US' ? 'Indisponível nos EUA' : 'Abrir meu hub'} {country === 'BR' ? <ArrowRight className="w-4 h-4" /> : null}</span>
           </div>
         </button>
 
@@ -303,4 +310,3 @@ function FeatureCard({
     </div>
   );
 }
-
