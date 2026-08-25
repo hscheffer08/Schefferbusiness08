@@ -16,7 +16,7 @@ import { AuthProvider, useAuth } from '@/lib/auth-context';
 import type { AnswerMap, Screen, MatchResult, QuizMode, CountryCode } from '@/types';
 import { saveSession, saveMatchHistory, clearProgress, getSharingConsent, validateReferralCode, createReferral, updateReferralStatus, findReferralByUser, type DatabaseData } from '@/lib/api';
 import { loadDatabaseDataSafe } from '@/lib/safe-database';
-import { calculateMatches } from '@/lib/matching-engine';
+import { calculateMatches, getQuizScoreBonus } from '@/lib/matching-engine';
 import { trackEvent } from '@/lib/analytics';
 
 const isFacultyQuestionnaireLink = () =>
@@ -132,7 +132,8 @@ function AppContent() {
           officialEvidence: marketData.officialEvidence,
           evidenceDimensions: marketData.evidenceDimensions,
         },
-        quizAnswers
+        quizAnswers,
+        getQuizScoreBonus(quizMode)
       );
       setMatchResults(results);
 
@@ -157,7 +158,7 @@ function AppContent() {
     }
 
     setLoading(false);
-  }, [marketData, user]);
+  }, [marketData, quizMode, user]);
 
   const handleRestart = () => {
     setAnswers({});
