@@ -12,6 +12,7 @@ import Admin from '@/components/Admin';
 import InfoPages from '@/components/InfoPages';
 import ConsentStep from '@/components/ConsentStep';
 import FacultyQuestionnaireHub from '@/components/FacultyQuestionnaireHub';
+import USAUniversities from '@/components/USAUniversities';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import type { AnswerMap, Screen, MatchResult, QuizMode } from '@/types';
 import { saveSession, saveMatchHistory, clearProgress, getSharingConsent, validateReferralCode, createReferral, updateReferralStatus, findReferralByUser, type DatabaseData } from '@/lib/api';
@@ -221,6 +222,9 @@ function AppContent() {
         onNavigate={(s) => s === 'faculty-questionnaire' ? handleFacultyQuestionnaireAccess() : setScreen(s)}
       />
     );
+
+  if (screen === 'usa-universities')
+    return <USAUniversities onBack={handleBackToHome} />;
 
   if (screen === 'auth')
     return <Auth onBack={() => { setAuthDestination(null); handleBackToHome(); }} onSuccess={handleAuthSuccess} onPrivacy={() => setScreen('privacy')} onTerms={() => setScreen('terms')} />;
