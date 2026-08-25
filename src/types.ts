@@ -13,6 +13,7 @@ export interface University {
   match_rationale: string | null;
   primary_source_url: string | null;
   image_url: string | null;
+  country_code: CountryCode;
 }
 
 export interface Dimension {
@@ -28,6 +29,8 @@ export interface CulturalAxis {
   name: string;
   scale_description: string | null;
 }
+
+export type CountryCode = 'BR' | 'US';
 
 export type QuizMode = 'quick' | 'full';
 
@@ -127,7 +130,6 @@ export type Screen =
   | 'privacy'
   | 'terms'
   | 'faculty-questionnaire'
-  | 'usa-universities'
   | 'admin';
 
 export type FacultyEvidenceCategory =
