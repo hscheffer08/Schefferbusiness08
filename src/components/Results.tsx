@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback, type CSSProperties } from 'react';
 import {
   Trophy,
   RotateCcw,
@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import type { AnswerMap, MatchResult, QuizMode } from '@/types';
 import type { DatabaseData } from '@/lib/api';
-import { calculateMatches, getSubScoreValue, getSubScoreLabel, getStudentProfileAttributes, getCompatibilityBand, COMPATIBILITY_SCALE, COMPATIBILITY_EXPLANATION } from '@/lib/matching-engine';
+import { calculateMatches, getQuizScoreBonus, getSubScoreValue, getSubScoreLabel, getStudentProfileAttributes, getCompatibilityBand, COMPATIBILITY_SCALE, COMPATIBILITY_EXPLANATION } from '@/lib/matching-engine';
 import { saveMatchHistory, saveFeedback, saveUniversity, unsaveUniversity, isUniversitySaved } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { trackEvent } from '@/lib/analytics';
@@ -75,9 +75,10 @@ export default function Results({ answers, dbData, quizMode, onRestart, onSelect
         officialEvidence: dbData.officialEvidence,
         evidenceDimensions: dbData.evidenceDimensions,
       },
-      answers
+      answers,
+      getQuizScoreBonus(quizMode)
     );
-  }, [answers, dbData]);
+  }, [answers, dbData, quizMode]);
 
   const studentProfile = useMemo(() => {
     return getStudentProfileAttributes(
@@ -214,7 +215,9 @@ export default function Results({ answers, dbData, quizMode, onRestart, onSelect
 
       {/* Top match hero with campus photo banner */}
       <section className="relative z-10 px-6 md:px-12 max-w-4xl mx-auto mb-8">
-        <div className="animate-fade-up rounded-3xl border border-brand-700/40 overflow-hidden relative">
+        <div className="relative">
+          <FirstPlaceFireworks />
+          <div className="animate-fade-up rounded-3xl border border-brand-700/40 overflow-hidden relative">
           {/* Photo banner — visible at top of card */}
           {heroImage ? (
             <div className="relative h-52 md:h-64 w-full overflow-hidden">
@@ -312,6 +315,7 @@ export default function Results({ answers, dbData, quizMode, onRestart, onSelect
                 {generatingPDF ? 'Gerando...' : 'Baixar PDF'}
               </button>
             </div>
+          </div>
           </div>
         </div>
       </section>
@@ -508,6 +512,55 @@ export default function Results({ answers, dbData, quizMode, onRestart, onSelect
           </button>
         </div>
       </section>
+    </div>
+  );
+}
+
+const FIREWORK_PARTICLES = [
+  { left: '18%', top: '26%', x: '-88px', y: '-62px', color: '#60a5fa', delay: '0s' },
+  { left: '18%', top: '26%', x: '-106px', y: '8px', color: '#22d3ee', delay: '0.02s' },
+  { left: '18%', top: '26%', x: '-62px', y: '72px', color: '#fbbf24', delay: '0.04s' },
+  { left: '18%', top: '26%', x: '4px', y: '92px', color: '#a78bfa', delay: '0.06s' },
+  { left: '18%', top: '26%', x: '68px', y: '58px', color: '#34d399', delay: '0.08s' },
+  { left: '18%', top: '26%', x: '86px', y: '-18px', color: '#fb7185', delay: '0.1s' },
+  { left: '18%', top: '26%', x: '42px', y: '-82px', color: '#fbbf24', delay: '0.12s' },
+  { left: '18%', top: '26%', x: '-28px', y: '-98px', color: '#22d3ee', delay: '0.14s' },
+  { left: '50%', top: '12%', x: '-96px', y: '-34px', color: '#fbbf24', delay: '0.18s' },
+  { left: '50%', top: '12%', x: '-78px', y: '48px', color: '#fb7185', delay: '0.2s' },
+  { left: '50%', top: '12%', x: '-12px', y: '88px', color: '#60a5fa', delay: '0.22s' },
+  { left: '50%', top: '12%', x: '62px', y: '64px', color: '#34d399', delay: '0.24s' },
+  { left: '50%', top: '12%', x: '102px', y: '-2px', color: '#a78bfa', delay: '0.26s' },
+  { left: '50%', top: '12%', x: '62px', y: '-72px', color: '#22d3ee', delay: '0.28s' },
+  { left: '50%', top: '12%', x: '-8px', y: '-98px', color: '#fb7185', delay: '0.3s' },
+  { left: '50%', top: '12%', x: '-74px', y: '-76px', color: '#60a5fa', delay: '0.32s' },
+  { left: '82%', top: '26%', x: '-82px', y: '-24px', color: '#34d399', delay: '0.36s' },
+  { left: '82%', top: '26%', x: '-58px', y: '64px', color: '#fbbf24', delay: '0.38s' },
+  { left: '82%', top: '26%', x: '8px', y: '94px', color: '#22d3ee', delay: '0.4s' },
+  { left: '82%', top: '26%', x: '72px', y: '56px', color: '#fb7185', delay: '0.42s' },
+  { left: '82%', top: '26%', x: '104px', y: '-10px', color: '#60a5fa', delay: '0.44s' },
+  { left: '82%', top: '26%', x: '66px', y: '-76px', color: '#a78bfa', delay: '0.46s' },
+  { left: '82%', top: '26%', x: '2px', y: '-100px', color: '#fbbf24', delay: '0.48s' },
+  { left: '82%', top: '26%', x: '-62px', y: '-78px', color: '#22d3ee', delay: '0.5s' },
+] as const;
+
+function FirstPlaceFireworks() {
+  return (
+    <div className="pointer-events-none absolute -inset-x-8 -top-16 bottom-0 z-20 overflow-visible" aria-hidden="true">
+      {FIREWORK_PARTICLES.map((particle, index) => (
+        <span
+          key={`${particle.left}-${particle.top}-${index}`}
+          className="firework-particle"
+          style={{
+            left: particle.left,
+            top: particle.top,
+            color: particle.color,
+            backgroundColor: particle.color,
+            animationDelay: particle.delay,
+            '--firework-x': particle.x,
+            '--firework-y': particle.y,
+          } as CSSProperties}
+        />
+      ))}
     </div>
   );
 }
