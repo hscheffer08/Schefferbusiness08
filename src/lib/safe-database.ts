@@ -34,6 +34,7 @@ const INTELI: University = {
   match_rationale: 'O Inteli apresenta aderência especialmente alta para perfis que combinam business, tecnologia, projetos, liderança, pensamento analítico, autonomia e colaboração. A metodologia PBL e o processo seletivo holístico tornam evidências de execução, comunicação, pensamento crítico e trabalho em equipe particularmente relevantes para o fit',
   primary_source_url: 'https://www.inteli.edu.br/',
   image_url: null,
+  country_code: 'BR',
 };
 
 const INTELI_DIMENSION_WEIGHTS: UniversityDimensionWeight[] = Object.entries({
