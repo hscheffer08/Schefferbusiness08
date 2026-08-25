@@ -73,27 +73,47 @@ export default function Quiz({ questions, mode, onComplete, onBack }: QuizProps)
     });
   }, [currentQuestion, currentStep, user]);
 
+  const completeQuiz = useCallback((finalAnswers: AnswerMap) => {
+    const referralSource = finalAnswers['Q41'];
+    const referrerName = finalAnswers['Q42']?.trim();
+
+    if (referrerName) {
+      trackEvent('referral_submitted', { referrer_name: referrerName, mode }, user?.id);
+    }
+
+    if (referralSource && referralSource !== 'nenhum') {
+      trackEvent('referral_source', { source: referralSource, referrer_name: referrerName || null }, user?.id);
+    }
+    onComplete(finalAnswers);
+  }, [mode, onComplete, user?.id]);
+
   const goNext = useCallback(() => {
     if (isLast) {
-      const referralSource = answers['Q41'];
-      const referrerName = answers['Q42']?.trim();
-
-      // Q42 is mandatory in both quiz modes. Record it directly so an indication
-      // counts even when the optional/source question Q41 is not part of Match Rápido
-      // and even when the visitor is anonymous.
-      if (referrerName) {
-        trackEvent('referral_submitted', { referrer_name: referrerName, mode }, user?.id);
-      }
-
-      if (referralSource && referralSource !== 'nenhum') {
-        trackEvent('referral_source', { source: referralSource, referrer_name: referrerName || null }, user?.id);
-      }
-      onComplete(answers);
+      completeQuiz(answers);
       return;
     }
     setDirection('forward');
     setCurrentStep((s) => s + 1);
-  }, [isLast, answers, onComplete, user, mode]);
+  }, [isLast, answers, completeQuiz]);
+
+  const skipCurrentQuestion = useCallback(() => {
+    const nextAnswers = { ...answers };
+    delete nextAnswers[currentQuestion.question_id];
+
+    setAnswers(nextAnswers);
+    if (user) {
+      saveProgress(nextAnswers, currentStep).catch(() => {});
+    }
+    trackEvent('question_skipped', { question_id: currentQuestion.question_id }, user?.id);
+
+    if (isLast) {
+      completeQuiz(nextAnswers);
+      return;
+    }
+
+    setDirection('forward');
+    setCurrentStep((step) => step + 1);
+  }, [answers, completeQuiz, currentQuestion.question_id, currentStep, isLast, user]);
 
 
   const skipSavedProgress = () => {
@@ -254,9 +274,9 @@ export default function Quiz({ questions, mode, onComplete, onBack }: QuizProps)
             </>
           )}
         </button>
-        {!isRequired && !isAnswered && (
+        {!isRequired && (
           <button
-            onClick={goNext}
+            onClick={skipCurrentQuestion}
             className="w-full mt-3 py-2.5 rounded-xl text-sm font-medium text-ink-500 hover:text-ink-300 hover:bg-ink-800/50 transition-all flex items-center justify-center gap-1.5"
           >
             Pular esta pergunta
