@@ -112,9 +112,9 @@ export default function Home({ onStart, onProfile, onAuth, country, universityCo
             aria-label="Universidades do Brasil"
             title="Brasil"
             onClick={() => onCountryChange('BR')}
-            className={`flex h-16 w-20 items-center justify-center rounded-2xl text-4xl transition-all ${country === 'BR' ? 'scale-105 border-2 border-brand-400 bg-brand-500/20 shadow-lg shadow-brand-500/20' : 'border-2 border-transparent opacity-45 hover:opacity-80'}`}
+            className={`flex h-16 w-20 items-center justify-center rounded-2xl transition-all ${country === 'BR' ? 'scale-105 border-2 border-brand-400 bg-brand-500/20 shadow-lg shadow-brand-500/20' : 'border-2 border-transparent opacity-45 hover:opacity-80'}`}
           >
-            <span aria-hidden="true">🇧🇷</span>
+            <BrazilFlag />
           </button>
           <button
             role="tab"
@@ -122,9 +122,9 @@ export default function Home({ onStart, onProfile, onAuth, country, universityCo
             aria-label="Universidades dos Estados Unidos"
             title="Estados Unidos"
             onClick={() => onCountryChange('US')}
-            className={`flex h-16 w-20 items-center justify-center rounded-2xl text-4xl transition-all ${country === 'US' ? 'scale-105 border-2 border-brand-400 bg-brand-500/20 shadow-lg shadow-brand-500/20' : 'border-2 border-transparent opacity-45 hover:opacity-80'}`}
+            className={`flex h-16 w-20 items-center justify-center rounded-2xl transition-all ${country === 'US' ? 'scale-105 border-2 border-brand-400 bg-brand-500/20 shadow-lg shadow-brand-500/20' : 'border-2 border-transparent opacity-45 hover:opacity-80'}`}
           >
-            <span aria-hidden="true">🇺🇸</span>
+            <UnitedStatesFlag />
           </button>
         </div>
 
@@ -283,6 +283,52 @@ export default function Home({ onStart, onProfile, onAuth, country, universityCo
         </div>
       </footer>
     </div>
+  );
+}
+
+function BrazilFlag() {
+  return (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      viewBox="0 0 28 20"
+      className="h-10 w-14 overflow-hidden rounded-md shadow-md ring-1 ring-white/20"
+    >
+      <rect width="28" height="20" fill="#009B3A" />
+      <path d="M14 2.2 25.2 10 14 17.8 2.8 10Z" fill="#FFDF00" />
+      <circle cx="14" cy="10" r="4.25" fill="#002776" />
+      <path d="M9.9 9.15c2.8-.7 5.8-.25 8.25 1.3" fill="none" stroke="#FFFFFF" strokeWidth=".65" />
+    </svg>
+  );
+}
+
+function UnitedStatesFlag() {
+  return (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      viewBox="0 0 39 26"
+      className="h-10 w-14 overflow-hidden rounded-md shadow-md ring-1 ring-white/20"
+    >
+      <rect width="39" height="26" fill="#FFFFFF" />
+      {[0, 4, 8, 12, 16, 20, 24].map((y) => (
+        <rect key={y} y={y} width="39" height="2" fill="#B22234" />
+      ))}
+      <rect width="15.6" height="14" fill="#3C3B6E" />
+      {Array.from({ length: 9 }, (_, row) => (
+        <g key={row}>
+          {Array.from({ length: row % 2 === 0 ? 6 : 5 }, (__, column) => (
+            <circle
+              key={column}
+              cx={(row % 2 === 0 ? 1.25 : 2.5) + column * 2.55}
+              cy={0.8 + row * 1.5}
+              r="0.34"
+              fill="#FFFFFF"
+            />
+          ))}
+        </g>
+      ))}
+    </svg>
   );
 }
 
