@@ -127,6 +127,7 @@ export type Screen =
   | 'privacy'
   | 'terms'
   | 'faculty-questionnaire'
+  | 'usa-universities'
   | 'admin';
 
 export type FacultyEvidenceCategory =
