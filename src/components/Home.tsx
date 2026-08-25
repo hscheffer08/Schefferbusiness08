@@ -2,16 +2,18 @@ import { ArrowRight, Sparkles, GraduationCap, Compass, Trophy, BookOpen, FlaskCo
 import { useAuth } from '@/lib/auth-context';
 import { trackEvent, initSessionId } from '@/lib/analytics';
 import { useEffect } from 'react';
-import type { QuizMode } from '@/types';
+import type { CountryCode, QuizMode } from '@/types';
 
 interface HomeProps {
   onStart: (mode: QuizMode) => void;
   onProfile: () => void;
   onAuth: () => void;
-  onNavigate: (screen: 'howitworks' | 'methodology' | 'faq' | 'privacy' | 'terms' | 'compare' | 'admin' | 'faculty-questionnaire' | 'usa-universities') => void;
+  country: CountryCode;
+  onCountryChange: (country: CountryCode) => void;
+  onNavigate: (screen: 'howitworks' | 'methodology' | 'faq' | 'privacy' | 'terms' | 'compare' | 'admin' | 'faculty-questionnaire') => void;
 }
 
-export default function Home({ onStart, onProfile, onAuth, onNavigate }: HomeProps) {
+export default function Home({ onStart, onProfile, onAuth, country, onCountryChange, onNavigate }: HomeProps) {
   const { user, profile } = useAuth();
   const isAdmin = user?.app_metadata?.role === 'admin';
 
@@ -45,15 +47,6 @@ export default function Home({ onStart, onProfile, onAuth, onNavigate }: HomePro
             <button onClick={() => onNavigate('compare')} className="hover:text-ink-200 transition-colors">Comparar</button>
             <button onClick={() => onNavigate('faq')} className="hover:text-ink-200 transition-colors">FAQ</button>
           </div>
-          <button
-            onClick={() => onNavigate('usa-universities')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-brand-500/40 bg-brand-500/10 hover:bg-brand-500/20 text-brand-200 text-sm font-semibold transition-colors"
-            title="Ver universidades de Business dos Estados Unidos"
-          >
-            <span aria-hidden="true">🇺🇸</span>
-            <span className="hidden md:inline">Estados Unidos</span>
-            <span className="md:hidden">EUA</span>
-          </button>
           <button
             onClick={() => onNavigate('faculty-questionnaire')}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-violet-500/40 bg-violet-500/10 hover:bg-violet-500/20 text-violet-200 text-sm font-semibold transition-colors"
@@ -110,12 +103,33 @@ export default function Home({ onStart, onProfile, onAuth, onNavigate }: HomePro
           Período de lançamento — gratuito
         </div>
 
+        <div role="tablist" aria-label="País das universidades" className="animate-fade-up mb-7 inline-flex rounded-2xl border border-ink-700 bg-ink-900/80 p-1.5">
+          <button
+            role="tab"
+            aria-selected={country === 'BR'}
+            onClick={() => onCountryChange('BR')}
+            className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${country === 'BR' ? 'bg-brand-500 text-ink-950 shadow-lg shadow-brand-500/20' : 'text-ink-400 hover:text-ink-100'}`}
+          >
+            🇧🇷 Brasil · 9
+          </button>
+          <button
+            role="tab"
+            aria-selected={country === 'US'}
+            onClick={() => onCountryChange('US')}
+            className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${country === 'US' ? 'bg-brand-500 text-ink-950 shadow-lg shadow-brand-500/20' : 'text-ink-400 hover:text-ink-100'}`}
+          >
+            🇺🇸 Estados Unidos · 11
+          </button>
+        </div>
+
         <h1 className="animate-fade-up font-bold text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight text-balance leading-[1.1] mb-6">
-          Descubra a faculdade de <span className="gradient-text font-serif italic">Business</span> que combina com seu perfil
+          Descubra a faculdade de <span className="gradient-text font-serif italic">Business</span> {country === 'US' ? 'nos EUA ' : ''}que combina com seu perfil
         </h1>
 
         <p className="animate-fade-up text-lg md:text-xl text-ink-400 max-w-2xl mb-10 text-balance leading-relaxed" style={{ animationDelay: '0.1s' }}>
-          Escolha sua experiência: faça um Match Rápido em poucos minutos ou crie um Perfil Verificado completo para se conectar com faculdades.
+          {country === 'US'
+            ? 'Compare seu perfil com 11 das melhores graduações de Business dos Estados Unidos usando o Match Rápido ou o Perfil Verificado completo.'
+            : 'Compare seu perfil com 9 faculdades brasileiras usando o Match Rápido ou crie um Perfil Verificado completo para se conectar com instituições.'}
         </p>
 
         {/* Two-track selection */}
