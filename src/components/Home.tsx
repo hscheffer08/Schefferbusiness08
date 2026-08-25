@@ -8,7 +8,7 @@ interface HomeProps {
   onStart: (mode: QuizMode) => void;
   onProfile: () => void;
   onAuth: () => void;
-  onNavigate: (screen: 'howitworks' | 'methodology' | 'faq' | 'privacy' | 'terms' | 'compare' | 'admin' | 'faculty-questionnaire') => void;
+  onNavigate: (screen: 'howitworks' | 'methodology' | 'faq' | 'privacy' | 'terms' | 'compare' | 'admin' | 'faculty-questionnaire' | 'usa-universities') => void;
 }
 
 export default function Home({ onStart, onProfile, onAuth, onNavigate }: HomeProps) {
@@ -45,6 +45,15 @@ export default function Home({ onStart, onProfile, onAuth, onNavigate }: HomePro
             <button onClick={() => onNavigate('compare')} className="hover:text-ink-200 transition-colors">Comparar</button>
             <button onClick={() => onNavigate('faq')} className="hover:text-ink-200 transition-colors">FAQ</button>
           </div>
+          <button
+            onClick={() => onNavigate('usa-universities')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-brand-500/40 bg-brand-500/10 hover:bg-brand-500/20 text-brand-200 text-sm font-semibold transition-colors"
+            title="Ver universidades de Business dos Estados Unidos"
+          >
+            <span aria-hidden="true">🇺🇸</span>
+            <span className="hidden md:inline">Estados Unidos</span>
+            <span className="md:hidden">EUA</span>
+          </button>
           <button
             onClick={() => onNavigate('faculty-questionnaire')}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-violet-500/40 bg-violet-500/10 hover:bg-violet-500/20 text-violet-200 text-sm font-semibold transition-colors"
