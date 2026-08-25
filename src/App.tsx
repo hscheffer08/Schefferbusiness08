@@ -204,6 +204,7 @@ function AppContent() {
   };
 
   const handleFacultyQuestionnaireAccess = () => {
+    if (countryCode === 'US') return;
     const url = new URL(window.location.href);
     url.searchParams.set('questionario', 'faculdades');
     window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
@@ -258,6 +259,7 @@ function AppContent() {
     return (
       <Home
         country={countryCode}
+        universityCount={marketData?.universities.length ?? 0}
         onCountryChange={handleCountryChange}
         onStart={handleStart}
         onProfile={() => setScreen(user ? 'profile' : 'auth')}
@@ -381,6 +383,7 @@ function AppContent() {
   return (
     <Home
       country={countryCode}
+      universityCount={marketData.universities.length}
       onCountryChange={handleCountryChange}
       onStart={handleStart}
       onProfile={() => setScreen(user ? 'profile' : 'auth')}
@@ -399,4 +402,3 @@ export default function App() {
     </AuthProvider>
   );
 }
-
