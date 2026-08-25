@@ -11,6 +11,7 @@ import type {
   EvidenceDimension,
   MatchResult,
   AnswerMap,
+  QuizMode,
 } from '@/types';
 import { normalizeAnswerToScore } from '@/lib/question-options';
 
@@ -59,7 +60,8 @@ const STUDENT_PROFILE_DIMENSIONS = [
 
 export function calculateMatches(
   data: MatchingData,
-  answers: AnswerMap
+  answers: AnswerMap,
+  scoreBonus = 0
 ): MatchResult[] {
   const dimensionScores = computeDimensionScores(data, answers);
   const culturalAxisScores = computeCulturalAxisScores(data, answers);
@@ -142,12 +144,16 @@ export function calculateMatches(
   const stretchFactor = 2.2;
   for (const r of results) {
     const stretched = meanScore + (r.overallScore - meanScore) * stretchFactor;
-    r.overallScore = Math.max(0, Math.min(99, Math.round(stretched)));
+    r.overallScore = Math.max(0, Math.min(99, Math.round(stretched) + scoreBonus));
   }
 
   results.sort((a, b) => b.overallScore - a.overallScore || b.rawScore - a.rawScore);
 
   return results;
+}
+
+export function getQuizScoreBonus(mode: QuizMode): number {
+  return mode === 'quick' ? 15 : 10;
 }
 
 interface DimensionScore {
