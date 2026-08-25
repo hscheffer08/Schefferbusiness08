@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import Home from '@/components/Home';
 import Quiz from '@/components/Quiz';
@@ -12,9 +12,8 @@ import Admin from '@/components/Admin';
 import InfoPages from '@/components/InfoPages';
 import ConsentStep from '@/components/ConsentStep';
 import FacultyQuestionnaireHub from '@/components/FacultyQuestionnaireHub';
-import USAUniversities from '@/components/USAUniversities';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
-import type { AnswerMap, Screen, MatchResult, QuizMode } from '@/types';
+import type { AnswerMap, Screen, MatchResult, QuizMode, CountryCode } from '@/types';
 import { saveSession, saveMatchHistory, clearProgress, getSharingConsent, validateReferralCode, createReferral, updateReferralStatus, findReferralByUser, type DatabaseData } from '@/lib/api';
 import { loadDatabaseDataSafe } from '@/lib/safe-database';
 import { calculateMatches } from '@/lib/matching-engine';
@@ -23,11 +22,41 @@ import { trackEvent } from '@/lib/analytics';
 const isFacultyQuestionnaireLink = () =>
   new URLSearchParams(window.location.search).get('questionario') === 'faculdades';
 
+function filterDatabaseByCountry(data: DatabaseData, country: CountryCode): DatabaseData {
+  const universities = data.universities.filter((university) => university.country_code === country);
+  const universityIds = new Set(universities.map((university) => university.university_id));
+  const officialEvidence = data.officialEvidence.filter((item) => universityIds.has(item.university_id));
+  const evidenceIds = new Set(officialEvidence.map((item) => item.evidence_id));
+  const questions = country === 'US'
+    ? data.questions.map((question) =>
+        question.question_id === 'Q28'
+          ? {
+              ...question,
+              question_text: 'Você toparia fazer toda a graduação nos Estados Unidos e morar fora do Brasil?',
+              helper_text: 'Considere distância da família, adaptação cultural, idioma e mudança por quatro anos.',
+            }
+          : question
+      )
+    : data.questions;
+
+  return {
+    ...data,
+    universities,
+    questions,
+    universityDimensionWeights: data.universityDimensionWeights.filter((item) => universityIds.has(item.university_id)),
+    universityAxisTargets: data.universityAxisTargets.filter((item) => universityIds.has(item.university_id)),
+    officialEvidence,
+    evidenceDimensions: data.evidenceDimensions.filter((item) => evidenceIds.has(item.evidence_id)),
+    sources: data.sources.filter((item) => universityIds.has(item.university_id)),
+  };
+}
+
 function AppContent() {
   const { user, profile } = useAuth();
   const [screen, setScreen] = useState<Screen>(() =>
     isFacultyQuestionnaireLink() ? 'faculty-questionnaire' : 'home'
   );
+  const [countryCode, setCountryCode] = useState<CountryCode>('BR');
   const [dbData, setDbData] = useState<DatabaseData | null>(null);
   const [answers, setAnswers] = useState<AnswerMap>({});
   const [matchResults, setMatchResults] = useState<MatchResult[]>([]);
@@ -40,6 +69,10 @@ function AppContent() {
   const [referrerId, setReferrerId] = useState<string | null>(null);
   const [authDestination, setAuthDestination] = useState<Screen | null>(() =>
     isFacultyQuestionnaireLink() ? 'faculty-questionnaire' : null
+  );
+  const marketData = useMemo(
+    () => (dbData ? filterDatabaseByCountry(dbData, countryCode) : null),
+    [dbData, countryCode]
   );
 
   useEffect(() => {
@@ -85,19 +118,19 @@ function AppContent() {
     setLoading(true);
     setScreen('results');
 
-    if (dbData) {
+    if (marketData) {
       const results = calculateMatches(
         {
-          universities: dbData.universities,
-          dimensions: dbData.dimensions,
-          culturalAxes: dbData.culturalAxes,
-          questions: dbData.questions,
-          pillarWeights: dbData.pillarWeights,
-          universityDimensionWeights: dbData.universityDimensionWeights,
-          universityAxisTargets: dbData.universityAxisTargets,
-          questionDimensions: dbData.questionDimensions,
-          officialEvidence: dbData.officialEvidence,
-          evidenceDimensions: dbData.evidenceDimensions,
+          universities: marketData.universities,
+          dimensions: marketData.dimensions,
+          culturalAxes: marketData.culturalAxes,
+          questions: marketData.questions,
+          pillarWeights: marketData.pillarWeights,
+          universityDimensionWeights: marketData.universityDimensionWeights,
+          universityAxisTargets: marketData.universityAxisTargets,
+          questionDimensions: marketData.questionDimensions,
+          officialEvidence: marketData.officialEvidence,
+          evidenceDimensions: marketData.evidenceDimensions,
         },
         quizAnswers
       );
@@ -124,7 +157,7 @@ function AppContent() {
     }
 
     setLoading(false);
-  }, [dbData, user]);
+  }, [marketData, user]);
 
   const handleRestart = () => {
     setAnswers({});
@@ -132,6 +165,14 @@ function AppContent() {
     setSelectedUniversityId(null);
     setShowConsent(false);
     setScreen('home');
+  };
+
+  const handleCountryChange = (country: CountryCode) => {
+    setCountryCode(country);
+    setAnswers({});
+    setMatchResults([]);
+    setSelectedUniversityId(null);
+    setShowConsent(false);
   };
 
   const handleSelectUniversity = (universityId: string) => {
@@ -216,15 +257,14 @@ function AppContent() {
   if (screen === 'home')
     return (
       <Home
+        country={countryCode}
+        onCountryChange={handleCountryChange}
         onStart={handleStart}
         onProfile={() => setScreen(user ? 'profile' : 'auth')}
         onAuth={() => setScreen('auth')}
         onNavigate={(s) => s === 'faculty-questionnaire' ? handleFacultyQuestionnaireAccess() : setScreen(s)}
       />
     );
-
-  if (screen === 'usa-universities')
-    return <USAUniversities onBack={handleBackToHome} />;
 
   if (screen === 'auth')
     return <Auth onBack={() => { setAuthDestination(null); handleBackToHome(); }} onSuccess={handleAuthSuccess} onPrivacy={() => setScreen('privacy')} onTerms={() => setScreen('terms')} />;
@@ -249,7 +289,7 @@ function AppContent() {
     return <FacultyQuestionnaireHub onBack={handleBackToHome} />;
   }
 
-  if (error || !dbData) {
+  if (error || !dbData || !marketData) {
     return (
       <div className="min-h-screen flex items-center justify-center px-6 text-center">
         <div>
@@ -275,7 +315,7 @@ function AppContent() {
     return <Profile onBack={() => setScreen('home')} onSelectUniversity={handleSelectUniversity} universities={dbData.universities} />;
 
   if (screen === 'quiz')
-    return <Quiz questions={dbData.questions} mode={quizMode} onComplete={handleQuizComplete} onBack={() => setScreen('home')} />;
+    return <Quiz questions={marketData.questions} mode={quizMode} onComplete={handleQuizComplete} onBack={() => setScreen('home')} />;
 
   if (screen === 'consent')
     return (
@@ -303,7 +343,7 @@ function AppContent() {
         )}
         <Results
           answers={answers}
-          dbData={dbData}
+          dbData={marketData}
           quizMode={quizMode}
           onRestart={handleRestart}
           onSelectUniversity={handleSelectUniversity}
@@ -315,7 +355,7 @@ function AppContent() {
   }
 
   if (screen === 'compare')
-    return <Comparator dbData={dbData} matchResults={matchResults} onBack={() => setScreen('results')} />;
+    return <Comparator dbData={marketData} matchResults={matchResults} onBack={() => setScreen('results')} />;
 
   if (screen === 'detail' && selectedUniversityId) {
     const university = dbData.universities.find((u) => u.university_id === selectedUniversityId);
@@ -340,6 +380,8 @@ function AppContent() {
 
   return (
     <Home
+      country={countryCode}
+      onCountryChange={handleCountryChange}
       onStart={handleStart}
       onProfile={() => setScreen(user ? 'profile' : 'auth')}
       onAuth={() => setScreen('auth')}
