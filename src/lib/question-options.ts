@@ -119,8 +119,7 @@ export function isSliderQuestion(question: Question): boolean {
 }
 
 export function isChoiceQuestion(question: Question): boolean {
-  const options = getQuestionOptions(question);
-  return options !== null;
+  return getQuestionOptions(question) !== null;
 }
 
 export function isMultiChoiceQuestion(question: Question): boolean {
@@ -130,27 +129,22 @@ export function isMultiChoiceQuestion(question: Question): boolean {
 export const MULTI_CHOICE_MAX = 3;
 
 export function isTextQuestion(question: Question): boolean {
-  const options = getQuestionOptions(question);
-  if (options !== null) return false;
+  if (getQuestionOptions(question) !== null) return false;
   if (isSliderQuestion(question)) return false;
-  return [
-    'Texto',
-    'Texto estruturado',
-    'Links/números/anexos',
-  ].includes(question.response_type);
+  return ['Texto', 'Texto estruturado', 'Links/números/anexos'].includes(question.response_type);
 }
 
-export function normalizeAnswerToScore(
-  question: Question,
-  answer: string
-): number {
+export function normalizeAnswerToScore(question: Question, answer: string): number {
   if (isSliderQuestion(question)) {
-    const val = parseInt(answer, 10);
-    if (isNaN(val)) return 50;
+    const val = Number(answer);
+    if (!Number.isFinite(val)) return 50;
+
+    // The current UI uses a 0–100 slider for attitudinal questions, while
+    // academic grade questions may arrive either as 0–10 or already normalized.
     if (question.response_type === '0–10') {
-      return Math.max(0, Math.min(100, val * 10));
+      return clamp(val <= 10 ? val * 10 : val);
     }
-    return Math.max(0, Math.min(100, val * 20));
+    return clamp(val <= 5 ? val * 20 : val);
   }
 
   const options = getQuestionOptions(question);
@@ -159,28 +153,200 @@ export function normalizeAnswerToScore(
       const selected = answer.split(',').map((s) => s.trim()).filter(Boolean);
       if (selected.length === 0) return 50;
       const scores = selected
-        .map((v) => options.find((o) => o.value === v)?.score)
-        .filter((s): s is number => s !== undefined);
+        .map((value) => options.find((option) => option.value === value)?.score)
+        .filter((score): score is number => score !== undefined);
       if (scores.length === 0) return 50;
-      return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+      return Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
     }
-    const option = options.find((o) => o.value === answer);
+    const option = options.find((item) => item.value === answer);
     if (option) return option.score;
   }
 
-  if (isTextQuestion(question)) {
-    return scoreTextAnswer(question, answer);
-  }
-
+  if (isTextQuestion(question)) return scoreTextAnswer(question, answer);
   return 50;
 }
 
-function scoreTextAnswer(question: Question, answer: string): number {
-  const text = answer.trim();
-  if (text.length < 10) return 20;
-  if (text.length < 30) return 35;
-  if (text.length < 80) return 55;
-  if (text.length < 150) return 70;
-  if (text.length < 300) return 85;
-  return 95;
+function clamp(value: number): number {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function normalizeText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function hasAny(text: string, terms: string[]): boolean {
+  return terms.some((term) => text.includes(term));
+}
+
+function signalCount(text: string, groups: string[][]): number {
+  return groups.reduce((count, group) => count + (hasAny(text, group) ? 1 : 0), 0);
+}
+
+function hasMetric(text: string): boolean {
+  return /\b\d+(?:[.,]\d+)?\s*(?:%|pessoas?|usuarios?|clientes?|reais?|r\$|horas?|meses?|anos?|seguidores?|vendas?|inscritos?|participantes?)?\b/i.test(text);
+}
+
+function genericTextScore(text: string): number {
+  if (text.length < 5) return 15;
+  if (text.length < 20) return 28;
+  let score = 40;
+  if (text.length >= 50) score += 10;
+  if (text.length >= 100) score += 10;
+  if (text.length >= 180) score += 8;
+  if (hasMetric(text)) score += 8;
+  if (hasAny(text, ['porque', 'por isso', 'entao', 'resultado', 'aprendi', 'decidi', 'percebi'])) score += 6;
+  return clamp(Math.min(score, 88));
+}
+
+function scoreTextAnswer(question: Question, rawAnswer: string): number {
+  const raw = rawAnswer.trim();
+  const text = normalizeText(raw);
+  if (!text) return 20;
+  if (/^(nao|nenhum|nenhuma|nunca|nao participei|nao tenho)$/.test(text)) return 15;
+
+  switch (question.question_id) {
+    case 'Q08': {
+      const numbers = [...raw.matchAll(/\d+(?:[.,]\d+)?/g)].map((m) => Number(m[0].replace(',', '.')));
+      const max = numbers.length ? Math.max(...numbers) : 0;
+      if (text.includes('sat')) {
+        if (max >= 1500) return 98;
+        if (max >= 1450) return 94;
+        if (max >= 1350) return 86;
+        if (max >= 1250) return 76;
+        if (max > 0) return 62;
+      }
+      if (text.includes('enem')) {
+        if (max >= 800) return 96;
+        if (max >= 750) return 88;
+        if (max >= 700) return 80;
+        if (max >= 650) return 70;
+        if (max > 0) return 58;
+      }
+      if (text.includes('act')) {
+        if (max >= 33) return 96;
+        if (max >= 30) return 86;
+        if (max >= 27) return 76;
+        if (max > 0) return 62;
+      }
+      if (text.includes('ib')) {
+        if (max >= 38) return 96;
+        if (max >= 34) return 86;
+        if (max >= 30) return 76;
+        if (max > 0) return 62;
+      }
+      return genericTextScore(text);
+    }
+
+    case 'Q09': {
+      if (hasAny(text, ['internacional', 'mundial'])) return 100;
+      if (hasAny(text, ['ouro', 'gold'])) return 97;
+      if (hasAny(text, ['prata', 'silver'])) return 91;
+      if (hasAny(text, ['bronze'])) return 86;
+      if (hasAny(text, ['final', 'finalista', 'semifinal', 'segunda fase', '2a fase', '3a fase'])) return 74;
+      if (hasAny(text, ['participei', 'olimpiada', 'obm', 'oba', 'obq', 'obf', 'canguru'])) return 50;
+      return genericTextScore(text);
+    }
+
+    case 'Q11': {
+      let score = 28;
+      score += signalCount(text, [
+        ['mes', 'ano', 'semestre', 'desde'],
+        ['hora por semana', 'horas por semana', 'h/semana', 'semanal'],
+        ['liderei', 'lider', 'presidente', 'capitao', 'coordenei', 'organizei'],
+        ['criei', 'desenvolvi', 'produzi', 'implementei', 'fundei'],
+        ['resultado', 'impacto', 'alcanc', 'melhor', 'aument', 'reduz', 'ganhei', 'premio'],
+      ]) * 10;
+      if (hasMetric(raw)) score += 12;
+      if (raw.length > 180) score += 8;
+      return clamp(score);
+    }
+
+    case 'Q13': {
+      let score = 24;
+      score += signalCount(text, [
+        ['criei', 'fundei', 'idealizei', 'iniciei', 'desenvolvi'],
+        ['liderei', 'coordenei', 'organizei', 'gerenciei'],
+        ['testei', 'lancei', 'implementei', 'construi', 'produzi', 'executei'],
+        ['usuarios', 'clientes', 'participantes', 'vendas', 'receita', 'seguidores', 'impacto', 'resultado'],
+        ['aprendi', 'melhorei', 'cresceu', 'evoluiu', 'consegui'],
+      ]) * 11;
+      if (hasMetric(raw)) score += 12;
+      if (raw.length > 180) score += 6;
+      return clamp(score);
+    }
+
+    case 'Q14': {
+      let score = 24;
+      score += signalCount(text, [
+        ['problema', 'dificuldade', 'desafio', 'erro', 'falha'],
+        ['analisei', 'entendi', 'investiguei', 'pesquisei', 'identifiquei'],
+        ['mudei', 'ajustei', 'testei', 'tentei', 'implementei', 'resolvi'],
+        ['resultado', 'funcionou', 'melhorou', 'conseguimos', 'consegui'],
+        ['aprendi', 'percebi', 'feedback', 'depois'],
+      ]) * 12;
+      if (hasMetric(raw)) score += 8;
+      return clamp(score);
+    }
+
+    case 'Q15': {
+      let score = 35;
+      score += signalCount(text, [
+        ['link', 'site', 'github', 'portfolio', 'instagram', 'youtube'],
+        ['foto', 'video', 'documento', 'certificado', 'arquivo'],
+        ['numero', 'metrica', 'usuarios', 'clientes', 'receita', 'vendas', 'resultado'],
+      ]) * 18;
+      if (hasMetric(raw)) score += 10;
+      return clamp(score);
+    }
+
+    case 'Q16': {
+      let score = 24;
+      score += signalCount(text, [
+        ['lider', 'liderei', 'coordenei', 'organizei', 'capitao', 'presidente'],
+        ['iniciativa', 'propus', 'comecei', 'criei', 'decidi'],
+        ['equipe', 'grupo', 'pessoas', 'time'],
+        ['deleguei', 'dividi', 'comuniquei', 'combinei', 'mobilizei'],
+        ['resultado', 'entregamos', 'conseguimos', 'melhorou', 'alcancamos'],
+      ]) * 12;
+      if (hasMetric(raw)) score += 9;
+      return clamp(score);
+    }
+
+    case 'Q17': {
+      let score = 24;
+      score += signalCount(text, [
+        ['discord', 'conflito', 'opiniao diferente'],
+        ['ouvi', 'escutei', 'entendi', 'perguntei'],
+        ['argument', 'dados', 'evidencia', 'expliquei'],
+        ['acordo', 'consenso', 'negoci', 'cedi', 'meio termo'],
+        ['resultado', 'decidimos', 'resolvemos', 'funcionou'],
+      ]) * 12;
+      return clamp(score);
+    }
+
+    case 'Q18': {
+      let score = 24;
+      score += signalCount(text, [
+        ['errei', 'fracassei', 'falhei', 'perdi', 'nao consegui'],
+        ['entendi', 'refleti', 'percebi', 'feedback'],
+        ['mudei', 'corrigi', 'ajustei', 'tentei novamente', 'recomecei'],
+        ['aprendi', 'melhorei', 'evolui'],
+        ['resultado', 'depois consegui', 'funcionou', 'superei'],
+      ]) * 12;
+      return clamp(score);
+    }
+
+    case 'Q36':
+    case 'Q37':
+    case 'Q38':
+      return genericTextScore(text);
+
+    default:
+      return genericTextScore(text);
+  }
 }
