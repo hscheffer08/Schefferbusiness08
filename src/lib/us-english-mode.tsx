@@ -35,7 +35,6 @@ const exactTranslations: Record<string, string> = {
   'Você tem um questionário em andamento': 'You have a questionnaire in progress',
   'Seu ranking': 'Your ranking',
   'Seu Ranking': 'Your Ranking',
-  'Ranking personalizado': 'Personalized ranking',
   'Ver detalhes': 'View details',
   'Detalhes': 'Details',
   'Refazer questionário': 'Retake questionnaire',
@@ -149,6 +148,7 @@ const sentenceTranslations: Record<string, string> = {
   'Você já fez ENEM, SAT, ACT, IB ou outro exame? Quais foram suas notas?': 'Have you taken the SAT, ACT, IB, ENEM, or another standardized exam? What were your scores?',
   'Você já participou de olimpíadas acadêmicas? Até qual fase chegou?': 'Have you participated in academic competitions or olympiads? How far did you advance?',
   'Quantas atividades fora da sala de aula você teve nos últimos anos?': 'How many extracurricular activities have you pursued in recent years?',
+  'Qual destas opções melhor descreve sua participação em atividades fora da sala de aula?': 'Which option best describes your extracurricular involvement?',
   'Para cada atividade, descreva: quanto tempo durou, quantas horas por semana, qual era seu papel e o que você alcançou.': 'For each activity, describe how long you did it, hours per week, your role, and what you achieved.',
   'Você já criou ou tentou criar algo próprio? (projeto, negócio, clube, evento, produto, pesquisa ou conteúdo)': 'Have you ever created or tried to create something of your own? (project, business, club, event, product, research, or content)',
   'Conte sobre um projeto seu que te deixe orgulhoso. O que você fez de verdade?': 'Tell us about a project you are proud of. What did you personally do?',
@@ -194,6 +194,7 @@ const helperTranslations: Record<string, string> = {
   'Algumas faculdades oferecem aulas e materiais em inglês.': 'Some colleges offer classes and course materials in English.',
   'Se ainda não fez nenhum, pode pular essa pergunta.': 'If you have not taken any yet, you can skip this question.',
   'Inclua esportes, voluntariado, grêmio, cursinho, projetos, música, etc.': 'Include sports, volunteering, student organizations, projects, music, work, and similar activities.',
+  'Depois você poderá detalhar quais atividades fez, por quanto tempo e qual foi seu papel.': 'You can describe the activities, duration, and your role in the next step.',
   'Não existe resposta certa ou errada. Escolha o que mais se parece com você.': 'There is no right or wrong answer. Choose what best describes you.',
   'Pense em como você gosta de estudar e absorver conteúdo.': 'Think about how you like to study and absorb new material.',
   'Pense em debates, cases, dilemas e situações onde há mais de um caminho possível.': 'Think about debates, cases, dilemmas, and situations with more than one reasonable path.',
@@ -266,6 +267,7 @@ function translateDocument(toEnglish: boolean) {
     }
     current = walker.nextNode();
   }
+
   nodes.forEach((node) => {
     const next = translateText(node.nodeValue ?? '', toEnglish);
     if (next !== node.nodeValue) node.nodeValue = next;
@@ -301,7 +303,13 @@ export default function UsEnglishMode() {
 
     schedule();
     const observer = new MutationObserver(schedule);
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['aria-selected'] });
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ['aria-selected'],
+    });
     return () => observer.disconnect();
   }, []);
 
