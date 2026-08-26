@@ -155,17 +155,17 @@ function addInteliFallback(data: DatabaseData): DatabaseData {
   };
 }
 
-function requireReferralQuestion(data: DatabaseData): DatabaseData {
+function normalizeReferralQuestion(data: DatabaseData): DatabaseData {
   return {
     ...data,
     questions: data.questions.map((question) =>
       question.question_id === 'Q42'
         ? {
             ...question,
-            is_required: true,
+            is_required: false,
             is_quick_match: true,
-            question_text: 'Quem te indicou o B-School Fit? Digite o nome e sobrenome.',
-            helper_text: 'Obrigatório: informe o nome e sobrenome de quem te enviou ou indicou o B-School Fit.',
+            question_text: 'Qual o nome de quem te indicou?',
+            helper_text: 'Se ninguém te indicou, pode pular esta pergunta.',
           }
         : question
     ),
@@ -201,7 +201,7 @@ async function requiredQuery<T>(name: string, query: PromiseLike<QueryResult<T>>
 export async function loadDatabaseDataSafe(): Promise<DatabaseData> {
   if (!supabase) {
     console.error('Supabase client is not configured.');
-    return requireReferralQuestion(addInteliFallback({
+    return normalizeReferralQuestion(addInteliFallback({
       universities: [], dimensions: [], culturalAxes: [], questions: [], textRubrics: [], pillarWeights: [],
       universityDimensionWeights: [], universityAxisTargets: [], questionDimensions: [], officialEvidence: [], evidenceDimensions: [], sources: [],
     }));
@@ -222,7 +222,7 @@ export async function loadDatabaseDataSafe(): Promise<DatabaseData> {
     safeQuery<Source>('sources', supabase.from('sources').select('*')),
   ]);
 
-  return requireReferralQuestion(addInteliFallback({
+  return normalizeReferralQuestion(addInteliFallback({
     universities, dimensions, culturalAxes, questions, textRubrics, pillarWeights,
     universityDimensionWeights, universityAxisTargets, questionDimensions, officialEvidence, evidenceDimensions, sources,
   }));
