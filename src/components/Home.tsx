@@ -185,7 +185,9 @@ export default function Home({ onStart, onProfile, onAuth, country, universityCo
               </div>
               <h3 className="text-xl font-bold text-ink-50 mb-1.5">Questionário Completo</h3>
               <p className="text-sm text-ink-400 leading-relaxed mb-4">
-                Responda todas as perguntas e, se quiser, leve suas informações para a área das faculdades.
+                {country === 'BR'
+                  ? 'Responda todas as perguntas e, se quiser, leve suas informações para a área das faculdades.'
+                  : 'Responda todas as perguntas para receber uma análise mais detalhada do seu perfil.'}
               </p>
               <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent-400 group-hover:gap-2.5 transition-all">
                 Fazer Questionário Completo
@@ -216,7 +218,7 @@ export default function Home({ onStart, onProfile, onAuth, country, universityCo
           </div>
         </button>
 
-        <p className="mt-6 text-sm text-ink-500">Gratuito por tempo limitado · Sem documentos para o Match Rápido</p>
+        <p className="mt-6 text-sm text-ink-500">Gratuito por tempo limitado · Sem documentos obrigatórios</p>
 
         {/* Feature cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-20 w-full max-w-3xl">
