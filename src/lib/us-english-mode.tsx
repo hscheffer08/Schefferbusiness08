@@ -180,7 +180,7 @@ const sentenceTranslations: Record<string, string> = {
   'O que você NÃO gostaria de encontrar em uma faculdade?': 'What would you NOT want to find in a college?',
   'Quais cursos ou faculdades você já conhece ou tem curiosidade?': 'Which programs or colleges do you already know or want to learn more about?',
   'Você autoriza o uso anônimo das suas respostas para melhorar o algoritmo?': 'Do you authorize anonymous use of your responses to improve the algorithm?',
-  'Quem indicou o B-School Fit para você?': 'How did you hear about B-School Fit?',
+  'Quem indicou o Conectaê para você?': 'How did you hear about Conectaê?',
   'Qual o nome de quem te indicou?': 'What is the name of the person who referred you?',
 };
 

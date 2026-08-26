@@ -106,7 +106,7 @@ export default function AdmissionsSection({ university, evidence, sources }: Adm
         Como entrar
       </h2>
       <p className="text-xs text-ink-500 mb-5">
-        Informações do processo seletivo de {university.name}. O B-School Fit mede compatibilidade de perfil, não garante aprovação.
+        Informações do processo seletivo de {university.name}. O Conectaê mede compatibilidade de perfil, não garante aprovação.
       </p>
 
       {/* Detected admission steps */}

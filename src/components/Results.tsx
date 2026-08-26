@@ -152,10 +152,10 @@ export default function Results({
   };
 
   const handleShare = async () => {
-    const text = `Meu match perfeito em Business é ${ranked[0].university.name} com ${ranked[0].overallScore}% de compatibilidade! Descubra o seu no B-School Fit.`;
+    const text = `Meu match perfeito em Business é ${ranked[0].university.name} com ${ranked[0].overallScore}% de compatibilidade! Descubra o seu no Conectaê.`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'B-School Fit', text });
+        await navigator.share({ title: 'Conectaê', text });
       } else {
         await navigator.clipboard.writeText(text);
         setCopied(true);
@@ -226,7 +226,7 @@ export default function Results({
       {/* Result announcement */}
       <section className="relative z-10 px-6 md:px-12 max-w-4xl mx-auto mb-6 text-center">
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-1">
-          Seu B-School Fit está pronto.
+          Seu match no Conectaê está pronto.
         </h1>
         <p className="text-ink-400 text-sm">Aqui está o ranking das {ranked.length} faculdades que mais combinam com você.</p>
       </section>
@@ -430,7 +430,7 @@ export default function Results({
         <div className="flex items-start gap-2.5 p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
           <Info className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
           <p className="text-xs text-ink-400 leading-relaxed">
-            B-School Fit mede compatibilidade, não probabilidade de aprovação. Um match alto não garante admissão, e um match menor não significa que você não possa ser aprovado ou se desenvolver bem naquela instituição.
+            O Conectaê mede compatibilidade, não probabilidade de aprovação. Um match alto não garante admissão, e um match menor não significa que você não possa ser aprovado ou se desenvolver bem naquela instituição.
           </p>
         </div>
       </section>

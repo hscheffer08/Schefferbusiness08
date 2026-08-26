@@ -2,7 +2,7 @@
 # Referral System — referrers and referrals tables
 
 ## Purpose
-Adds a referral/indication system so the admin can track who referred new users to B-School Fit,
+Adds a referral/indication system so the admin can track who referred new users to Conectaê,
 generate unique referral codes/links, and view a ranking of referrers by valid completed-test referrals.
 
 ## New Tables

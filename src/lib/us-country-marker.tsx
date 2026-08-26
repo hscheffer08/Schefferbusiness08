@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-const STORAGE_KEY = 'bschoolfit-country';
+const STORAGE_KEY = 'conectae-country';
 
 export default function UsCountryMarker() {
   const [isUs, setIsUs] = useState(() => sessionStorage.getItem(STORAGE_KEY) === 'US');

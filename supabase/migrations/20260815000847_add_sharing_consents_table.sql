@@ -2,7 +2,7 @@
 # Create sharing_consents table for university profile sharing consent
 
 ## Purpose
-Stores the student's consent (or refusal) to share their B-School Fit profile
+Stores the student's consent (or refusal) to share their Conectaê profile
 and match results with participating universities. This is an OPTIONAL feature —
 the student can always see their results regardless of their choice here.
 

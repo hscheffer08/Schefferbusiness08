@@ -1,4 +1,4 @@
-# B-School Fit
+# Conectaê
 
 Aplicação web independente construída com React, TypeScript, Vite e Supabase.
 

@@ -18,7 +18,7 @@ const SHARED_DATA_ITEMS = [
   'E-mail',
   'Características acadêmicas e extracurriculares do teste',
   'Interesses profissionais',
-  'Resultados e dimensões do B-School Fit',
+  'Resultados e dimensões do Conectaê',
   'Universidades com maior compatibilidade',
 ];
 
@@ -137,7 +137,7 @@ export default function ConsentStep({ onComplete, onSkip }: ConsentStepProps) {
             Quer ser encontrado pelas faculdades?
           </h1>
           <p className="text-ink-400 text-sm leading-relaxed text-center mb-8 max-w-lg mx-auto">
-            Se você autorizar, poderemos compartilhar seu perfil e os resultados do seu B-School Fit
+            Se você autorizar, poderemos compartilhar seu perfil e os resultados do Conectaê
             com faculdades participantes que possam ter interesse no seu perfil.
           </p>
 

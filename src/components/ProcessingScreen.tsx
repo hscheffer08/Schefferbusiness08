@@ -7,7 +7,7 @@ interface ProcessingScreenProps {
 
 const MESSAGES = [
   'Analisando seu perfil...',
-  'Comparando suas respostas com 7 B-Schools...',
+  'Comparando suas respostas com as faculdades...',
   'Calculando compatibilidade...',
   'Seu resultado está pronto.',
 ];

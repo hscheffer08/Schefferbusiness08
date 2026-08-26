@@ -2,7 +2,7 @@
 INSERT INTO public.questions (question_id, question_text, block, response_type, is_required, mvp_status, score_usage, helper_text, is_quick_match)
 VALUES (
   'Q41',
-  'Quem indicou o B-School Fit para você?',
+  'Quem indicou o Conectaê para você?',
   'Contexto',
   'Lista',
   false,

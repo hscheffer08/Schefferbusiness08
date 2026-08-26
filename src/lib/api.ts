@@ -548,7 +548,7 @@ export async function getReferralRanking(): Promise<ReferralRankingEntry[]> {
 }
 
 export function buildReferralLink(code: string): string {
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://bschool-fit-web-app-9lzg.bolt.host';
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
   return `${origin}/?ref=${code}`;
 }
 

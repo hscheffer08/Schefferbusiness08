@@ -47,7 +47,7 @@ export default function Onboarding({ onComplete, preselectedReferralCode }: Onbo
     { label: 'Qual sua cidade?', value: city, set: setCity, type: 'text' as const, placeholder: 'São Paulo' },
     { label: 'Qual seu estado?', value: state, set: setState, type: 'text' as const, placeholder: 'SP' },
     { label: 'Qual sua faixa etária?', value: ageRange, set: setAgeRange, type: 'select' as const, options: AGE_RANGES },
-    { label: 'Quem te indicou o B-School Fit?', value: referralInput, set: setReferralInput, type: 'referral' as const },
+    { label: 'Quem te indicou o Conectaê?', value: referralInput, set: setReferralInput, type: 'referral' as const },
   ];
 
   const handleNext = async () => {
@@ -108,7 +108,7 @@ export default function Onboarding({ onComplete, preselectedReferralCode }: Onbo
           <GraduationCap className="w-5 h-5 text-ink-950" strokeWidth={2.5} />
         </div>
         <span className="font-bold text-lg tracking-tight">
-          B-School<span className="text-brand-400"> Fit</span>
+          Conecta<span className="text-brand-400">ê</span>
         </span>
       </header>
 
@@ -219,7 +219,7 @@ export default function Onboarding({ onComplete, preselectedReferralCode }: Onbo
 
         {isLast && (
           <p className="text-ink-500 text-sm mt-4 text-center">
-            Tudo pronto. Vamos descobrir qual B-School mais combina com você.
+            Tudo pronto. Vamos descobrir qual faculdade mais combina com você.
           </p>
         )}
       </main>
