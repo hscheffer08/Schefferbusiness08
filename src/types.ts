@@ -130,6 +130,7 @@ export type Screen =
   | 'privacy'
   | 'terms'
   | 'faculty-questionnaire'
+  | 'vocational-demo'
   | 'admin';
 
 export type FacultyEvidenceCategory =
