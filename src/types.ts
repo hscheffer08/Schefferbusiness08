@@ -148,11 +148,13 @@ export interface FacultyEvidence {
   institution: string | null;
   details: string | null;
   occurred_on: string | null;
-  file_path: string;
-  file_name: string;
-  mime_type: string;
-  file_size: number;
-  verification_status: 'pending' | 'verified' | 'rejected';
+  file_path: string | null;
+  file_name: string | null;
+  mime_type: string | null;
+  file_size: number | null;
+  source: 'manual' | 'full_quiz';
+  source_reference: string;
+  imported_at: string | null;
   created_at: string;
   updated_at: string;
 }

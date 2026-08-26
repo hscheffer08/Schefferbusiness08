@@ -16,8 +16,10 @@ import {
   ThumbsDown,
   Loader2,
   Info,
-  BadgeCheck,
+  BookOpen,
   Download,
+  FolderSync,
+  LogIn,
 } from 'lucide-react';
 import type { AnswerMap, MatchResult, QuizMode } from '@/types';
 import type { DatabaseData } from '@/lib/api';
@@ -37,6 +39,10 @@ interface ResultsProps {
   onSelectUniversity: (universityId: string) => void;
   onCompare: () => void;
   onCreateProfile: () => void;
+  facultyExportAvailable: boolean;
+  facultyExportStatus: 'idle' | 'exporting' | 'success' | 'error';
+  onExportToFaculty: () => void;
+  onOpenFacultyProfile: () => void;
 }
 
 const ALL_SUBSCORES = [
@@ -48,7 +54,19 @@ const ALL_SUBSCORES = [
   'learning_style_fit',
 ];
 
-export default function Results({ answers, dbData, quizMode, onRestart, onSelectUniversity, onCompare, onCreateProfile }: ResultsProps) {
+export default function Results({
+  answers,
+  dbData,
+  quizMode,
+  onRestart,
+  onSelectUniversity,
+  onCompare,
+  onCreateProfile,
+  facultyExportAvailable,
+  facultyExportStatus,
+  onExportToFaculty,
+  onOpenFacultyProfile,
+}: ResultsProps) {
   const { user, profile } = useAuth();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -320,6 +338,43 @@ export default function Results({ answers, dbData, quizMode, onRestart, onSelect
         </div>
       </section>
 
+      {/* Optional export from the full questionnaire to the faculty profile */}
+      {quizMode === 'full' && facultyExportAvailable && (
+        <section className="relative z-10 px-6 md:px-12 max-w-4xl mx-auto mb-8">
+          <div className="glass rounded-2xl border border-violet-500/30 bg-violet-500/5 p-5 md:p-6">
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-violet-500/15 text-violet-300 flex items-center justify-center flex-shrink-0">
+                <FolderSync className="w-6 h-6" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-ink-100 text-base md:text-lg">Levar respostas para a área das faculdades</h3>
+                <p className="text-ink-400 text-sm mt-1 leading-relaxed">
+                  Exporte notas, idiomas, extracurriculares, conquistas, projetos e experiências que você acabou de preencher. Você poderá revisar tudo antes de autorizar qualquer compartilhamento.
+                </p>
+                {facultyExportStatus === 'error' && (
+                  <p role="alert" className="text-red-300 text-xs mt-2">Não foi possível exportar agora. Tente novamente.</p>
+                )}
+              </div>
+              <button
+                onClick={facultyExportStatus === 'success' ? onOpenFacultyProfile : onExportToFaculty}
+                disabled={facultyExportStatus === 'exporting'}
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-violet-500 hover:bg-violet-400 text-white text-sm font-semibold transition-all disabled:opacity-60 flex-shrink-0"
+              >
+                {facultyExportStatus === 'exporting' ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Exportando...</>
+                ) : facultyExportStatus === 'success' ? (
+                  <><CheckCircle2 className="w-4 h-4" /> Abrir área das faculdades</>
+                ) : user ? (
+                  <><FolderSync className="w-4 h-4" /> Exportar informações</>
+                ) : (
+                  <><LogIn className="w-4 h-4" /> Entrar e exportar</>
+                )}
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* PDF Download banner */}
       <section className="relative z-10 px-6 md:px-12 max-w-4xl mx-auto mb-8">
         <button
@@ -470,26 +525,26 @@ export default function Results({ answers, dbData, quizMode, onRestart, onSelect
         </div>
       </section>
 
-      {/* CTA: Perfil Verificado (only after Match Rápido) */}
+      {/* CTA: Questionário Completo (only after Match Rápido) */}
       {quizMode === 'quick' && (
         <section className="relative z-10 px-6 md:px-12 max-w-4xl mx-auto pb-8 text-center">
           <div className="glass rounded-2xl border border-accent-500/30 bg-accent-500/5 p-6 md:p-8 overflow-hidden relative">
             <div className="absolute -top-8 -right-8 w-24 h-24 rounded-full bg-accent-500/15 blur-2xl" />
             <div className="relative">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent-500/15 text-accent-300 text-xs font-semibold mb-4">
-                <BadgeCheck className="w-3.5 h-3.5" />
+                <BookOpen className="w-3.5 h-3.5" />
                 Análise completa
               </div>
               <h3 className="font-bold text-xl mb-2">Quer uma análise mais completa?</h3>
               <p className="text-ink-400 text-sm mb-5 max-w-md mx-auto leading-relaxed">
-                Crie seu Perfil Verificado para ter uma avaliação muito mais detalhada e, se você quiser, permitir que faculdades conheçam seu perfil.
+                Faça o Questionário Completo para ter uma avaliação mais detalhada e poder levar suas informações para a área das faculdades.
               </p>
               <button
                 onClick={onCreateProfile}
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-accent-500 hover:bg-accent-400 text-ink-950 font-semibold transition-all hover:scale-[1.02] active:scale-95"
               >
-                <BadgeCheck className="w-4 h-4" />
-                Criar Perfil Verificado
+                <BookOpen className="w-4 h-4" />
+                Fazer Questionário Completo
               </button>
             </div>
           </div>

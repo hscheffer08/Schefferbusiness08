@@ -17,6 +17,7 @@ import type { AnswerMap, Screen, MatchResult, QuizMode, CountryCode } from '@/ty
 import { saveSession, saveMatchHistory, clearProgress, getSharingConsent, validateReferralCode, createReferral, updateReferralStatus, findReferralByUser, type DatabaseData } from '@/lib/api';
 import { loadDatabaseDataSafe } from '@/lib/safe-database';
 import { calculateMatches, getQuizScoreBonus } from '@/lib/matching-engine';
+import { exportFullQuizToFacultyProfile } from '@/lib/faculty-profile';
 import { trackEvent } from '@/lib/analytics';
 
 const isFacultyQuestionnaireLink = () =>
@@ -65,6 +66,8 @@ function AppContent() {
   const [error, setError] = useState<string | null>(null);
   const [showConsent, setShowConsent] = useState(false);
   const [quizMode, setQuizMode] = useState<QuizMode>('quick');
+  const [facultyExportStatus, setFacultyExportStatus] = useState<'idle' | 'exporting' | 'success' | 'error'>('idle');
+  const [pendingFacultyExport, setPendingFacultyExport] = useState(false);
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [referrerId, setReferrerId] = useState<string | null>(null);
   const [authDestination, setAuthDestination] = useState<Screen | null>(() =>
@@ -106,6 +109,8 @@ function AppContent() {
 
   const handleStart = (mode: QuizMode) => {
     setQuizMode(mode);
+    setFacultyExportStatus('idle');
+    setPendingFacultyExport(false);
     if (user && profile && !profile.onboarding_completed) {
       setScreen('onboarding');
     } else {
@@ -115,6 +120,8 @@ function AppContent() {
 
   const handleQuizComplete = useCallback(async (quizAnswers: AnswerMap) => {
     setAnswers(quizAnswers);
+    setFacultyExportStatus('idle');
+    setPendingFacultyExport(false);
     setLoading(true);
     setScreen('results');
 
@@ -150,21 +157,25 @@ function AppContent() {
             updateReferralStatus({ referralId: ref.id, quizStarted: true });
           }
         }).catch(() => {});
-        const existingConsent = await getSharingConsent();
-        if (!existingConsent) {
-          setShowConsent(true);
+        if (quizMode === 'full' && countryCode === 'BR') {
+          const existingConsent = await getSharingConsent();
+          if (!existingConsent) {
+            setShowConsent(true);
+          }
         }
       }
     }
 
     setLoading(false);
-  }, [marketData, quizMode, user]);
+  }, [countryCode, marketData, quizMode, user]);
 
   const handleRestart = () => {
     setAnswers({});
     setMatchResults([]);
     setSelectedUniversityId(null);
     setShowConsent(false);
+    setFacultyExportStatus('idle');
+    setPendingFacultyExport(false);
     setScreen('home');
   };
 
@@ -174,6 +185,8 @@ function AppContent() {
     setMatchResults([]);
     setSelectedUniversityId(null);
     setShowConsent(false);
+    setFacultyExportStatus('idle');
+    setPendingFacultyExport(false);
   };
 
   const handleSelectUniversity = (universityId: string) => {
@@ -203,6 +216,37 @@ function AppContent() {
     setScreen(authDestination ?? 'home');
     setAuthDestination(null);
   };
+
+  const performFacultyExport = useCallback(async () => {
+    if (!user || !marketData || quizMode !== 'full' || countryCode !== 'BR') return;
+
+    setFacultyExportStatus('exporting');
+    const result = await exportFullQuizToFacultyProfile(answers, marketData.questions);
+    if (result.error) {
+      setFacultyExportStatus('error');
+      trackEvent('faculty_profile_export_failed', { reason: result.error }, user.id);
+      return;
+    }
+
+    setFacultyExportStatus('success');
+    trackEvent('faculty_profile_exported', { sections: result.count }, user.id);
+  }, [answers, countryCode, marketData, quizMode, user]);
+
+  const handleExportToFaculty = useCallback(() => {
+    if (!user) {
+      setPendingFacultyExport(true);
+      setAuthDestination('results');
+      setScreen('auth');
+      return;
+    }
+    void performFacultyExport();
+  }, [performFacultyExport, user]);
+
+  useEffect(() => {
+    if (!pendingFacultyExport || !user || screen !== 'results') return;
+    setPendingFacultyExport(false);
+    void performFacultyExport();
+  }, [pendingFacultyExport, performFacultyExport, screen, user]);
 
   const handleFacultyQuestionnaireAccess = () => {
     if (countryCode === 'US') return;
@@ -270,7 +314,7 @@ function AppContent() {
     );
 
   if (screen === 'auth')
-    return <Auth onBack={() => { setAuthDestination(null); handleBackToHome(); }} onSuccess={handleAuthSuccess} onPrivacy={() => setScreen('privacy')} onTerms={() => setScreen('terms')} />;
+    return <Auth onBack={() => { setPendingFacultyExport(false); setAuthDestination(null); handleBackToHome(); }} onSuccess={handleAuthSuccess} onPrivacy={() => setScreen('privacy')} onTerms={() => setScreen('terms')} />;
 
   if (screen === 'howitworks' || screen === 'methodology' || screen === 'faq' || screen === 'privacy' || screen === 'terms')
     return <InfoPages page={screen} onBack={handleBackToHome} />;
@@ -351,7 +395,11 @@ function AppContent() {
           onRestart={handleRestart}
           onSelectUniversity={handleSelectUniversity}
           onCompare={() => setScreen('compare')}
-          onCreateProfile={() => { setQuizMode('full'); setScreen('quiz'); }}
+          onCreateProfile={() => { setQuizMode('full'); setFacultyExportStatus('idle'); setScreen('quiz'); }}
+          facultyExportAvailable={countryCode === 'BR'}
+          facultyExportStatus={facultyExportStatus}
+          onExportToFaculty={handleExportToFaculty}
+          onOpenFacultyProfile={handleFacultyQuestionnaireAccess}
         />
       </>
     );

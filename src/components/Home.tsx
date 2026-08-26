@@ -1,4 +1,4 @@
-import { ArrowRight, Sparkles, GraduationCap, Compass, Trophy, BookOpen, FlaskConical, HelpCircle, Shield, FileText, Zap, Clock, BadgeCheck, FileCheck2, LockKeyhole } from 'lucide-react';
+import { ArrowRight, Sparkles, GraduationCap, Compass, Trophy, BookOpen, FlaskConical, HelpCircle, Shield, FileText, Zap, Clock, LockKeyhole } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { trackEvent, initSessionId } from '@/lib/analytics';
 import { useEffect } from 'react';
@@ -54,7 +54,7 @@ export default function Home({ onStart, onProfile, onAuth, country, universityCo
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-sm font-semibold transition-colors ${country === 'US' ? 'cursor-not-allowed border-ink-800 bg-ink-900/50 text-ink-600' : 'border-violet-500/40 bg-violet-500/10 hover:bg-violet-500/20 text-violet-200'}`}
             title={country === 'US' ? 'Disponível apenas para faculdades brasileiras' : 'Abrir Questionário para as Faculdades'}
           >
-            <FileCheck2 className="w-4 h-4" />
+            <FileText className="w-4 h-4" />
             <span className="hidden md:inline">Faculdades</span>
           </button>
           {user ? (
@@ -134,8 +134,8 @@ export default function Home({ onStart, onProfile, onAuth, country, universityCo
 
         <p className="animate-fade-up text-lg md:text-xl text-ink-400 max-w-2xl mb-10 text-balance leading-relaxed" style={{ animationDelay: '0.1s' }}>
           {country === 'US'
-            ? `Compare seu perfil com ${universityCount} das melhores graduações de Business dos Estados Unidos usando o Match Rápido ou o Perfil Verificado completo.`
-            : `Compare seu perfil com ${universityCount} faculdades brasileiras usando o Match Rápido ou crie um Perfil Verificado completo para se conectar com instituições.`}
+            ? `Compare seu perfil com ${universityCount} das melhores graduações de Business dos Estados Unidos usando o Match Rápido ou o Questionário Completo.`
+            : `Compare seu perfil com ${universityCount} faculdades brasileiras usando o Match Rápido ou o Questionário Completo.`}
         </p>
 
         {/* Two-track selection */}
@@ -167,7 +167,7 @@ export default function Home({ onStart, onProfile, onAuth, country, universityCo
             </div>
           </button>
 
-          {/* Perfil Verificado */}
+          {/* Questionário Completo */}
           <button
             onClick={() => onStart('full')}
             className="group relative text-left p-6 rounded-2xl border border-ink-700 bg-ink-800/30 hover:bg-ink-800/50 hover:border-ink-600 transition-all hover:scale-[1.02] active:scale-95 overflow-hidden"
@@ -176,19 +176,19 @@ export default function Home({ onStart, onProfile, onAuth, country, universityCo
             <div className="relative">
               <div className="flex items-center gap-2.5 mb-3">
                 <div className="w-10 h-10 rounded-xl bg-accent-500/15 text-accent-400 flex items-center justify-center">
-                  <BadgeCheck className="w-5 h-5" />
+                  <BookOpen className="w-5 h-5" />
                 </div>
                 <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-ink-700 text-ink-400 text-xs font-medium">
                   <Clock className="w-3 h-3" />
                   ≈ 15–20 min
                 </div>
               </div>
-              <h3 className="text-xl font-bold text-ink-50 mb-1.5">Perfil Verificado</h3>
+              <h3 className="text-xl font-bold text-ink-50 mb-1.5">Questionário Completo</h3>
               <p className="text-sm text-ink-400 leading-relaxed mb-4">
-                Um perfil acadêmico completo que poderá ser compartilhado com faculdades somente com sua autorização.
+                Responda todas as perguntas e, se quiser, leve suas informações para a área das faculdades.
               </p>
               <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent-400 group-hover:gap-2.5 transition-all">
-                Criar Perfil Verificado
+                Fazer Questionário Completo
                 <ArrowRight className="w-4 h-4" />
               </span>
             </div>
@@ -203,16 +203,16 @@ export default function Home({ onStart, onProfile, onAuth, country, universityCo
         >
           <div className="relative flex flex-col sm:flex-row sm:items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-violet-500/15 text-violet-300 flex items-center justify-center flex-shrink-0">
-              <FileCheck2 className="w-6 h-6" />
+              <FileText className="w-6 h-6" />
             </div>
             <div className="flex-1">
               <div className="flex flex-wrap items-center gap-2 mb-1">
                 <h3 className="text-lg font-bold text-ink-50">Questionário para as Faculdades</h3>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-ink-800 text-ink-400 text-[11px] font-medium"><LockKeyhole className="w-3 h-3" /> {country === 'US' ? 'Somente Brasil' : 'Requer conta'}</span>
               </div>
-              <p className="text-sm text-ink-400 leading-relaxed">{country === 'US' ? 'Este hub exclusivo para relacionamento com faculdades está disponível apenas na experiência brasileira.' : 'Crie seu dossiê acadêmico com notas, extracurriculares, idiomas, conquistas e comprovantes.'}</p>
+              <p className="text-sm text-ink-400 leading-relaxed">{country === 'US' ? 'Este hub exclusivo para relacionamento com faculdades está disponível apenas na experiência brasileira.' : 'Organize notas, extracurriculares, idiomas, conquistas, projetos e experiências em um só lugar.'}</p>
             </div>
-            <span className={`inline-flex items-center gap-1.5 text-sm font-semibold transition-all ${country === 'US' ? 'text-ink-600' : 'text-violet-300 group-hover:gap-2.5'}`}>{country === 'US' ? 'Indisponível nos EUA' : 'Abrir meu hub'} {country === 'BR' ? <ArrowRight className="w-4 h-4" /> : null}</span>
+            <span className={`inline-flex items-center gap-1.5 text-sm font-semibold transition-all ${country === 'US' ? 'text-ink-600' : 'text-violet-300 group-hover:gap-2.5'}`}>{country === 'US' ? 'Indisponível nos EUA' : 'Abrir meu perfil'} {country === 'BR' ? <ArrowRight className="w-4 h-4" /> : null}</span>
           </div>
         </button>
 

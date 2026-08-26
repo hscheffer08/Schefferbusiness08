@@ -1,10 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { ArrowLeft, ArrowRight, Check, Loader2, Zap, BadgeCheck, SkipForward } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Loader2, Zap, BookOpen, SkipForward } from 'lucide-react';
 import type { Question, AnswerMap, QuizMode } from '@/types';
 import {
   getQuestionOptions,
-  isScaleQuestion,
-  isNumericQuestion,
   isTextQuestion,
   isChoiceQuestion,
   isSliderQuestion,
@@ -204,8 +202,8 @@ export default function Quiz({ questions, mode, onComplete, onBack }: QuizProps)
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent-500/15 text-accent-300 text-xs font-medium">
-              <BadgeCheck className="w-3 h-3" />
-              Perfil Verificado
+              <BookOpen className="w-3 h-3" />
+              Questionário Completo
             </span>
           )}
           <span className="text-sm font-semibold text-ink-300">
