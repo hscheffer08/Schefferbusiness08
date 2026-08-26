@@ -40,28 +40,24 @@ export function generateResultsPDF(
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const topMatch = ranked[0];
 
-  // --- COVER PAGE ---
   doc.setFillColor(...COLORS.ink900);
   doc.rect(0, 0, PAGE_W, PAGE_H, 'F');
 
-  // Decorative gradient bars
   doc.setFillColor(...COLORS.brand);
   doc.rect(0, 0, PAGE_W, 1.5, 'F');
   doc.setFillColor(...COLORS.accent);
   doc.rect(0, 1.5, PAGE_W * 0.6, 0.8, 'F');
 
-  // Title
   doc.setTextColor(...COLORS.ink100);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(28);
-  doc.text('B-School Fit', MARGIN, 30);
+  doc.text('Conectaê', MARGIN, 30);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(12);
   doc.setTextColor(...COLORS.ink400);
   doc.text('Relatório de Compatibilidade', MARGIN, 38);
 
-  // Date
   doc.setFontSize(9);
   doc.setTextColor(...COLORS.ink500);
   doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, MARGIN, 44);
@@ -72,17 +68,14 @@ export function generateResultsPDF(
     doc.text(`Perfil: ${userName}`, MARGIN, 50);
   }
 
-  // Top match highlight box
   const boxY = 62;
   const boxH = 88;
   doc.setFillColor(...COLORS.ink800);
   doc.roundedRect(MARGIN, boxY, CONTENT_W, boxH, 4, 4, 'F');
 
-  // Accent left bar
   doc.setFillColor(...COLORS.accent);
   doc.roundedRect(MARGIN, boxY, 2, boxH, 1, 1, 'F');
 
-  // Match #1 badge
   doc.setFillColor(COLORS.accent[0], COLORS.accent[1], COLORS.accent[2]);
   doc.roundedRect(MARGIN + 8, boxY + 8, 28, 8, 2, 2, 'F');
   doc.setTextColor(...COLORS.ink900);
@@ -90,14 +83,12 @@ export function generateResultsPDF(
   doc.setFontSize(8);
   doc.text('MATCH #1', MARGIN + 10, boxY + 13);
 
-  // University name
   doc.setTextColor(...COLORS.ink100);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(22);
   const uniName = doc.splitTextToSize(topMatch.university.name, CONTENT_W - 16);
   doc.text(uniName, MARGIN + 8, boxY + 26);
 
-  // Location
   if (topMatch.university.location) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
@@ -105,7 +96,6 @@ export function generateResultsPDF(
     doc.text(topMatch.university.location, MARGIN + 8, boxY + 26 + uniName.length * 8 + 2);
   }
 
-  // Score ring (simulated with text)
   const band = getCompatibilityBand(topMatch.overallScore);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(36);
@@ -117,7 +107,6 @@ export function generateResultsPDF(
   doc.setTextColor(...COLORS.ink400);
   doc.text(`${band.label} de compatibilidade`, MARGIN + 8, boxY + boxH - 8);
 
-  // Positioning text
   if (topMatch.university.positioning) {
     const posY = boxY + boxH + 10;
     doc.setFont('helvetica', 'normal');
@@ -128,7 +117,6 @@ export function generateResultsPDF(
     doc.text(trimmedLines, MARGIN, posY);
   }
 
-  // Top reasons
   let reasonsY = boxY + boxH + 32;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
@@ -145,7 +133,6 @@ export function generateResultsPDF(
     reasonsY += lines.length * 5 + 2;
   });
 
-  // --- PAGE 2: FULL RANKING ---
   doc.addPage();
   doc.setFillColor(...COLORS.ink900);
   doc.rect(0, 0, PAGE_W, PAGE_H, 'F');
@@ -172,26 +159,22 @@ export function generateResultsPDF(
     const r = result;
     const bandR = getCompatibilityBand(r.overallScore);
 
-    // Row background
     if (i % 2 === 0) {
       doc.setFillColor(...COLORS.ink800);
       doc.rect(MARGIN, y - 5, CONTENT_W, 18, 'F');
     }
 
-    // Rank number
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
     doc.setTextColor(...COLORS.ink400);
     doc.text(`${i + 1}`, MARGIN + 3, y + 4);
 
-    // Name
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(...COLORS.ink100);
     const nameLines = doc.splitTextToSize(r.university.name, 90);
     doc.text(nameLines[0], MARGIN + 10, y + 4);
 
-    // Location
     if (r.university.location) {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7);
@@ -199,13 +182,11 @@ export function generateResultsPDF(
       doc.text(r.university.location, MARGIN + 10, y + 9);
     }
 
-    // Score
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
     doc.setTextColor(...hexToRgb(bandR.color));
     doc.text(`${r.overallScore}%`, PAGE_W - MARGIN - 22, y + 5);
 
-    // Bar
     const barW = 40;
     const barX = PAGE_W - MARGIN - 22;
     doc.setFillColor(...COLORS.ink800);
@@ -216,7 +197,6 @@ export function generateResultsPDF(
     y += 18;
   });
 
-  // --- PAGE 3: STUDENT PROFILE ---
   if (studentProfile.length > 0) {
     doc.addPage();
     doc.setFillColor(...COLORS.ink900);
@@ -239,7 +219,6 @@ export function generateResultsPDF(
       doc.setTextColor(...COLORS.ink300);
       doc.text(attr.name, MARGIN, y);
 
-      // Bar background
       const barX = MARGIN + 60;
       const barW = CONTENT_W - 60 - 14;
       doc.setFillColor(...COLORS.ink800);
@@ -256,7 +235,6 @@ export function generateResultsPDF(
     });
   }
 
-  // --- PAGE 4: DETAILED SUBSCORES FOR TOP 3 ---
   doc.addPage();
   doc.setFillColor(...COLORS.ink900);
   doc.rect(0, 0, PAGE_W, PAGE_H, 'F');
@@ -307,7 +285,6 @@ export function generateResultsPDF(
       y += 6;
     });
 
-    // Mismatch point
     y += 3;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
@@ -322,11 +299,10 @@ export function generateResultsPDF(
     y += mismatchLines.slice(0, 3).length * 5 + 8;
   });
 
-  // Footer on last page
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(...COLORS.ink500);
-  doc.text('B-School Fit — Este relatório mede compatibilidade de perfil, não probabilidade de aprovação.', MARGIN, PAGE_H - 10);
+  doc.text('Conectaê — Este relatório mede compatibilidade de perfil, não probabilidade de aprovação.', MARGIN, PAGE_H - 10);
 
-  doc.save(`B-School-Fit-Relatorio-${new Date().toISOString().slice(0, 10)}.pdf`);
+  doc.save(`Conectae-Relatorio-${new Date().toISOString().slice(0, 10)}.pdf`);
 }
