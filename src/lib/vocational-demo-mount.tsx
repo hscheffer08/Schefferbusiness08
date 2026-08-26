@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import VocationalDemo from '@/components/VocationalDemo';
+import VocationalDemoPremium from '@/components/VocationalDemoPremium';
 
 export default function VocationalDemoMount() {
   const [open, setOpen] = useState(false);
@@ -32,7 +32,7 @@ export default function VocationalDemoMount() {
 
   return (
     <div className="fixed inset-0 z-[100] overflow-y-auto bg-ink-950">
-      <VocationalDemo onBack={() => setOpen(false)} />
+      <VocationalDemoPremium onBack={() => setOpen(false)} />
     </div>
   );
 }
