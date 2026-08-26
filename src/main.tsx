@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/react';
 import App from './App.tsx';
 import UsCountryMarker from './lib/us-country-marker.tsx';
 import UsEnglishMode from './lib/us-english-mode.tsx';
+import VocationalDemoMount from './lib/vocational-demo-mount.tsx';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
@@ -11,6 +12,7 @@ createRoot(document.getElementById('root')!).render(
     <App />
     <UsCountryMarker />
     <UsEnglishMode />
+    <VocationalDemoMount />
     <Analytics />
   </StrictMode>
 );
