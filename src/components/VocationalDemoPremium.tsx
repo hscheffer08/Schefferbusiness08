@@ -19,6 +19,7 @@ import {
   Sparkles,
   Target,
   Trophy,
+  Users,
 } from 'lucide-react';
 import {
   DIMENSION_LABELS,
@@ -31,10 +32,11 @@ import {
 } from '@/lib/vocational-data';
 import { getVocationalPresentation, VOCATIONAL_UNIVERSITY_NOTE } from '@/lib/vocational-presentation';
 import { trackEvent } from '@/lib/analytics';
+import { cleanReferralName } from '@/lib/free-referrals';
 
 interface VocationalDemoProps { onBack: () => void }
 type Answers = Record<string, number>;
-type Phase = 'intro' | 'quiz' | 'results';
+type Phase = 'intro' | 'quiz' | 'referral' | 'results';
 
 const SCALE = [
   { value: 0, label: 'Nada a ver comigo' },
@@ -85,6 +87,7 @@ export default function VocationalDemoPremium({ onBack }: VocationalDemoProps) {
   const [phase, setPhase] = useState<Phase>('intro');
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
+  const [referrerName, setReferrerName] = useState('');
   const [showAll, setShowAll] = useState(false);
   const profile = useMemo(() => calculateProfile(answers), [answers]);
   const ranking = useMemo(() => VOCATIONAL_COURSES.map((course) => ({ course, score: courseScore(profile, course) })).sort((a, b) => b.score - a.score), [profile]);
@@ -96,13 +99,21 @@ export default function VocationalDemoPremium({ onBack }: VocationalDemoProps) {
   const next = () => {
     if (!answered) return;
     if (step === VOCATIONAL_QUESTIONS.length - 1) {
-      setPhase('results');
-      trackEvent('vocational_demo_completed', { top_course: ranking[0]?.course.name, top_score: ranking[0]?.score });
+      setPhase('referral');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else setStep((value) => value + 1);
   };
+  const finish = (includeReferral = true) => {
+    const cleanedName = includeReferral ? cleanReferralName(referrerName) : '';
+    if (cleanedName) {
+      trackEvent('referral_submitted', { referrer_name: cleanedName, mode: 'vocational' });
+    }
+    trackEvent('vocational_demo_completed', { top_course: ranking[0]?.course.name, top_score: ranking[0]?.score });
+    setPhase('results');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
   const previous = () => step === 0 ? setPhase('intro') : setStep((value) => value - 1);
-  const restart = () => { setAnswers({}); setStep(0); setShowAll(false); setPhase('intro'); };
+  const restart = () => { setAnswers({}); setReferrerName(''); setStep(0); setShowAll(false); setPhase('intro'); };
 
   if (phase === 'intro') return (
     <div className="min-h-screen relative overflow-hidden px-6 py-8 md:py-12">
@@ -124,6 +135,34 @@ export default function VocationalDemoPremium({ onBack }: VocationalDemoProps) {
       <div className="px-6 md:px-12 mb-8"><div className="max-w-2xl mx-auto"><div className="flex justify-between text-xs text-ink-500 mb-2"><span>{current.group}</span><span>{Math.round(progress)}%</span></div><div className="h-1.5 bg-ink-800 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-brand-500 to-accent-400 transition-all" style={{ width: `${progress}%` }} /></div></div></div>
       <main className="relative z-10 flex-1 flex items-center justify-center px-6 pb-12"><div className="w-full max-w-2xl animate-fade-up" key={current.id}><span className="inline-flex px-3 py-1 rounded-full bg-ink-800 text-xs text-ink-400 mb-4">{current.group}</span><h1 className="text-2xl md:text-3xl font-bold tracking-tight leading-tight mb-3">{current.text}</h1>{current.helper && <p className="text-sm text-ink-500 mb-6">{current.helper}</p>}<p className="text-sm text-ink-500 mb-4">Quanto esta frase combina com você?</p><div className="space-y-2.5">{SCALE.map((option) => { const active = answers[current.id] === option.value; return <button key={option.value} onClick={() => setAnswers((prev) => ({ ...prev, [current.id]: option.value }))} className={`w-full flex items-center gap-4 p-4 rounded-2xl border text-left transition-all ${active ? 'border-brand-400 bg-brand-500/15 text-ink-50' : 'border-ink-800 bg-ink-900/50 hover:border-ink-700 text-ink-300'}`}><span className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold ${active ? 'bg-brand-500 text-white' : 'bg-ink-800 text-ink-400'}`}>{option.value + 1}</span><span className="font-medium flex-1">{option.label}</span>{active && <Check className="w-5 h-5 text-brand-400" />}</button>; })}</div></div></main>
       <footer className="relative z-10 px-6 pb-10"><div className="max-w-2xl mx-auto"><button onClick={next} disabled={!answered} className="w-full inline-flex items-center justify-center gap-2 py-4 rounded-2xl bg-brand-500 hover:bg-brand-400 disabled:bg-ink-800 disabled:text-ink-600 text-white font-bold">{step === VOCATIONAL_QUESTIONS.length - 1 ? 'Ver meus cursos' : 'Próxima'} <ArrowRight className="w-5 h-5" /></button></div></footer>
+    </div>
+  );
+
+  if (phase === 'referral') return (
+    <div className="min-h-screen flex flex-col relative overflow-hidden px-6 py-8 md:py-12">
+      <div className="absolute inset-0 pointer-events-none overflow-hidden"><div className="absolute -top-40 left-1/4 h-[500px] w-[500px] rounded-full bg-brand-500/15 blur-[130px]" /><div className="absolute bottom-0 right-0 h-[500px] w-[500px] rounded-full bg-accent-500/10 blur-[130px]" /></div>
+      <div className="relative z-10 w-full max-w-2xl mx-auto">
+        <button type="button" onClick={() => setPhase('quiz')} className="inline-flex items-center gap-2 text-sm text-ink-400 hover:text-ink-100 mb-10"><ArrowLeft className="w-4 h-4" /> Voltar</button>
+        <div className="glass rounded-3xl border border-ink-800 p-6 md:p-9">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-brand-500/30 bg-brand-500/10 text-brand-300 text-sm font-semibold mb-5"><Users className="w-4 h-4" /> Indicação opcional</div>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Quem indicou o Conectaê para você?</h1>
+          <p className="text-ink-400 leading-relaxed mb-7">Digite apenas o nome e sobrenome. A pessoa não precisa ter cadastro: nomes equivalentes serão agrupados automaticamente no painel administrativo.</p>
+          <label htmlFor="vocational-referrer" className="block text-sm font-semibold text-ink-200 mb-2">Nome de quem indicou</label>
+          <input
+            id="vocational-referrer"
+            type="text"
+            value={referrerName}
+            onChange={(event) => setReferrerName(event.target.value)}
+            onKeyDown={(event) => { if (event.key === 'Enter') finish(); }}
+            placeholder="Ex.: João Silva"
+            autoComplete="name"
+            autoFocus
+            className="w-full px-5 py-4 rounded-2xl bg-ink-800/50 border border-ink-700 text-ink-100 placeholder-ink-600 focus:outline-none focus:border-brand-500 focus:bg-ink-800 transition-colors text-lg"
+          />
+          <button type="button" onClick={() => finish()} className="w-full mt-6 inline-flex items-center justify-center gap-2 py-4 rounded-2xl bg-brand-500 hover:bg-brand-400 text-white font-bold shadow-xl shadow-brand-500/20 transition-all">Ver meus cursos <ArrowRight className="w-5 h-5" /></button>
+          <button type="button" onClick={() => finish(false)} className="w-full mt-3 py-3 text-sm text-ink-500 hover:text-ink-300 transition-colors">Prefiro não informar</button>
+        </div>
+      </div>
     </div>
   );
 
