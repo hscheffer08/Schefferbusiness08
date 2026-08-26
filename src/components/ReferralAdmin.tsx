@@ -72,7 +72,7 @@ export default function ReferralAdmin() {
           Indicações por nome
         </h3>
         <p className="text-ink-500 text-sm">
-          Qualquer nome e sobrenome digitado pelos usuários conta automaticamente, sem cadastro prévio do indicador.
+          Qualquer nome e sobrenome digitado ao final dos questionários conta sem cadastro prévio. Diferenças de maiúsculas, acentos e espaços são agrupadas automaticamente.
         </p>
       </div>
 

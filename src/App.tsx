@@ -261,21 +261,8 @@ function AppContent() {
     }
   };
 
-  const handleOnboardingCompleteWithReferral = async (selectedReferrerCode: string | null, selectedReferrerId: string | null) => {
-    if (selectedReferrerCode && selectedReferrerId) {
-      try {
-        const existing = user ? await findReferralByUser(user.id) : null;
-        if (!existing) {
-          await createReferral({
-            referralCode: selectedReferrerCode,
-            referrerId: selectedReferrerId,
-            referredUserId: user?.id ?? null,
-            referredUserName: user?.email ?? null,
-            referralSource: 'manual',
-          });
-        }
-      } catch { /* ignore */ }
-    } else if (referralCode && referrerId) {
+  const handleOnboardingComplete = async () => {
+    if (referralCode && referrerId) {
       try {
         const existing = user ? await findReferralByUser(user.id) : null;
         if (!existing) {
@@ -351,12 +338,7 @@ function AppContent() {
   }
 
   if (screen === 'onboarding')
-    return (
-      <Onboarding
-        onComplete={handleOnboardingCompleteWithReferral}
-        preselectedReferralCode={referralCode}
-      />
-    );
+    return <Onboarding onComplete={handleOnboardingComplete} />;
 
   if (screen === 'profile')
     return <Profile onBack={() => setScreen('home')} onSelectUniversity={handleSelectUniversity} universities={dbData.universities} />;

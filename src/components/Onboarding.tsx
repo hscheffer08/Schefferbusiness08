@@ -2,11 +2,9 @@ import { useState } from 'react';
 import { ArrowRight, GraduationCap, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { trackEvent } from '@/lib/analytics';
-import { resolveOrCreateReferrer } from '@/lib/free-referrals';
 
 interface OnboardingProps {
-  onComplete: (selectedReferralCode: string | null, selectedReferrerId: string | null) => void;
-  preselectedReferralCode?: string | null;
+  onComplete: () => void;
 }
 
 const SCHOOL_YEARS = [
@@ -25,9 +23,7 @@ const AGE_RANGES = [
   '21 ou mais',
 ];
 
-const NO_REFERRAL = '__none__';
-
-export default function Onboarding({ onComplete, preselectedReferralCode }: OnboardingProps) {
+export default function Onboarding({ onComplete }: OnboardingProps) {
   const { user, profile, updateProfile } = useAuth();
   const [step, setStep] = useState(0);
   const [name, setName] = useState(profile?.display_name ?? '');
@@ -35,7 +31,6 @@ export default function Onboarding({ onComplete, preselectedReferralCode }: Onbo
   const [city, setCity] = useState(profile?.city ?? '');
   const [state, setState] = useState(profile?.state ?? '');
   const [ageRange, setAgeRange] = useState(profile?.age_range ?? '');
-  const [referralInput, setReferralInput] = useState(preselectedReferralCode ?? '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +42,6 @@ export default function Onboarding({ onComplete, preselectedReferralCode }: Onbo
     { label: 'Qual sua cidade?', value: city, set: setCity, type: 'text' as const, placeholder: 'São Paulo' },
     { label: 'Qual seu estado?', value: state, set: setState, type: 'text' as const, placeholder: 'SP' },
     { label: 'Qual sua faixa etária?', value: ageRange, set: setAgeRange, type: 'select' as const, options: AGE_RANGES },
-    { label: 'Quem te indicou o Conectaê?', value: referralInput, set: setReferralInput, type: 'referral' as const },
   ];
 
   const handleNext = async () => {
@@ -72,29 +66,13 @@ export default function Onboarding({ onComplete, preselectedReferralCode }: Onbo
       return;
     }
     trackEvent('signup_completed', { onboarding: true }, user?.id);
-
-    let selectedCode: string | null = null;
-    let selectedId: string | null = null;
-    const typedReferral = referralInput === NO_REFERRAL ? '' : referralInput.trim();
-
-    if (typedReferral) {
-      const resolved = await resolveOrCreateReferrer(typedReferral);
-      if (!resolved) {
-        setError('Não foi possível registrar a indicação. Tente novamente.');
-        setLoading(false);
-        return;
-      }
-      selectedCode = resolved.referral_code;
-      selectedId = resolved.id;
-    }
-
     setLoading(false);
-    onComplete(selectedCode, selectedId);
+    onComplete();
   };
 
   const currentStep = steps[step];
   const isLast = step === steps.length - 1;
-  const canProceed = currentStep.type === 'referral' || currentStep.value.trim() !== '';
+  const canProceed = currentStep.value.trim() !== '';
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden">
@@ -147,34 +125,6 @@ export default function Onboarding({ onComplete, preselectedReferralCode }: Onbo
                 onKeyDown={(e) => { if (e.key === 'Enter' && canProceed) handleNext(); }}
                 className="w-full px-5 py-4 rounded-2xl bg-ink-800/50 border border-ink-700 text-ink-100 placeholder-ink-600 focus:outline-none focus:border-brand-500 focus:bg-ink-800 transition-colors text-lg text-center"
               />
-            ) : currentStep.type === 'referral' ? (
-              <div className="space-y-3">
-                <p className="text-ink-500 text-center text-sm mb-4">
-                  Digite o nome e sobrenome de quem te indicou. Não é necessário que essa pessoa esteja cadastrada. É opcional.
-                </p>
-                <input
-                  type="text"
-                  value={referralInput === NO_REFERRAL ? '' : referralInput}
-                  onChange={(e) => setReferralInput(e.target.value)}
-                  placeholder="Nome e sobrenome"
-                  autoFocus
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleNext(); }}
-                  className="w-full px-5 py-4 rounded-2xl bg-ink-800/50 border border-ink-700 text-ink-100 placeholder-ink-600 focus:outline-none focus:border-brand-500 focus:bg-ink-800 transition-colors text-lg text-center"
-                />
-                <p className="text-ink-600 text-xs text-center">
-                  Ex.: João Silva
-                </p>
-                <button
-                  onClick={() => setReferralInput(NO_REFERRAL)}
-                  className={`w-full text-left p-4 rounded-2xl border transition-all ${
-                    referralInput === NO_REFERRAL
-                      ? 'bg-brand-500/15 border-brand-500 text-ink-50'
-                      : 'bg-ink-800/50 border-ink-700 text-ink-300 hover:border-ink-600 hover:bg-ink-800'
-                  }`}
-                >
-                  Ninguém / encontrei sozinho(a)
-                </button>
-              </div>
             ) : (
               <div className="space-y-2.5">
                 {'options' in currentStep && currentStep.options?.map((opt) => (
