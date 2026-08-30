@@ -9,7 +9,6 @@ p = root/'src/components/AreaMatchPortal.tsx'
 s = p.read_text()
 s = s.replace("if (initialAreaId) setArea(loaded.find(a=>a.id===initialAreaId) ?? null);", "if (initialAreaId) setArea(loaded.find(a=>a.id===initialAreaId) ?? fallback.find(a=>a.id===initialAreaId) ?? null);")
 s = s.replace("const value = answers[q.id] ?? 3;\n    const progress", "const value = answers[q.id];\n    const answered = value !== undefined;\n    const progress")
-s = s.replace("${value===n?'border-cyan-300/45 bg-cyan-300/15 text-cyan-100 scale-[1.03]':'border-white/10 bg-white/[0.035] text-ink-400'}", "${value===n?'border-cyan-300/45 bg-cyan-300/15 text-cyan-100 scale-[1.03]':'border-white/10 bg-white/[0.035] text-ink-400'}")
 old = "<button onClick={()=>{const next={...answers,[q.id]:value};setAnswers(next);if(index===questions.length-1){setStep('results');trackEvent('area_questionnaire_completed',{area_id:area.id,questions:questions.length});}else setIndex(index+1);}} className=\"flex-1 px-5 py-3.5 rounded-xl bg-gradient-to-r from-cyan-300 to-brand-400 text-[#06131c] font-black inline-flex items-center justify-center gap-2\">"
 new = "<button disabled={!answered} onClick={()=>{if(!answered)return;if(index===questions.length-1){setStep('results');trackEvent('area_questionnaire_completed',{area_id:area.id,questions:questions.length});}else setIndex(index+1);}} className=\"flex-1 px-5 py-3.5 rounded-xl bg-gradient-to-r from-cyan-300 to-brand-400 text-[#06131c] font-black inline-flex items-center justify-center gap-2 disabled:opacity-35 disabled:cursor-not-allowed\">"
 if old not in s:
@@ -76,7 +75,7 @@ if old_const not in s:
     raise SystemExit('CommercialAreaResults PROFILE_LABELS pattern not found')
 s = s.replace(old_const,new_const)
 s = s.replace("function confidenceLabel(v:number){return v>=70?'Alta':v>=50?'Média':'Em verificação'}", "function confidenceLabel(v:number){return v>=75?'Alta':v>=60?'Boa':v>=45?'Moderada':'Inicial'}")
-s = s.replace("function fitLabel(v:number){return v>=90?'Fit excepcional':v>=82?'Fit muito alto':v>=72?'Fit alto':'Fit relevante'}", "function fitLabel(v:number,confidence:number){const base=v>=90?'Fit muito alto':v>=82?'Fit alto':v>=72?'Fit consistente':'Fit relevante';return confidence<50?`${base} · dados em validação`:base}")
+s = s.replace("function fitLabel(v:number){return v>=90?'Fit excepcional':v>=82?'Fit muito alto':v>=72?'Fit alto':'Fit relevante'}", "function fitLabel(v:number,confidence=100){const base=v>=90?'Fit muito alto':v>=82?'Fit alto':v>=72?'Fit consistente':'Fit relevante';return confidence<50?`${base} · dados em validação`:base}")
 old_profile = "const profile=useMemo(()=>Object.entries(answers).filter(([k])=>PROFILE_LABELS[k]).map(([k,v])=>({label:PROFILE_LABELS[k],value:v*20})).sort((a,b)=>b.value-a.value),[answers]);"
 if old_profile not in s:
     raise SystemExit('CommercialAreaResults profile useMemo pattern not found')
