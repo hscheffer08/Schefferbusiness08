@@ -54,7 +54,7 @@ export default function ExpandedHomeMount() {
             <p className="max-w-2xl text-lg md:text-xl text-ink-300 leading-relaxed mb-8">Descubra o que combina com você e compare faculdades com base em perfil acadêmico, ambiente, carreira, metodologia e evidências do curso.</p>
 
             <div className="flex flex-wrap gap-2 mb-9">
-              {['23 áreas','276 opções','24 dimensões','Match por perfil'].map((item, index) => <span key={item} className={`rounded-full border px-3.5 py-2 text-xs font-bold ${index === 0 ? 'border-cyan-300/25 bg-cyan-300/10 text-cyan-200' : index === 1 ? 'border-fuchsia-300/20 bg-fuchsia-300/10 text-fuchsia-200' : index === 2 ? 'border-amber-300/20 bg-amber-300/10 text-amber-100' : 'border-white/10 bg-white/[0.04] text-ink-300'}`}>{item}</span>)}
+              {['30 cursos','360 opções','24 dimensões','Match por perfil'].map((item, index) => <span key={item} className={`rounded-full border px-3.5 py-2 text-xs font-bold ${index === 0 ? 'border-cyan-300/25 bg-cyan-300/10 text-cyan-200' : index === 1 ? 'border-fuchsia-300/20 bg-fuchsia-300/10 text-fuchsia-200' : index === 2 ? 'border-amber-300/20 bg-amber-300/10 text-amber-100' : 'border-white/10 bg-white/[0.04] text-ink-300'}`}>{item}</span>)}
             </div>
 
             <div className="grid sm:grid-cols-2 gap-4 max-w-3xl">
@@ -76,7 +76,7 @@ export default function ExpandedHomeMount() {
                   <div className="text-[11px] font-black tracking-[.15em] text-fuchsia-200 uppercase mb-2">Já sabe seu curso</div>
                   <h2 className="text-2xl font-black mb-2">Encontrar minha faculdade</h2>
                   <p className="text-sm text-ink-400 leading-relaxed mb-5">Compare faculdades pelo seu perfil — não apenas por fama ou ranking.</p>
-                  <span className="inline-flex items-center gap-2 font-bold text-fuchsia-200 group-hover:gap-3 transition-all">Escolher minha área <ArrowRight className="w-4 h-4" /></span>
+                  <span className="inline-flex items-center gap-2 font-bold text-fuchsia-200 group-hover:gap-3 transition-all">Escolher meu curso <ArrowRight className="w-4 h-4" /></span>
                 </div>
               </button>
             </div>
@@ -114,7 +114,7 @@ export default function ExpandedHomeMount() {
         <section className="mt-16 rounded-[32px] border border-white/10 bg-gradient-to-r from-white/[0.04] via-cyan-400/[0.035] to-fuchsia-400/[0.04] p-6 md:p-8 overflow-hidden relative">
           <div className="absolute -right-20 -top-20 w-60 h-60 rounded-full bg-fuchsia-400/10 blur-3xl" />
           <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div><div className="text-xs font-black tracking-[.16em] uppercase text-cyan-200 mb-2">Explore por área</div><h2 className="text-2xl md:text-3xl font-black">De Medicina a RI, de Design a Ciência da Computação.</h2></div>
+            <div><div className="text-xs font-black tracking-[.16em] uppercase text-cyan-200 mb-2">Explore por curso</div><h2 className="text-2xl md:text-3xl font-black">De Medicina a RI, de Design a Ciência da Computação.</h2></div>
             <div className="flex flex-wrap gap-2 max-w-2xl lg:justify-end">{['Saúde','Tecnologia','Negócios','Engenharias','Humanidades','Comunicação','Design','Educação'].map((area, index)=><span key={area} className={`px-3.5 py-2 rounded-full border text-xs font-bold ${index%4===0?'border-cyan-300/20 bg-cyan-300/10 text-cyan-100':index%4===1?'border-violet-300/20 bg-violet-300/10 text-violet-100':index%4===2?'border-fuchsia-300/20 bg-fuchsia-300/10 text-fuchsia-100':'border-amber-300/20 bg-amber-300/10 text-amber-100'}`}>{area}</span>)}</div>
           </div>
         </section>
