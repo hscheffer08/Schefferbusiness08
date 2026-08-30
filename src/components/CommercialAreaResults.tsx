@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, BookOpen, Check, ExternalLink, GraduationCap, Heart, Info, MessageCircle, RotateCcw, Scale, Sparkles, Star, Target, Trophy, X } from 'lucide-react';
 import { trackEvent } from '@/lib/analytics';
+import { recordAreaFeedback } from '@/lib/adaptive-area-match';
 import { supabase } from '@/lib/supabase';
 import type { ProfessionalArea, ProfessionalMatchResult, ProfessionalUniversity } from '@/lib/professional-area-match';
 
@@ -57,7 +58,7 @@ export default function CommercialAreaResults({area,answers,matches,onBack,onHom
   const selected=compare.map(id=>matches.find(m=>m.university.id===id)).filter(Boolean) as ProfessionalMatchResult[];
   const openInterest=(m:ProfessionalMatchResult)=>{trackEvent('program_interest',{area_id:area.id,area_name:area.name,university:m.university.name,program:m.university.course,fit_score:m.score});setInterest(m);setConsent(false);setLeadStatus('idle')};
   const confirmInterest=async()=>{if(!interest||!consent||!supabase)return;setLeadStatus('saving');const {data:{user}}=await supabase.auth.getUser();if(!user){setLeadStatus('login');return;}const {data:existing}=await supabase.from('institution_interest_leads').select('id').eq('user_id',user.id).eq('program_key',interest.university.id).maybeSingle();if(!existing){const {error}=await supabase.from('institution_interest_leads').insert({user_id:user.id,program_key:interest.university.id,area_id:area.id,university_name:interest.university.name,program_name:interest.university.course,fit_score:interest.score,contact_email:user.email??null,display_name:(user.user_metadata?.display_name as string|undefined)??null});if(error){setLeadStatus('error');return;}}if(!shortlist.includes(interest.university.id))await toggleShortlist(interest);trackEvent('qualified_lead_created',{area_id:area.id,university:interest.university.name,fit_score:interest.score});setLeadStatus('saved')};
-  const submitFeedback=()=>{if(!expectation||!top)return;trackEvent('result_expectation_feedback',{area_id:area.id,area_name:area.name,top_university:top.university.name,top_score:top.score,expected:expectation,comment:feedbackText.trim()||null});setFeedbackSent(true)};
+  const submitFeedback=()=>{if(!expectation||!top)return;trackEvent('result_expectation_feedback',{area_id:area.id,area_name:area.name,top_university:top.university.name,top_score:top.score,expected:expectation,comment:feedbackText.trim()||null});void recordAreaFeedback(area,answers,top,expectation);setFeedbackSent(true)};
 
   return <div className="min-h-screen bg-[#050a14] text-ink-50">
     <header className="sticky top-0 z-30 px-5 md:px-10 py-4 flex items-center justify-between border-b border-white/10 bg-[#050a14]/88 backdrop-blur-2xl"><button onClick={onBack} className="inline-flex items-center gap-2 text-sm text-ink-300 hover:text-white"><ArrowLeft className="w-4 h-4"/> Trocar curso</button><div className="flex items-center gap-2 font-black"><div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-300 to-brand-500 flex items-center justify-center"><GraduationCap className="w-4 h-4 text-[#06131c]"/></div>Conecta<span className="text-cyan-300">ê</span></div><button onClick={onHome} className="text-sm text-ink-400 hover:text-white">Início</button></header>
