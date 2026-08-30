@@ -1,0 +1,54 @@
+{
+  "purpose": "Synthetic QA personas. Never insert these responses into adaptive-learning tables.",
+  "personas": [
+    {
+      "id": "business_quant_career",
+      "label": "Negócios — Quant & carreira",
+      "areaId": "negocios-e-gestao",
+      "dimensions": {"academic_rigor":90,"quantitative_intensity":95,"competitive_environment":85,"career_integration":95,"prestige_network":90},
+      "observedTop3": ["FGV EAESP","Insper","FECAP"]
+    },
+    {
+      "id": "business_builder",
+      "label": "Negócios — Empreendedor prático",
+      "areaId": "negocios-e-gestao",
+      "dimensions": {"practical_learning":95,"project_based":95,"entrepreneurship":100,"autonomy":90,"technology_integration":85},
+      "observedTop3": ["FGV EAESP","PUC-SP","FECAP"]
+    },
+    {
+      "id": "business_global",
+      "label": "Negócios — Global colaborativo",
+      "areaId": "negocios-e-gestao",
+      "dimensions": {"international_exposure":95,"social_impact":95,"collaborative_culture":90,"belonging_support":90,"people_contact":85},
+      "observedTop3": ["FECAP","PUC-Rio","FGV EAESP"]
+    },
+    {
+      "id": "tech_researcher",
+      "label": "Computação — Pesquisador",
+      "areaId": "tecnologia-e-ciencia",
+      "dimensions": {"academic_rigor":95,"research_intensity":100,"quantitative_intensity":95,"technology_integration":100,"theory_orientation":85},
+      "observedTop3": ["UFRGS","UnB","UFPR"]
+    },
+    {
+      "id": "tech_builder",
+      "label": "Computação — Builder",
+      "areaId": "tecnologia-e-ciencia",
+      "dimensions": {"practical_learning":100,"project_based":100,"technology_integration":95,"entrepreneurship":90,"career_integration":90},
+      "observedTop3": ["UFPE","UnB","UNICAMP"]
+    },
+    {
+      "id": "psych_people",
+      "label": "Psicologia — Humano e impacto",
+      "areaId": "saude-e-ciencias-humanas",
+      "dimensions": {"people_contact":100,"social_impact":100,"belonging_support":90,"collaborative_culture":90,"practical_learning":85},
+      "observedTop3": ["Mackenzie","UnB","PUC Minas"]
+    },
+    {
+      "id": "psych_science",
+      "label": "Psicologia — Científico",
+      "areaId": "saude-e-ciencias-humanas",
+      "dimensions": {"research_intensity":100,"academic_rigor":95,"quantitative_intensity":80,"theory_orientation":90,"career_integration":85},
+      "observedTop3": ["Mackenzie","UFMG","UFSC"]
+    }
+  ]
+}
