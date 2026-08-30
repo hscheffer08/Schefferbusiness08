@@ -1,3 +1,4 @@
+import { EXTRA_VOCATIONAL_COURSES } from '@/lib/expanded-course-data';
 export type VocationalDimension =
   | 'realistic'
   | 'investigative'
@@ -136,7 +137,7 @@ const c = (
   regulation?: string,
 ): VocationalCourse => ({ id, name, area, duration, summary, studies, dayToDay, environments, attention, regulation, profile: base(profile) });
 
-export const VOCATIONAL_COURSES: VocationalCourse[] = [
+const BASE_VOCATIONAL_COURSES: VocationalCourse[] = [
   c('direito','Direito','Humanidades e Jurídico','5 anos','Formação voltada à interpretação de normas, argumentação, conflitos, instituições e tomada de decisão jurídica.',['Direito constitucional','civil','penal','trabalhista','processual','teoria do direito'],['ler e interpretar casos','redigir peças e pareceres','negociar','argumentar','pesquisar jurisprudência'],['escritórios','empresas','setor público','tribunais','consultoria'],'Exige leitura intensa, escrita precisa, tolerância a conflito e atualização constante.',{ verbal_humanities:95, enterprising:75, conventional:72, investigative:65, people_contact:65, business:55 },'Para advogar, é necessário cumprir os requisitos profissionais aplicáveis, incluindo aprovação no Exame da OAB.'),
   c('psicologia','Psicologia','Saúde e Ciências Humanas','5 anos','Estuda comportamento, processos mentais, relações humanas e diferentes formas de avaliação e intervenção psicológica.',['Psicologia social','desenvolvimento','clínica','organizacional','neurociências','métodos de pesquisa'],['escutar e entrevistar','avaliar contextos','planejar intervenções','produzir registros','trabalhar com indivíduos e grupos'],['clínicas','hospitais','escolas','empresas','serviços públicos','pesquisa'],'Contato humano, ética, escuta qualificada e estudo contínuo são centrais; a realidade profissional varia muito por área.',{ social:95, people_contact:92, investigative:72, verbal_humanities:78, health_biology:55, conventional:55 },'O exercício profissional é regulamentado e atividades privativas devem observar as regras do Sistema Conselhos de Psicologia.'),
   c('enfermagem','Enfermagem','Saúde','5 anos','Forma profissionais para cuidado integral, gestão do cuidado, prevenção, assistência e coordenação de equipes de saúde.',['Anatomia','fisiologia','farmacologia','saúde coletiva','clínica e cirúrgica'],['acompanhar pacientes','executar e supervisionar cuidados','registrar informações','educar em saúde','coordenar rotinas'],['hospitais','UBS','clínicas','urgência','saúde coletiva'],'Pode envolver plantões, pressão, contato com sofrimento e alta responsabilidade operacional.',{ social:92, health_biology:95, people_contact:95, realistic:72, conventional:70, investigative:58 }),
@@ -176,3 +177,6 @@ export const VOCATIONAL_SOURCES = [
   { label: 'MEC — Catálogo Nacional de Cursos Superiores de Tecnologia', url: 'https://cncst.mec.gov.br/' },
   { label: 'MTE — Classificação Brasileira de Ocupações', url: 'https://www.gov.br/trabalho-e-emprego/pt-br/servicos/trabalhador/mais-acoes/classificacao-brasileira-de-ocupacoes' },
 ];
+
+export const VOCATIONAL_COURSES: VocationalCourse[] = [...BASE_VOCATIONAL_COURSES, ...EXTRA_VOCATIONAL_COURSES];
+

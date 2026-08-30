@@ -95,15 +95,15 @@ function group(course: VocationalCourse) {
   const name = course.name.toLowerCase();
   const area = course.area.toLowerCase();
   if (id === 'direito' || area.includes('juríd')) return 'law';
-  if (['administracao', 'contabeis', 'economia'].includes(id) || area.includes('negócio') || area.includes('finan')) return 'business';
+  if (['administracao', 'contabeis', 'economia', 'gestao-rh', 'logistica'].includes(id) || area.includes('negócio') || area.includes('finan') || area.includes('gestão')) return 'business';
   if (['sistemas', 'ciencia-computacao', 'computacao', 'software', 'ads'].some((x) => id.includes(x)) || area.includes('tecnolog')) return 'technology';
   if (area.includes('engenharia') || name.includes('engenharia')) return 'engineering';
-  if (name.includes('arquitetura') || name.includes('design')) return 'architecture';
+  if (name.includes('arquitetura') || name.includes('design') || name.includes('moda')) return 'architecture';
   if (name.includes('pedagogia') || area.includes('educa')) return 'education';
-  if (name.includes('jornalismo') || name.includes('publicidade') || name.includes('comunicação')) return 'communication';
-  if (name.includes('relações internacionais') || name.includes('serviço social')) return 'social';
-  if (name.includes('veterin') || name.includes('agronom')) return 'agro';
-  if (area.includes('saúde') || name.includes('medicina') || name.includes('psicologia') || name.includes('enfermagem') || name.includes('farmácia') || name.includes('nutrição') || name.includes('fisioterapia') || name.includes('odontologia') || name.includes('biomedicina')) return 'health';
+  if (name.includes('jornalismo') || name.includes('publicidade') || name.includes('comunicação') || name.includes('marketing') || name.includes('relações públicas') || name.includes('cinema')) return 'communication';
+  if (name.includes('relações internacionais') || name.includes('serviço social') || name.includes('história') || name.includes('geografia') || name.includes('letras')) return 'social';
+  if (name.includes('veterin') || name.includes('agronom') || name.includes('gastronomia')) return 'agro';
+  if (area.includes('saúde') || name.includes('medicina') || name.includes('psicologia') || name.includes('enfermagem') || name.includes('farmácia') || name.includes('nutrição') || name.includes('fisioterapia') || name.includes('odontologia') || name.includes('biomedicina') || name.includes('terapia ocupacional') || name.includes('fonoaudiologia')) return 'health';
   return 'science';
 }
 

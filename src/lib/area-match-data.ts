@@ -1,3 +1,4 @@
+import { EXTRA_ACADEMIC_AREAS, EXTRA_AREA_QUESTIONS } from '@/lib/expanded-course-data';
 export interface AreaUniversity {
   id: string;
   name: string;
@@ -36,6 +37,7 @@ function profile(seed: string, index: number): Record<string, number> {
 }
 
 const RAW = [
+  ...EXTRA_ACADEMIC_AREAS,
   ['Humanidades e Jurídico','Direito','Leitura, argumentação, instituições, normas, negociação e resolução de conflitos.',['USP','FGV Direito SP','PUC-SP','Mackenzie','UFMG','UnB','UFRJ','UFPR']],
   ['Saúde e Ciências Humanas','Psicologia','Comportamento, cuidado, escuta, evidências e desenvolvimento humano.',['USP','PUC-SP','Mackenzie','UFMG','UnB','UFRJ','UFSC','PUC-Rio']],
   ['Saúde','Medicina, Enfermagem, Odontologia, Fisioterapia e Nutrição','Ciências da vida, cuidado, prática clínica, responsabilidade e contato humano.',['USP','UNIFESP','UFMG','UFRJ','UNICAMP','UFRGS','UFPR','Faculdade Israelita de Ciências da Saúde Albert Einstein']],
@@ -92,13 +94,15 @@ export function questionsForArea(area: AcademicArea): AreaQuestion[] {
   return [...AREA_QUESTIONS,
     { id:'area_depth', text:`Quanto você quer que ${area.courses} seja o centro da sua experiência universitária desde o início?`, dimension:'rigor', low:'Quero explorar', high:'Quero especialização' },
     { id:'area_environment', text:`Quanto você se identifica com ambientes profissionais ligados a ${area.name}?`, dimension:'practical', low:'Ainda explorando', high:'Muito identificado' },
+    ...(EXTRA_AREA_QUESTIONS[area.id] ?? []),
   ];
 }
 
 export function calculateAreaMatches(area: AcademicArea, answers: Record<string, number>) {
   const student: Record<string, number> = {};
+  const questionMap = new Map(questionsForArea(area).map((question) => [question.id, question.dimension]));
   DIMENSIONS.forEach((dimension) => {
-    const values = Object.entries(answers).filter(([id]) => id === dimension || (id === 'area_depth' && dimension === 'rigor') || (id === 'area_environment' && dimension === 'practical')).map(([,value]) => value);
+    const values = Object.entries(answers).filter(([id]) => questionMap.get(id) === dimension).map(([,value]) => value);
     student[dimension] = values.length ? values.reduce((a,b)=>a+b,0) / values.length * 20 : 60;
   });
   return area.universities.map((university) => {
