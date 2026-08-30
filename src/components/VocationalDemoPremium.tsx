@@ -33,7 +33,7 @@ import {
 import { getVocationalPresentation, VOCATIONAL_UNIVERSITY_NOTE } from '@/lib/vocational-presentation';
 import { trackEvent } from '@/lib/analytics';
 import { cleanReferralName } from '@/lib/free-referrals';
-import { ACADEMIC_AREAS } from '@/lib/area-match-data';
+import { COURSE_TO_AREA_ID } from '@/lib/course-area-map';
 
 interface VocationalDemoProps { onBack: () => void }
 type Answers = Record<string, number>;
@@ -95,11 +95,11 @@ function normalizeAcademicLabel(value: string) {
 }
 
 function academicAreaForCourse(course: VocationalCourse) {
-  const courseName = normalizeAcademicLabel(course.name);
-  return ACADEMIC_AREAS.find((area) => {
-    const courses = normalizeAcademicLabel(area.courses);
-    return courses.includes(courseName) || courseName.includes(courses);
-  }) ?? null;
+  const exactAreaId = COURSE_TO_AREA_ID[course.name];
+  if (exactAreaId) return { id: exactAreaId };
+  const normalizedName = normalizeAcademicLabel(course.name);
+  const fallback = Object.entries(COURSE_TO_AREA_ID).find(([name]) => normalizeAcademicLabel(name) === normalizedName);
+  return fallback ? { id: fallback[1] } : null;
 }
 
 function matchDimensionValue(profile: Record<VocationalDimension, number>, course: VocationalCourse, dimension: VocationalDimension) {
