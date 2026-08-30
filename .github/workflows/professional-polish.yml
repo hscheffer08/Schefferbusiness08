@@ -1,0 +1,25 @@
+name: Professional polish
+on:
+  push:
+    paths:
+      - 'scripts/professional-polish.py'
+jobs:
+  polish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply professional polish
+        run: python scripts/professional-polish.py
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate production build
+        run: npm run build
+      - name: Commit production changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/components/AreaMatchPortal.tsx src/components/CommercialAreaResults.tsx src/lib/professional-area-match.ts scripts/validate-catalog.mjs package.json
+          git commit -m 'Harden questionnaire data integrity and match methodology' || exit 0
+          git push
