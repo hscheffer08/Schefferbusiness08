@@ -2,6 +2,7 @@ from pathlib import Path
 import re, json
 
 root = Path('.')
+# production hardening pass
 
 # 1) Area questionnaire: no implicit neutral answer + safer DB fallback
 p = root/'src/components/AreaMatchPortal.tsx'
