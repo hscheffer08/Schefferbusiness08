@@ -47,6 +47,17 @@ const SCALE = [
   { value: 4, label: 'Muito a ver comigo' },
 ];
 
+function scaleForQuestion(question: (typeof VOCATIONAL_QUESTIONS)[number]) {
+  if (!question.bipolar) return SCALE;
+  return [
+    { value: 0, label: question.bipolar.lowLabel },
+    { value: 1, label: 'Mais para a primeira opção' },
+    { value: 2, label: 'Equilíbrio entre as duas' },
+    { value: 3, label: 'Mais para a segunda opção' },
+    { value: 4, label: question.bipolar.highLabel },
+  ];
+}
+
 function calculateProfile(answers: Answers): Record<VocationalDimension, number> {
   const sums = {} as Record<VocationalDimension, number>;
   const weights = {} as Record<VocationalDimension, number>;
@@ -54,6 +65,19 @@ function calculateProfile(answers: Answers): Record<VocationalDimension, number>
   VOCATIONAL_QUESTIONS.forEach((question) => {
     const answer = answers[question.id];
     if (answer === undefined) return;
+    if (question.bipolar) {
+      const lowValue = (4 - answer) * 25;
+      const highValue = answer * 25;
+      (Object.entries(question.bipolar.lowDimensions) as [VocationalDimension, number][]).forEach(([dimension, weight]) => {
+        sums[dimension] += lowValue * weight;
+        weights[dimension] += weight;
+      });
+      (Object.entries(question.bipolar.highDimensions) as [VocationalDimension, number][]).forEach(([dimension, weight]) => {
+        sums[dimension] += highValue * weight;
+        weights[dimension] += weight;
+      });
+      return;
+    }
     const normalized = answer * 25;
     (Object.entries(question.dimensions) as [VocationalDimension, number][]).forEach(([dimension, weight]) => {
       sums[dimension] += normalized * weight;
@@ -120,6 +144,7 @@ export default function VocationalDemoPremium({ onBack }: VocationalDemoProps) {
   const profile = useMemo(() => calculateProfile(answers), [answers]);
   const ranking = useMemo(() => VOCATIONAL_COURSES.map((course) => ({ course, score: courseScore(profile, course) })).sort((a, b) => b.score - a.score), [profile]);
   const current = VOCATIONAL_QUESTIONS[step];
+  const questionScale = current ? scaleForQuestion(current) : SCALE;
   const answered = current ? answers[current.id] !== undefined : false;
   const progress = ((step + (answered ? 1 : 0)) / VOCATIONAL_QUESTIONS.length) * 100;
 
@@ -149,7 +174,7 @@ export default function VocationalDemoPremium({ onBack }: VocationalDemoProps) {
       <div className="relative z-10 max-w-5xl mx-auto">
         <button onClick={onBack} className="inline-flex items-center gap-2 text-sm text-ink-400 hover:text-ink-100 mb-10"><ArrowLeft className="w-4 h-4" /> Voltar</button>
         <div className="max-w-3xl"><div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-brand-500/30 bg-brand-500/10 text-brand-300 text-sm font-semibold mb-5"><Sparkles className="w-4 h-4" /> DEMO · Brasil</div><h1 className="text-4xl md:text-6xl font-bold tracking-tight leading-tight mb-5">Exploração <span className="gradient-text font-serif italic">Vocacional</span></h1><p className="text-lg md:text-xl text-ink-400 leading-relaxed mb-8">Cruze interesses, aptidões percebidas, valores e preferências de ambiente com uma base de 50 cursos relevantes no Brasil.</p></div>
-        <div className="grid md:grid-cols-3 gap-4 mb-8"><InfoCard icon={<Compass className="w-5 h-5" />} title="36 perguntas" text="Interesses, estilo de trabalho, aptidões percebidas e valores." /><InfoCard icon={<BrainCircuit className="w-5 h-5" />} title="12 dimensões" text="RIASEC/Holland combinado a sinais acadêmicos e ocupacionais." /><InfoCard icon={<Target className="w-5 h-5" />} title="50 cursos" text="Saúde, negócios, tecnologia, engenharia, comunicação e humanidades." /></div>
+        <div className="grid md:grid-cols-3 gap-4 mb-8"><InfoCard icon={<Compass className="w-5 h-5" />} title="48 perguntas" text="Interesses, aptidões percebidas, valores e 12 trade-offs entre famílias de carreira." /><InfoCard icon={<BrainCircuit className="w-5 h-5" />} title="12 dimensões" text="RIASEC/Holland combinado a sinais acadêmicos e ocupacionais." /><InfoCard icon={<Target className="w-5 h-5" />} title="50 cursos" text="Saúde, negócios, tecnologia, engenharia, comunicação e humanidades." /></div>
         <div className="glass rounded-2xl border border-amber-500/25 bg-amber-500/5 p-5 mb-8 max-w-4xl"><h2 className="font-bold text-amber-200 mb-2">Ferramenta de exploração, não teste psicológico</h2><p className="text-sm text-ink-300 leading-relaxed">A demo não diagnostica personalidade ou aptidão e não substitui orientação profissional com psicóloga(o). Ela serve para gerar hipóteses de cursos a pesquisar.</p></div>
         <div className="glass rounded-2xl border border-ink-800 p-6 md:p-7 max-w-4xl mb-8"><div className="flex items-center gap-2 mb-4"><FlaskConical className="w-5 h-5 text-accent-400" /><h2 className="font-bold text-lg">O que entra na análise</h2></div><div className="grid md:grid-cols-2 gap-x-8 gap-y-3 text-sm text-ink-400"><p><strong className="text-ink-200">Interesses:</strong> temas e atividades que atraem sua atenção.</p><p><strong className="text-ink-200">Autoeficácia percebida:</strong> tarefas em que você sente maior confiança.</p><p><strong className="text-ink-200">Valores:</strong> impacto, liderança, criatividade e especialização.</p><p><strong className="text-ink-200">Ambiente:</strong> pessoas, tecnologia, prática, análise e precisão.</p></div></div>
         <button onClick={start} className="inline-flex items-center justify-center gap-2 px-7 py-4 rounded-2xl bg-brand-500 hover:bg-brand-400 text-white font-bold shadow-xl shadow-brand-500/20 transition-all">Começar a Demo Vocacional <ArrowRight className="w-5 h-5" /></button>
@@ -161,7 +186,7 @@ export default function VocationalDemoPremium({ onBack }: VocationalDemoProps) {
     <div className="min-h-screen flex flex-col relative overflow-hidden">
       <header className="relative z-10 flex items-center justify-between px-6 py-6 md:px-12"><button onClick={previous} className="inline-flex items-center gap-2 text-sm text-ink-400 hover:text-ink-100"><ArrowLeft className="w-4 h-4" /> {step === 0 ? 'Introdução' : 'Voltar'}</button><span className="text-sm text-ink-500">{step + 1} / {VOCATIONAL_QUESTIONS.length}</span></header>
       <div className="px-6 md:px-12 mb-8"><div className="max-w-2xl mx-auto"><div className="flex justify-between text-xs text-ink-500 mb-2"><span>{current.group}</span><span>{Math.round(progress)}%</span></div><div className="h-1.5 bg-ink-800 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-brand-500 to-accent-400 transition-all" style={{ width: `${progress}%` }} /></div></div></div>
-      <main className="relative z-10 flex-1 flex items-center justify-center px-6 pb-12"><div className="w-full max-w-2xl animate-fade-up" key={current.id}><span className="inline-flex px-3 py-1 rounded-full bg-ink-800 text-xs text-ink-400 mb-4">{current.group}</span><h1 className="text-2xl md:text-3xl font-bold tracking-tight leading-tight mb-3">{current.text}</h1>{current.helper && <p className="text-sm text-ink-500 mb-6">{current.helper}</p>}<p className="text-sm text-ink-500 mb-4">Quanto esta frase combina com você?</p><div className="space-y-2.5">{SCALE.map((option) => { const active = answers[current.id] === option.value; return <button key={option.value} onClick={() => setAnswers((prev) => ({ ...prev, [current.id]: option.value }))} className={`w-full flex items-center gap-4 p-4 rounded-2xl border text-left transition-all ${active ? 'border-brand-400 bg-brand-500/15 text-ink-50' : 'border-ink-800 bg-ink-900/50 hover:border-ink-700 text-ink-300'}`}><span className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold ${active ? 'bg-brand-500 text-white' : 'bg-ink-800 text-ink-400'}`}>{option.value + 1}</span><span className="font-medium flex-1">{option.label}</span>{active && <Check className="w-5 h-5 text-brand-400" />}</button>; })}</div></div></main>
+      <main className="relative z-10 flex-1 flex items-center justify-center px-6 pb-12"><div className="w-full max-w-2xl animate-fade-up" key={current.id}><span className="inline-flex px-3 py-1 rounded-full bg-ink-800 text-xs text-ink-400 mb-4">{current.group}</span><h1 className="text-2xl md:text-3xl font-bold tracking-tight leading-tight mb-3">{current.text}</h1>{current.helper && <p className="text-sm text-ink-500 mb-6">{current.helper}</p>}<p className="text-sm text-ink-500 mb-4">{current.bipolar ? 'Se tiver que escolher, qual lado combina mais com você?' : 'Quanto esta frase combina com você?'}</p><div className="space-y-2.5">{questionScale.map((option) => { const active = answers[current.id] === option.value; return <button key={option.value} onClick={() => setAnswers((prev) => ({ ...prev, [current.id]: option.value }))} className={`w-full flex items-center gap-4 p-4 rounded-2xl border text-left transition-all ${active ? 'border-brand-400 bg-brand-500/15 text-ink-50' : 'border-ink-800 bg-ink-900/50 hover:border-ink-700 text-ink-300'}`}><span className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold ${active ? 'bg-brand-500 text-white' : 'bg-ink-800 text-ink-400'}`}>{option.value + 1}</span><span className="font-medium flex-1">{option.label}</span>{active && <Check className="w-5 h-5 text-brand-400" />}</button>; })}</div></div></main>
       <footer className="relative z-10 px-6 pb-10"><div className="max-w-2xl mx-auto"><button onClick={next} disabled={!answered} className="w-full inline-flex items-center justify-center gap-2 py-4 rounded-2xl bg-brand-500 hover:bg-brand-400 disabled:bg-ink-800 disabled:text-ink-600 text-white font-bold">{step === VOCATIONAL_QUESTIONS.length - 1 ? 'Ver meus cursos' : 'Próxima'} <ArrowRight className="w-5 h-5" /></button></div></footer>
     </div>
   );
