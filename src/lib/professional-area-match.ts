@@ -284,12 +284,21 @@ export function calculateProfessionalMatches(area: ProfessionalArea, answers: Re
       academic:{sum:0,weight:0}, learning:{sum:0,weight:0}, environment:{sum:0,weight:0}, career:{sum:0,weight:0}, globalPurpose:{sum:0,weight:0}
     };
     const deltas: Array<{name:string;similarity:number}> = [];
+    const profileValues = Object.values(university.matchProfile).map(Number).filter(Number.isFinite);
+    const distinctiveness = profileValues.length
+      ? profileValues.reduce((sum, value) => sum + Math.abs(value - 60), 0) / profileValues.length
+      : 0;
 
     for (const [dimension,target] of Object.entries(university.matchProfile)) {
-      const studentValue = student[dimension] ?? 60;
+      const hasStudentSignal = student[dimension] != null;
+      const studentValue = hasStudentSignal ? student[dimension] : 60;
       const distance = Math.abs(studentValue - Number(target));
       const similarity = Math.max(0, 100 - Math.pow(distance, 1.18) * 1.35);
-      const weight = area.dimensionWeights[dimension] ?? 1;
+      const baseWeight = area.dimensionWeights[dimension] ?? 1;
+      const preferenceIntensity = hasStudentSignal
+        ? 1 + Math.min(0.75, (Math.abs(studentValue - 60) / 40) * 0.75)
+        : 0.22;
+      const weight = baseWeight * preferenceIntensity;
       weightedSimilarity += similarity * weight;
       weightTotal += weight;
       confidenceWeighted += (university.dataConfidence / 100) * weight;
@@ -305,7 +314,7 @@ export function calculateProfessionalMatches(area: ProfessionalArea, answers: Re
     const strengths = deltas.slice(0,3).map(d=>d.name);
     const watchouts = [...deltas].sort((a,b)=>a.similarity-b.similarity).slice(0,2).map(d=>d.name);
     const breakdown = Object.fromEntries(Object.entries(catScores).map(([k,v])=>[k, Math.round(Math.min(98, Math.max(35, v.weight ? v.sum/v.weight : rawFit)))])) as ProfessionalMatchResult['breakdown'];
-    return { university, rawFit, confidence, breakdown, strengths, watchouts };
+    return { university, rawFit, confidence, breakdown, strengths, watchouts, distinctiveness };
   });
 
   if (!rawResults.length) return [];
@@ -314,11 +323,13 @@ export function calculateProfessionalMatches(area: ProfessionalArea, answers: Re
   const variance = rawResults.reduce((sum, result) => sum + Math.pow(result.rawFit - mean, 2), 0) / rawResults.length;
   const std = Math.sqrt(variance);
   const spreadFactor = std < 2 ? 3.2 : std < 4 ? 2.6 : std < 7 ? 2.1 : 1.7;
+  const distinctivenessMean = rawResults.reduce((sum, result) => sum + result.distinctiveness, 0) / rawResults.length;
 
   const calibrated = rawResults.map(result => {
     const absoluteComponent = result.rawFit;
     const relativeComponent = mean + (result.rawFit - mean) * spreadFactor;
-    const calibratedFit = absoluteComponent * 0.58 + relativeComponent * 0.42;
+    const distinctivenessTieBreak = Math.max(-1.25, Math.min(1.25, (result.distinctiveness - distinctivenessMean) * 0.09));
+    const calibratedFit = absoluteComponent * 0.58 + relativeComponent * 0.42 + distinctivenessTieBreak;
     return {
       university: result.university,
       score: Math.round(Math.min(97, Math.max(42, calibratedFit))),
@@ -327,8 +338,9 @@ export function calculateProfessionalMatches(area: ProfessionalArea, answers: Re
       strengths: result.strengths,
       watchouts: result.watchouts,
       rawFit: result.rawFit,
+      distinctiveness: result.distinctiveness,
     };
-  }).sort((a,b)=>b.score-a.score || b.rawFit-a.rawFit);
+  }).sort((a,b)=>b.score-a.score || b.rawFit-a.rawFit || b.distinctiveness-a.distinctiveness);
 
   for (let i = 1; i < calibrated.length; i++) {
     const previous = calibrated[i - 1];
@@ -338,7 +350,7 @@ export function calculateProfessionalMatches(area: ProfessionalArea, answers: Re
     }
   }
 
-  return calibrated.map(({rawFit: _rawFit, ...result}) => result);
+  return calibrated.map(({rawFit: _rawFit, distinctiveness: _distinctiveness, ...result}) => result);
 }
 
 function dimensionCategory(id:string): keyof ProfessionalMatchResult['breakdown'] {
