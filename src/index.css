@@ -21,7 +21,7 @@
     -webkit-backdrop-filter: blur(20px);
   }
   .gradient-text {
-    background: linear-gradient(135deg, #60a5fa 0%, #22d3ee 100%);
+    background: linear-gradient(135deg, #3f6fbe 0%, #6f8fd6 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -76,14 +76,14 @@
   width: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #0d1129;
+  background: #08101f;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1a1f3d;
+  background: #17233b;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #434d72;
+  background: #30415f;
 }
 
 /* Range input styling */
@@ -103,10 +103,10 @@ input[type="range"]::-webkit-slider-thumb {
   height: 26px;
   width: 26px;
   border-radius: 50%;
-  background: #3b82f6;
-  border: 3px solid #0d1129;
+  background: #315ea8;
+  border: 3px solid #08101f;
   margin-top: -9px;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 2px 8px rgba(49, 94, 168, 0.35);
   transition: transform 0.15s ease;
 }
 input[type="range"]::-webkit-slider-thumb:hover {
@@ -120,7 +120,71 @@ input[type="range"]::-moz-range-thumb {
   height: 26px;
   width: 26px;
   border-radius: 50%;
-  background: #3b82f6;
-  border: 3px solid #0d1129;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+  background: #315ea8;
+  border: 3px solid #08101f;
+  box-shadow: 0 2px 8px rgba(49, 94, 168, 0.35);
+}
+
+/* Premium Conectae palette overrides for the new visual experience.
+   The new home uses Tailwind cyan/fuchsia utilities directly, so these
+   overrides intentionally make the change visible without flattening accents. */
+.bg-\[\#070b16\] {
+  background-color: #050a14 !important;
+}
+.border-\[\#070b16\] {
+  border-color: #050a14 !important;
+}
+.bg-cyan-500\/20 {
+  background-color: rgba(37, 73, 132, 0.17) !important;
+}
+.bg-cyan-300\/10,
+.bg-cyan-400\/15,
+.bg-cyan-400\/20 {
+  background-color: rgba(74, 113, 178, 0.10) !important;
+}
+.text-cyan-100,
+.text-cyan-200,
+.text-cyan-300 {
+  color: #a9bfe5 !important;
+}
+.border-cyan-300\/20,
+.border-cyan-300\/25 {
+  border-color: rgba(112, 145, 201, 0.26) !important;
+}
+.shadow-cyan-300\/15,
+.shadow-cyan-950\/20 {
+  --tw-shadow-color: rgba(30, 58, 105, 0.22) !important;
+}
+.from-cyan-300 {
+  --tw-gradient-from: #6f8fd6 var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(111 143 214 / 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+.from-cyan-400\/15,
+.from-cyan-400\/20 {
+  --tw-gradient-from: rgb(63 111 190 / 0.16) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(63 111 190 / 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+.via-brand-300,
+.via-brand-400,
+.via-brand-500\/10 {
+  --tw-gradient-via: #416caf var(--tw-gradient-via-position) !important;
+}
+.bg-fuchsia-500\/12,
+.bg-fuchsia-300\/10,
+.bg-fuchsia-300\/12,
+.bg-fuchsia-400\/10 {
+  background-color: rgba(93, 75, 145, 0.08) !important;
+}
+.text-fuchsia-100,
+.text-fuchsia-200 {
+  color: #c5b9df !important;
+}
+.border-fuchsia-300\/20,
+.border-fuchsia-300\/25 {
+  border-color: rgba(154, 136, 195, 0.20) !important;
+}
+.to-fuchsia-300 {
+  --tw-gradient-to: #9a89c3 var(--tw-gradient-to-position) !important;
 }
