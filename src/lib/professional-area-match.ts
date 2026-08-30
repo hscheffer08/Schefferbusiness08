@@ -65,15 +65,54 @@ const QUESTION_DIMENSION_MAP: Record<string, string[]> = {
   impact: ['social_impact'],
 };
 
+const LEGACY_BUSINESS_DIMENSION_MAP: Record<string, string[]> = {
+  academic_rigor: ['rigor_depth', 'academic_perf', 'achievement_selectivity'],
+  academic_flexibility: ['autonomy_selfdirection', 'curiosity_learning'],
+  faculty_access: ['oral_pitch', 'teamwork_collab'],
+  research_intensity: ['critical_thinking', 'theory_comfort', 'curiosity_learning'],
+  practical_learning: ['practical_learning', 'experimental_learning', 'work_experience'],
+  project_based: ['project_execution', 'experimental_learning', 'problem_solving'],
+  theory_orientation: ['theory_comfort', 'writing_argument'],
+  quantitative_intensity: ['math_quant', 'analytical_data'],
+  technology_integration: ['tech_ai_orientation', 'analytical_data'],
+  people_contact: ['oral_pitch', 'teamwork_collab', 'conflict_handling'],
+  autonomy: ['autonomy_selfdirection', 'initiative_history'],
+  structure_support: ['time_discipline', 'academic_perf'],
+  competitive_environment: ['achievement_selectivity', 'resilience_pressure'],
+  collaborative_culture: ['teamwork_collab', 'conflict_handling'],
+  campus_experience: ['student_life_traditional', 'extracurricular_depth'],
+  belonging_support: ['teamwork_collab', 'extracurricular_depth'],
+  career_integration: ['market_employability', 'work_experience', 'networking_value'],
+  employability_focus: ['market_employability', 'corporate_management'],
+  entrepreneurship: ['entrepreneurial_intent', 'entrepreneurial_proof', 'startup_founder_fit'],
+  leadership: ['leadership_evidence', 'oral_pitch', 'initiative_history'],
+  international_exposure: ['global_mindset', 'english_level', 'mobility_willingness'],
+  social_impact: ['purpose_impact'],
+  prestige_network: ['brand_prestige', 'networking_value'],
+  academic_value_added: ['critical_thinking', 'problem_solving', 'curiosity_learning'],
+};
+
 export async function loadProfessionalAreas(fallback: AcademicArea[]): Promise<ProfessionalArea[]> {
   if (!supabase) return fallback.map(toFallbackProfessionalArea);
   try {
-    const [{ data: areas }, { data: universities }, { data: profiles }, { data: weights }, { data: evidence }] = await Promise.all([
+    const [
+      { data: areas },
+      { data: universities },
+      { data: profiles },
+      { data: weights },
+      { data: evidence },
+      { data: legacyUniversities },
+      { data: legacyWeights },
+      { data: legacyEvidence },
+    ] = await Promise.all([
       supabase.from('academic_areas').select('area_id,name,courses,description'),
       supabase.from('area_universities').select('*'),
       supabase.from('area_university_dimension_profiles').select('*'),
       supabase.from('area_dimension_priorities').select('*'),
       supabase.from('area_university_evidence').select('area_university_id,confidence'),
+      supabase.from('universities').select('*'),
+      supabase.from('university_dimension_weights').select('university_id,dimension_id,weight'),
+      supabase.from('official_evidence').select('university_id,evidence_id'),
     ]);
     if (!areas?.length || !universities?.length) return fallback.map(toFallbackProfessionalArea);
 
@@ -99,7 +138,7 @@ export async function loadProfessionalAreas(fallback: AcademicArea[]): Promise<P
       evidenceByUniversity.set(id,current);
     }
 
-    return areas.map((a:any) => ({
+    const loaded: ProfessionalArea[] = areas.map((a:any) => ({
       id: a.area_id,
       name: a.name,
       courses: a.courses,
@@ -108,6 +147,10 @@ export async function loadProfessionalAreas(fallback: AcademicArea[]): Promise<P
       universities: universities.filter((u:any)=>u.area_id===a.area_id).map((u:any)=>{
         const p = profilesByUniversity.get(Number(u.area_university_id)) ?? {};
         const evidenceStats = evidenceByUniversity.get(Number(u.area_university_id)) ?? {count:0,avg:0};
+        const profileConfidence = Object.values(p).length
+          ? Object.values(p).reduce((sum, value) => sum + Number(value.confidence ?? 0.45), 0) / Object.values(p).length
+          : Number(u.data_confidence ?? 0.45);
+        const specificEvidenceBonus = Math.min(0.08, Math.max(0, evidenceStats.count - 2) * 0.02);
         return {
           id: String(u.area_university_id),
           areaUniversityId: Number(u.area_university_id),
@@ -132,11 +175,78 @@ export async function loadProfessionalAreas(fallback: AcademicArea[]): Promise<P
           internationalSummary: u.international_summary,
           scholarshipsSummary: u.scholarships_summary,
           studentExperienceSummary: u.student_experience_summary,
-          dataConfidence: Math.round(100 * Math.max(Number(u.data_confidence ?? 0.45), evidenceStats.avg || 0)),
+          dataConfidence: Math.round(100 * Math.min(0.8, profileConfidence + specificEvidenceBonus)),
           evidenceCount: evidenceStats.count,
         };
       })
     }));
+
+    const businessIndex = loaded.findIndex((area) => area.name === 'Negócios e Gestão');
+    if (businessIndex >= 0 && legacyUniversities?.length) {
+      const businessArea = loaded[businessIndex];
+      const brBusinessUniversities = legacyUniversities.filter((u:any) => u.country_code === 'BR');
+      const weightsByLegacyUniversity = new Map<string, Record<string, number>>();
+      for (const row of legacyWeights ?? []) {
+        const current = weightsByLegacyUniversity.get(String(row.university_id)) ?? {};
+        current[String(row.dimension_id)] = Number(row.weight ?? 60);
+        weightsByLegacyUniversity.set(String(row.university_id), current);
+      }
+      const evidenceCountByLegacyUniversity = new Map<string, number>();
+      for (const row of legacyEvidence ?? []) {
+        const id = String(row.university_id);
+        evidenceCountByLegacyUniversity.set(id, (evidenceCountByLegacyUniversity.get(id) ?? 0) + 1);
+      }
+
+      const unifiedBusinessUniversities: ProfessionalUniversity[] = brBusinessUniversities.map((u:any, index:number) => {
+        const legacyProfile = weightsByLegacyUniversity.get(String(u.university_id)) ?? {};
+        const matchProfile = Object.fromEntries(
+          Object.entries(LEGACY_BUSINESS_DIMENSION_MAP).map(([professionalDimension, legacyDimensions]) => {
+            const values = legacyDimensions
+              .map((dimension) => legacyProfile[dimension])
+              .filter((value): value is number => Number.isFinite(value));
+            const score = values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 60;
+            return [professionalDimension, Math.round(score)];
+          })
+        );
+        const evidenceCount = evidenceCountByLegacyUniversity.get(String(u.university_id)) ?? 0;
+        const mappedDimensionCount = Object.keys(legacyProfile).length;
+        const confidence = Math.min(80, 58 + Math.min(14, evidenceCount * 2) + (mappedDimensionCount >= 20 ? 6 : 0));
+        return {
+          id: `business-${u.university_id}`,
+          areaUniversityId: 900000 + index,
+          name: u.name,
+          course: u.course || 'Administração',
+          location: u.location || 'Brasil',
+          campus: u.location || null,
+          modality: u.format || null,
+          differentiators: String(u.program_differentiators || '')
+            .split(';')
+            .map((item) => item.trim())
+            .filter(Boolean)
+            .slice(0, 5),
+          highFit: u.high_fit_student || u.positioning || '',
+          matchProfile,
+          regulatoryStatus: null,
+          officialCourseUrl: u.primary_source_url || null,
+          curriculumSummary: u.program_differentiators || null,
+          researchSummary: null,
+          careerSummary: u.match_rationale || u.positioning || null,
+          internationalSummary: null,
+          scholarshipsSummary: null,
+          studentExperienceSummary: u.values || null,
+          dataConfidence: confidence,
+          evidenceCount,
+        };
+      });
+
+      loaded[businessIndex] = {
+        ...businessArea,
+        name: 'Negócios e Gestão ',
+        universities: unifiedBusinessUniversities.length ? unifiedBusinessUniversities : businessArea.universities,
+      };
+    }
+
+    return loaded;
   } catch (error) {
     console.warn('Professional area data unavailable, using curated fallback.', error);
     return fallback.map(toFallbackProfessionalArea);
