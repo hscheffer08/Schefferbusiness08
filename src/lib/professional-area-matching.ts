@@ -93,8 +93,8 @@ function weightedFit(area:AcademicArea, profile:Record<string,number>, answers:R
 
 export function professionalQuestionsForArea(area: AcademicArea): ProfessionalQuestion[] {
   return [...PROFESSIONAL_QUESTIONS,
-    { id:'area_depth', dimension:'rigor', weight:1.0, text:`Quanto você quer que ${area.courses} seja o centro da sua experiência universitária desde o início?`, low:'Quero explorar', high:'Quero especialização' },
-    { id:'area_environment', dimension:'practical', weight:1.0, text:`Quanto você se identifica com ambientes profissionais ligados a ${area.name}?`, low:'Ainda explorando', high:'Muito identificado' },
+    { id:'quantitative', dimension:'quantitative', weight:0.9, text:`Quanto você quer que ${area.courses} exija raciocínio quantitativo, matemática, estatística ou análise de dados?`, low:'Pouco quantitativo', high:'Muito quantitativo' },
+    { id:'theory', dimension:'theory', weight:0.8, text:`Quanto você valoriza fundamentos teóricos e compreensão conceitual profunda em ${area.courses}?`, low:'Mais aplicação', high:'Muita teoria' },
   ];
 }
 
