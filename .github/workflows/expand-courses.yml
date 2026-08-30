@@ -1,0 +1,28 @@
+name: Expand Conectae to 50 courses
+on:
+  push:
+    paths:
+      - '.github/workflows/expand-courses.yml'
+permissions:
+  contents: write
+jobs:
+  expand:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Apply 50-course expansion
+        run: python3 .github/scripts/expand_courses.py
+      - name: Validate build
+        run: |
+          npm ci
+          npm run build
+      - name: Commit production changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm .github/scripts/expand_courses.py .github/workflows/expand-courses.yml
+          git add -A
+          git commit -m "Expand vocational test and college matching to 50 courses"
+          git push
