@@ -51,12 +51,6 @@ export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
   const filtered = areas.filter((item) => `${item.name} ${item.courses}`.toLowerCase().includes(query.toLowerCase()));
 
   const selectArea = (selected: ProfessionalArea) => {
-    if (selected.name === 'Negócios e Gestão') {
-      const url = new URL(window.location.href);
-      url.searchParams.set('modo', 'business');
-      window.location.href = url.toString();
-      return;
-    }
     setArea(selected); setAnswers({}); setIndex(0); setStep('quiz');
   };
 
@@ -81,7 +75,7 @@ export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
         </section>
 
         <div className="grid sm:grid-cols-3 gap-3 mb-8">
-          {[['23','áreas'],['184','opções'],['24','dimensões por perfil']].map(([number,label],i)=><div key={label} className={`rounded-2xl border p-4 bg-gradient-to-br ${CARD_TONES[i]}`}><div className="text-2xl font-black">{number}</div><div className="text-xs uppercase tracking-[.13em] font-bold text-ink-500">{label}</div></div>)}
+          {[['23','áreas'],['276','opções'],['24','dimensões por perfil']].map(([number,label],i)=><div key={label} className={`rounded-2xl border p-4 bg-gradient-to-br ${CARD_TONES[i]}`}><div className="text-2xl font-black">{number}</div><div className="text-xs uppercase tracking-[.13em] font-bold text-ink-500">{label}</div></div>)}
         </div>
 
         <div className="relative max-w-2xl mb-8"><Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-500"/><input value={query} onChange={(e)=>setQuery(e.target.value)} placeholder="Buscar área ou curso..." className="w-full rounded-2xl border border-white/10 bg-white/[0.045] py-4 pl-12 pr-4 outline-none focus:border-cyan-300/40 focus:bg-white/[0.06] backdrop-blur"/></div>
