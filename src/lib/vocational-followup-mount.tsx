@@ -4,21 +4,21 @@ import { ArrowRight, GraduationCap, Sparkles } from 'lucide-react';
 const COURSE_TO_AREA: Array<[string, string]> = [
   ['Direito', 'humanidades-e-juridico'],
   ['Psicologia', 'saude-e-ciencias-humanas'],
-  ['Enfermagem', 'enfermagem'],
+  ['Enfermagem', 'saude'],
   ['Medicina', 'saude'],
   ['Administração', 'negocios-e-gestao'],
-  ['Odontologia', 'odontologia'],
+  ['Odontologia', 'saude'],
   ['Medicina Veterinária', 'saude-biologicas-e-agro'],
   ['Farmácia', 'saude-e-quimica'],
   ['Biomedicina', 'saude-e-laboratorio'],
   ['Sistemas de Informação', 'tecnologia'],
-  ['Engenharia de Software', 'engenharia-de-software'],
-  ['Análise e Desenvolvimento de Sistemas', 'ads'],
+  ['Engenharia de Software', 'tecnologia'],
+  ['Análise e Desenvolvimento de Sistemas', 'tecnologia'],
   ['Arquitetura e Urbanismo', 'design-e-construcao'],
   ['Pedagogia', 'educacao'],
   ['Ciências Contábeis', 'negocios-e-financas'],
   ['Engenharia Civil', 'engenharia'],
-  ['Engenharia Mecânica', 'engenharia-mecanica'],
+  ['Engenharia Mecânica', 'engenharia'],
   ['Educação Física', 'saude-e-esporte'],
   ['Ciência da Computação', 'tecnologia-e-ciencia'],
   ['Publicidade e Propaganda', 'comunicacao-e-marketing'],
@@ -30,14 +30,15 @@ const COURSE_TO_AREA: Array<[string, string]> = [
   ['Serviço Social', 'ciencias-sociais-aplicadas'],
   ['Relações Internacionais', 'humanidades-politica-e-negocios'],
   ['Engenharia Elétrica', 'engenharia-e-tecnologia'],
-  ['Fisioterapia', 'fisioterapia'],
-  ['Nutrição', 'nutricao'],
+  ['Fisioterapia', 'saude'],
+  ['Nutrição', 'saude'],
 ];
 
 function detectTopCourse(): { name: string; areaId: string } | null {
   const bodyText = document.body.innerText;
-  const resultStart = Math.max(0, bodyText.indexOf('Seu resultado'));
+  const heroStart = bodyText.indexOf('SEU CURSO #1');
   const rankingStart = bodyText.indexOf('Ranking completo');
+  const resultStart = heroStart >= 0 ? heroStart : 0;
   const resultText = bodyText.slice(resultStart, rankingStart > resultStart ? rankingStart : undefined);
 
   let best: { name: string; areaId: string; index: number } | null = null;
@@ -55,10 +56,11 @@ export default function VocationalFollowupMount() {
   useEffect(() => {
     const detectResults = () => {
       const text = document.body.innerText;
-      const showingResults = text.includes('Próximo passo recomendado') && text.includes('Ranking completo');
+      const showingResults = text.includes('Próximo passo recomendado') && text.includes('Ranking completo') && text.includes('SEU CURSO #1');
       setVisible(showingResults);
       setTopCourse(showingResults ? detectTopCourse() : null);
     };
+
     detectResults();
     const observer = new MutationObserver(detectResults);
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
@@ -75,17 +77,17 @@ export default function VocationalFollowupMount() {
   };
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-[130] md:left-1/2 md:right-auto md:-translate-x-1/2 md:w-[760px]">
-      <div className="rounded-[24px] border border-cyan-300/30 bg-[#091321]/95 backdrop-blur-2xl shadow-2xl shadow-cyan-950/30 p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-4">
+    <div className="fixed bottom-4 left-4 right-4 z-[130] md:left-1/2 md:right-auto md:-translate-x-1/2 md:w-[800px]">
+      <div className="rounded-[24px] border border-cyan-300/35 bg-[#091321]/95 backdrop-blur-2xl shadow-2xl shadow-cyan-950/30 p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-4">
         <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-300 to-brand-500 text-[#06131c] flex items-center justify-center flex-shrink-0 shadow-lg shadow-cyan-950/20"><GraduationCap className="w-6 h-6" /></div>
         <div className="flex-1 min-w-0">
           <div className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[.14em] text-cyan-200 mb-1"><Sparkles className="w-3.5 h-3.5"/> Próximo passo</div>
-          <p className="text-base font-black text-ink-50">
-            {topCourse ? `Agora encontre a melhor faculdade para ${topCourse.name}` : 'Agora descubra a melhor faculdade para seu curso'}
+          <p className="text-base md:text-lg font-black text-ink-50">
+            {topCourse ? `Agora descubra a melhor faculdade para ${topCourse.name}` : 'Agora descubra a melhor faculdade para seu curso'}
           </p>
           <p className="text-xs text-ink-400 mt-1 leading-relaxed">
             {topCourse
-              ? `Vamos abrir diretamente o questionário de ${topCourse.name} e comparar as 12 opções pelo seu perfil acadêmico, ambiente e objetivos.`
+              ? `Abra o questionário específico dessa área e compare as faculdades pelo seu perfil acadêmico, ambiente, metodologia e objetivos.`
               : 'Continue para o questionário de faculdades e descubra quais instituições têm maior compatibilidade com você.'}
           </p>
         </div>
