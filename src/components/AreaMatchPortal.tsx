@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, BookOpen, Compass, Database, GraduationCap, Laye
 import { ACADEMIC_AREAS, type AcademicArea } from '@/lib/area-match-data';
 import { professionalQuestionsForArea } from '@/lib/professional-area-matching';
 import { calculateProfessionalMatches, loadProfessionalAreas, type ProfessionalArea } from '@/lib/professional-area-match';
+import { adaptiveLearningStatus, applyAdaptiveCalibration, loadAreaCalibration, orderQuestionsAdaptively, recordAreaResponses, type AreaCalibration } from '@/lib/adaptive-area-match';
 import CommercialAreaResults from '@/components/CommercialAreaResults';
 import { trackEvent } from '@/lib/analytics';
 
@@ -34,6 +35,8 @@ export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [index, setIndex] = useState(0);
   const [dataReady, setDataReady] = useState(false);
+  const [calibration, setCalibration] = useState<AreaCalibration>({});
+  const [questionOrder, setQuestionOrder] = useState<string[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -46,13 +49,30 @@ export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
     return () => { active = false; };
   }, [initialAreaId]);
 
-  const questions = area ? (area.questions?.length ? area.questions : professionalQuestionsForArea(area as AcademicArea)) : [];
-  const matches = useMemo(() => area ? calculateProfessionalMatches(area, answers) : [], [area, answers]);
+  const baseQuestions = area ? (area.questions?.length ? area.questions : professionalQuestionsForArea(area as AcademicArea)) : [];
+  const questions = questionOrder.length
+    ? questionOrder.map(id => baseQuestions.find(question => question.id === id)).filter((question): question is typeof baseQuestions[number] => Boolean(question))
+    : baseQuestions;
+  const adaptiveArea = useMemo(() => area ? applyAdaptiveCalibration(area, answers, calibration) : null, [area, answers, calibration]);
+  const matches = useMemo(() => adaptiveArea ? calculateProfessionalMatches(adaptiveArea, answers) : [], [adaptiveArea, answers]);
+  const learningStatus = adaptiveLearningStatus(calibration);
   const filtered = areas.filter(item => `${item.name} ${item.courses}`.toLowerCase().includes(query.toLowerCase()));
   const totalOptions = areas.reduce((sum, item) => sum + item.universities.length, 0);
 
+  useEffect(() => {
+    if (!area) { setCalibration({}); setQuestionOrder([]); return; }
+    let active = true;
+    loadAreaCalibration(area.id).then(nextCalibration => {
+      if (!active) return;
+      setCalibration(nextCalibration);
+      const sourceQuestions = area.questions?.length ? area.questions : professionalQuestionsForArea(area as AcademicArea);
+      setQuestionOrder(orderQuestionsAdaptively(sourceQuestions, nextCalibration).map(question => question.id));
+    });
+    return () => { active = false; };
+  }, [area]);
+
   const selectArea = (selected:ProfessionalArea) => {
-    setArea(selected); setAnswers({}); setIndex(0); setStep('quiz');
+    setArea(selected); setAnswers({}); setIndex(0); setCalibration({}); setQuestionOrder([]); setStep('quiz');
     trackEvent('area_selected', { area_id:selected.id, area_name:selected.name, courses:selected.courses });
   };
 
@@ -91,9 +111,9 @@ export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
     const answered = value !== undefined;
     const progress = ((index+1)/questions.length)*100;
     return <div className="min-h-screen bg-[#070b16] text-ink-50 relative overflow-hidden">
-      <header className="px-5 md:px-10 py-5 flex items-center justify-between"><button onClick={()=>{setStep('areas');setArea(null);}} className="inline-flex items-center gap-2 text-sm text-ink-300"><ArrowLeft className="w-4 h-4"/> Áreas</button><span className="text-xs font-bold text-cyan-200 rounded-full px-3 py-1.5 border border-cyan-300/15 bg-cyan-300/5">{area.name}</span><span className="text-xs text-ink-500">{index+1}/{questions.length}</span></header>
+      <header className="px-5 md:px-10 py-5 flex items-center justify-between"><button onClick={()=>{setStep('areas');setArea(null);}} className="inline-flex items-center gap-2 text-sm text-ink-300"><ArrowLeft className="w-4 h-4"/> Áreas</button><span className="text-xs font-bold text-cyan-200 rounded-full px-3 py-1.5 border border-cyan-300/15 bg-cyan-300/5">{area.name} · {learningStatus.active?'Adaptativo':'Calibrando'}</span><span className="text-xs text-ink-500">{index+1}/{questions.length}</span></header>
       <div className="h-1 bg-white/5"><div className="h-full bg-gradient-to-r from-cyan-300 to-brand-400 transition-all" style={{width:`${progress}%`}}/></div>
-      <main className="max-w-2xl mx-auto px-5 py-16"><div className="inline-flex items-center gap-2 text-xs text-ink-500 mb-4"><Layers3 className="w-4 h-4 text-cyan-300"/> Questionário profissional · {area.courses}</div><h2 className="text-3xl md:text-5xl font-black tracking-[-.025em] leading-tight mb-10">{q.text}</h2><div className="grid grid-cols-5 gap-2 md:gap-3 mb-3">{[1,2,3,4,5].map(n=><button key={n} onClick={()=>setAnswers({...answers,[q.id]:n})} className={`h-16 md:h-20 rounded-2xl border font-black text-xl transition-all ${value===n?'border-cyan-300/45 bg-cyan-300/15 text-cyan-100 scale-[1.03]':'border-white/10 bg-white/[0.035] text-ink-400'}`}>{n}</button>)}</div><div className="flex justify-between text-xs text-ink-500 mb-3"><span>{q.low}</span><span>{q.high}</span></div>{!answered&&<p className="text-center text-xs text-cyan-200/75 mb-9">Escolha uma opção para continuar — nenhuma resposta é preenchida automaticamente.</p>}{answered&&<div className="mb-9"/>}<div className="flex gap-3"><button disabled={index===0} onClick={()=>setIndex(index-1)} className="px-5 py-3.5 rounded-xl border border-white/10 text-ink-300 disabled:opacity-30">Anterior</button><button disabled={!answered} onClick={()=>{if(!answered)return;if(index===questions.length-1){setStep('results');trackEvent('area_questionnaire_completed',{area_id:area.id,questions:questions.length});}else setIndex(index+1);}} className="flex-1 px-5 py-3.5 rounded-xl bg-gradient-to-r from-cyan-300 to-brand-400 text-[#06131c] font-black inline-flex items-center justify-center gap-2 disabled:opacity-35 disabled:cursor-not-allowed">{index===questions.length-1?'Ver análise completa':'Continuar'} <ArrowRight className="w-4 h-4"/></button></div></main>
+      <main className="max-w-2xl mx-auto px-5 py-16"><div className="inline-flex items-center gap-2 text-xs text-ink-500 mb-4"><Layers3 className="w-4 h-4 text-cyan-300"/> Questionário profissional · {area.courses}</div><h2 className="text-3xl md:text-5xl font-black tracking-[-.025em] leading-tight mb-10">{q.text}</h2><div className="grid grid-cols-5 gap-2 md:gap-3 mb-3">{[1,2,3,4,5].map(n=><button key={n} onClick={()=>setAnswers({...answers,[q.id]:n})} className={`h-16 md:h-20 rounded-2xl border font-black text-xl transition-all ${value===n?'border-cyan-300/45 bg-cyan-300/15 text-cyan-100 scale-[1.03]':'border-white/10 bg-white/[0.035] text-ink-400'}`}>{n}</button>)}</div><div className="flex justify-between text-xs text-ink-500 mb-3"><span>{q.low}</span><span>{q.high}</span></div>{!answered&&<p className="text-center text-xs text-cyan-200/75 mb-9">Escolha uma opção para continuar — nenhuma resposta é preenchida automaticamente.</p>}{answered&&<div className="mb-9"/>}<div className="flex gap-3"><button disabled={index===0} onClick={()=>setIndex(index-1)} className="px-5 py-3.5 rounded-xl border border-white/10 text-ink-300 disabled:opacity-30">Anterior</button><button disabled={!answered} onClick={()=>{if(!answered)return;if(index===questions.length-1){void recordAreaResponses(area,answers);setStep('results');trackEvent('area_questionnaire_completed',{area_id:area.id,questions:questions.length,adaptive:learningStatus.active,learned_dimensions:learningStatus.learnedDimensions});}else setIndex(index+1);}} className="flex-1 px-5 py-3.5 rounded-xl bg-gradient-to-r from-cyan-300 to-brand-400 text-[#06131c] font-black inline-flex items-center justify-center gap-2 disabled:opacity-35 disabled:cursor-not-allowed">{index===questions.length-1?'Ver análise completa':'Continuar'} <ArrowRight className="w-4 h-4"/></button></div></main>
     </div>;
   }
 
