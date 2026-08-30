@@ -293,10 +293,10 @@ function toFallbackProfessionalArea(area: AcademicArea): ProfessionalArea {
 }
 
 export function calculateProfessionalMatches(area: ProfessionalArea, answers: Record<string,number>): ProfessionalMatchResult[] {
-  const studentSamples = new Map<string, number[]>();
-  const addSignal = (dimensionId: string, value: number) => {
+  const studentSamples = new Map<string, Array<{value:number;weight:number}>>();
+  const addSignal = (dimensionId: string, value: number, weight = 1) => {
     const current = studentSamples.get(dimensionId) ?? [];
-    current.push(value);
+    current.push({ value, weight: Math.max(0.1, weight) });
     studentSamples.set(dimensionId, current);
   };
 
@@ -305,21 +305,22 @@ export function calculateProfessionalMatches(area: ProfessionalArea, answers: Re
       const raw = answers[question.id];
       if (raw == null) continue;
       const dimensionIds = QUESTION_DIMENSION_MAP[question.dimension] ?? [question.dimension];
-      dimensionIds.forEach((dimensionId) => addSignal(dimensionId, raw * 20));
+      dimensionIds.forEach((dimensionId) => addSignal(dimensionId, raw * 20, question.weight ?? 1));
     }
   } else {
     Object.entries(QUESTION_DIMENSION_MAP).forEach(([questionId, dimensionIds]) => {
       const raw = answers[questionId];
       if (raw == null) return;
-      dimensionIds.forEach((dimensionId) => addSignal(dimensionId, raw * 20));
+      dimensionIds.forEach((dimensionId) => addSignal(dimensionId, raw * 20, 1));
     });
   }
 
   const student: Record<string,number> = Object.fromEntries(
-    [...studentSamples.entries()].map(([dimensionId, values]) => [
-      dimensionId,
-      values.reduce((sum, value) => sum + value, 0) / values.length,
-    ])
+    [...studentSamples.entries()].map(([dimensionId, samples]) => {
+      const weightTotal = samples.reduce((sum, sample) => sum + sample.weight, 0);
+      const weightedValue = samples.reduce((sum, sample) => sum + sample.value * sample.weight, 0) / weightTotal;
+      return [dimensionId, weightedValue];
+    })
   );
 
   const rawResults = area.universities.map(university => {
@@ -343,7 +344,7 @@ export function calculateProfessionalMatches(area: ProfessionalArea, answers: Re
       const baseWeight = area.dimensionWeights[dimension] ?? 1;
       const preferenceIntensity = hasStudentSignal
         ? 1 + Math.min(0.75, (Math.abs(studentValue - 60) / 40) * 0.75)
-        : 0.22;
+        : 0.08;
       const weight = baseWeight * preferenceIntensity;
       weightedSimilarity += similarity * weight;
       weightTotal += weight;

@@ -40,7 +40,7 @@ export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
     loadProfessionalAreas(ACADEMIC_AREAS).then(loaded => {
       if (!active) return;
       setAreas(loaded);
-      if (initialAreaId) setArea(loaded.find(a=>a.id===initialAreaId) ?? null);
+      if (initialAreaId) setArea(loaded.find(a=>a.id===initialAreaId) ?? fallback.find(a=>a.id===initialAreaId) ?? null);
       setDataReady(true);
     });
     return () => { active = false; };
@@ -87,12 +87,13 @@ export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
   if (step === 'quiz') {
     const q = questions[index];
     if (!q) return null;
-    const value = answers[q.id] ?? 3;
+    const value = answers[q.id];
+    const answered = value !== undefined;
     const progress = ((index+1)/questions.length)*100;
     return <div className="min-h-screen bg-[#070b16] text-ink-50 relative overflow-hidden">
       <header className="px-5 md:px-10 py-5 flex items-center justify-between"><button onClick={()=>{setStep('areas');setArea(null);}} className="inline-flex items-center gap-2 text-sm text-ink-300"><ArrowLeft className="w-4 h-4"/> Áreas</button><span className="text-xs font-bold text-cyan-200 rounded-full px-3 py-1.5 border border-cyan-300/15 bg-cyan-300/5">{area.name}</span><span className="text-xs text-ink-500">{index+1}/{questions.length}</span></header>
       <div className="h-1 bg-white/5"><div className="h-full bg-gradient-to-r from-cyan-300 to-brand-400 transition-all" style={{width:`${progress}%`}}/></div>
-      <main className="max-w-2xl mx-auto px-5 py-16"><div className="inline-flex items-center gap-2 text-xs text-ink-500 mb-4"><Layers3 className="w-4 h-4 text-cyan-300"/> Questionário profissional · {area.courses}</div><h2 className="text-3xl md:text-5xl font-black tracking-[-.025em] leading-tight mb-10">{q.text}</h2><div className="grid grid-cols-5 gap-2 md:gap-3 mb-3">{[1,2,3,4,5].map(n=><button key={n} onClick={()=>setAnswers({...answers,[q.id]:n})} className={`h-16 md:h-20 rounded-2xl border font-black text-xl transition-all ${value===n?'border-cyan-300/45 bg-cyan-300/15 text-cyan-100 scale-[1.03]':'border-white/10 bg-white/[0.035] text-ink-400'}`}>{n}</button>)}</div><div className="flex justify-between text-xs text-ink-500 mb-12"><span>{q.low}</span><span>{q.high}</span></div><div className="flex gap-3"><button disabled={index===0} onClick={()=>setIndex(index-1)} className="px-5 py-3.5 rounded-xl border border-white/10 text-ink-300 disabled:opacity-30">Anterior</button><button onClick={()=>{const next={...answers,[q.id]:value};setAnswers(next);if(index===questions.length-1){setStep('results');trackEvent('area_questionnaire_completed',{area_id:area.id,questions:questions.length});}else setIndex(index+1);}} className="flex-1 px-5 py-3.5 rounded-xl bg-gradient-to-r from-cyan-300 to-brand-400 text-[#06131c] font-black inline-flex items-center justify-center gap-2">{index===questions.length-1?'Ver análise completa':'Continuar'} <ArrowRight className="w-4 h-4"/></button></div></main>
+      <main className="max-w-2xl mx-auto px-5 py-16"><div className="inline-flex items-center gap-2 text-xs text-ink-500 mb-4"><Layers3 className="w-4 h-4 text-cyan-300"/> Questionário profissional · {area.courses}</div><h2 className="text-3xl md:text-5xl font-black tracking-[-.025em] leading-tight mb-10">{q.text}</h2><div className="grid grid-cols-5 gap-2 md:gap-3 mb-3">{[1,2,3,4,5].map(n=><button key={n} onClick={()=>setAnswers({...answers,[q.id]:n})} className={`h-16 md:h-20 rounded-2xl border font-black text-xl transition-all ${value===n?'border-cyan-300/45 bg-cyan-300/15 text-cyan-100 scale-[1.03]':'border-white/10 bg-white/[0.035] text-ink-400'}`}>{n}</button>)}</div><div className="flex justify-between text-xs text-ink-500 mb-3"><span>{q.low}</span><span>{q.high}</span></div>{!answered&&<p className="text-center text-xs text-cyan-200/75 mb-9">Escolha uma opção para continuar — nenhuma resposta é preenchida automaticamente.</p>}{answered&&<div className="mb-9"/>}<div className="flex gap-3"><button disabled={index===0} onClick={()=>setIndex(index-1)} className="px-5 py-3.5 rounded-xl border border-white/10 text-ink-300 disabled:opacity-30">Anterior</button><button disabled={!answered} onClick={()=>{if(!answered)return;if(index===questions.length-1){setStep('results');trackEvent('area_questionnaire_completed',{area_id:area.id,questions:questions.length});}else setIndex(index+1);}} className="flex-1 px-5 py-3.5 rounded-xl bg-gradient-to-r from-cyan-300 to-brand-400 text-[#06131c] font-black inline-flex items-center justify-center gap-2 disabled:opacity-35 disabled:cursor-not-allowed">{index===questions.length-1?'Ver análise completa':'Continuar'} <ArrowRight className="w-4 h-4"/></button></div></main>
     </div>;
   }
 
