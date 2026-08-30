@@ -1,4 +1,5 @@
 import type { AcademicArea, AreaUniversity } from '@/lib/area-match-data';
+import { EXTRA_AREA_QUESTIONS } from '@/lib/expanded-course-data';
 
 export interface ProfessionalQuestion {
   id: string;
@@ -95,6 +96,7 @@ export function professionalQuestionsForArea(area: AcademicArea): ProfessionalQu
   return [...PROFESSIONAL_QUESTIONS,
     { id:'quantitative', dimension:'quantitative', weight:0.9, text:`Quanto você quer que ${area.courses} exija raciocínio quantitativo, matemática, estatística ou análise de dados?`, low:'Pouco quantitativo', high:'Muito quantitativo' },
     { id:'theory', dimension:'theory', weight:0.8, text:`Quanto você valoriza fundamentos teóricos e compreensão conceitual profunda em ${area.courses}?`, low:'Mais aplicação', high:'Muita teoria' },
+    ...(EXTRA_AREA_QUESTIONS[area.id] ?? []).map((q) => ({ ...q, weight: 1.05 })),
   ];
 }
 

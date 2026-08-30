@@ -22,9 +22,19 @@ export interface ProfessionalUniversity extends AreaUniversity {
   evidenceCount: number;
 }
 
+export interface ProfessionalAreaQuestion {
+  id: string;
+  text: string;
+  dimension: string;
+  low: string;
+  high: string;
+  weight: number;
+}
+
 export interface ProfessionalArea extends Omit<AcademicArea, 'universities'> {
   universities: ProfessionalUniversity[];
   dimensionWeights: Record<string, number>;
+  questions: ProfessionalAreaQuestion[];
 }
 
 export interface ProfessionalMatchResult {
@@ -103,6 +113,7 @@ export async function loadProfessionalAreas(fallback: AcademicArea[]): Promise<P
       { data: profiles },
       { data: weights },
       { data: evidence },
+      { data: areaQuestions },
       { data: legacyUniversities },
       { data: legacyWeights },
       { data: legacyEvidence },
@@ -112,6 +123,7 @@ export async function loadProfessionalAreas(fallback: AcademicArea[]): Promise<P
       supabase.from('area_university_dimension_profiles').select('*'),
       supabase.from('area_dimension_priorities').select('*'),
       supabase.from('area_university_evidence').select('area_university_id,confidence'),
+      supabase.from('area_questions').select('question_id,area_id,question_order,question_text,dimension,scale_min_label,scale_max_label,is_required'),
       supabase.from('universities').select('*'),
       supabase.from('university_dimension_weights').select('university_id,dimension_id,weight'),
       supabase.from('official_evidence').select('university_id,evidence_id'),
@@ -146,6 +158,17 @@ export async function loadProfessionalAreas(fallback: AcademicArea[]): Promise<P
       courses: a.courses,
       description: a.description,
       dimensionWeights: weightsByArea.get(a.area_id) ?? {},
+      questions: (areaQuestions ?? [])
+        .filter((q:any) => q.area_id === a.area_id)
+        .sort((x:any,y:any) => Number(x.question_order) - Number(y.question_order))
+        .map((q:any) => ({
+          id: String(q.question_id),
+          text: String(q.question_text),
+          dimension: String(q.dimension),
+          low: String(q.scale_min_label),
+          high: String(q.scale_max_label),
+          weight: Number((weightsByArea.get(a.area_id) ?? {})[String(q.dimension)] ?? 1),
+        })),
       universities: universities.filter((u:any)=>u.area_id===a.area_id).map((u:any)=>{
         const p = profilesByUniversity.get(Number(u.area_university_id)) ?? {};
         const evidenceStats = evidenceByUniversity.get(Number(u.area_university_id)) ?? {count:0,avg:0};
@@ -259,6 +282,7 @@ function toFallbackProfessionalArea(area: AcademicArea): ProfessionalArea {
   return {
     ...area,
     dimensionWeights: {},
+    questions: [],
     universities: area.universities.map((u,index)=>({
       ...u,
       areaUniversityId:index+1,
@@ -269,12 +293,34 @@ function toFallbackProfessionalArea(area: AcademicArea): ProfessionalArea {
 }
 
 export function calculateProfessionalMatches(area: ProfessionalArea, answers: Record<string,number>): ProfessionalMatchResult[] {
-  const student: Record<string,number> = {};
-  Object.entries(QUESTION_DIMENSION_MAP).forEach(([questionId, dimensionIds]) => {
-    const raw = answers[questionId];
-    if (raw == null) return;
-    dimensionIds.forEach(d => student[d] = raw * 20);
-  });
+  const studentSamples = new Map<string, number[]>();
+  const addSignal = (dimensionId: string, value: number) => {
+    const current = studentSamples.get(dimensionId) ?? [];
+    current.push(value);
+    studentSamples.set(dimensionId, current);
+  };
+
+  if (area.questions?.length) {
+    for (const question of area.questions) {
+      const raw = answers[question.id];
+      if (raw == null) continue;
+      const dimensionIds = QUESTION_DIMENSION_MAP[question.dimension] ?? [question.dimension];
+      dimensionIds.forEach((dimensionId) => addSignal(dimensionId, raw * 20));
+    }
+  } else {
+    Object.entries(QUESTION_DIMENSION_MAP).forEach(([questionId, dimensionIds]) => {
+      const raw = answers[questionId];
+      if (raw == null) return;
+      dimensionIds.forEach((dimensionId) => addSignal(dimensionId, raw * 20));
+    });
+  }
+
+  const student: Record<string,number> = Object.fromEntries(
+    [...studentSamples.entries()].map(([dimensionId, values]) => [
+      dimensionId,
+      values.reduce((sum, value) => sum + value, 0) / values.length,
+    ])
+  );
 
   const rawResults = area.universities.map(university => {
     let weightedSimilarity = 0;

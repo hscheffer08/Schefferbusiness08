@@ -26,7 +26,7 @@ const CARD_TONES = [
 ];
 
 export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
-  const fallback = ACADEMIC_AREAS.map((a,index)=>({ ...a, dimensionWeights:{}, universities:a.universities.map((u,i)=>({...u,areaUniversityId:index*20+i,dataConfidence:40,evidenceCount:0})) }));
+  const fallback = ACADEMIC_AREAS.map((a,index)=>({ ...a, dimensionWeights:{}, questions:[], universities:a.universities.map((u,i)=>({...u,areaUniversityId:index*20+i,dataConfidence:40,evidenceCount:0})) }));
   const [areas, setAreas] = useState<ProfessionalArea[]>(fallback);
   const [step, setStep] = useState<Step>(initialAreaId ? 'quiz' : 'areas');
   const [area, setArea] = useState<ProfessionalArea | null>(fallback.find(a=>a.id===initialAreaId) ?? null);
@@ -46,9 +46,10 @@ export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
     return () => { active = false; };
   }, [initialAreaId]);
 
-  const questions = area ? professionalQuestionsForArea(area as AcademicArea) : [];
+  const questions = area ? (area.questions?.length ? area.questions : professionalQuestionsForArea(area as AcademicArea)) : [];
   const matches = useMemo(() => area ? calculateProfessionalMatches(area, answers) : [], [area, answers]);
   const filtered = areas.filter(item => `${item.name} ${item.courses}`.toLowerCase().includes(query.toLowerCase()));
+  const totalOptions = areas.reduce((sum, item) => sum + item.universities.length, 0);
 
   const selectArea = (selected:ProfessionalArea) => {
     setArea(selected); setAnswers({}); setIndex(0); setStep('quiz');
@@ -72,7 +73,7 @@ export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
           <p className="text-ink-300 text-base md:text-lg max-w-2xl">Compare faculdades por fit, ambiente, carreira, qualidade disponível e confiança dos dados — sem transformar tudo em um ranking genérico.</p>
         </div>
       </section>
-      <div className="grid sm:grid-cols-3 gap-3 mb-8">{[['30','cursos'],['360','opções'],['24','dimensões por perfil']].map(([number,label],i)=><div key={label} className={`rounded-2xl border p-4 bg-gradient-to-br ${CARD_TONES[i]}`}><div className="text-2xl font-black">{number}</div><div className="text-xs uppercase tracking-[.13em] font-bold text-ink-500">{label}</div></div>)}</div>
+      <div className="grid sm:grid-cols-3 gap-3 mb-8">{[[String(areas.length),'cursos'],[String(totalOptions),'opções'],['24','dimensões por perfil']].map(([number,label],i)=><div key={label} className={`rounded-2xl border p-4 bg-gradient-to-br ${CARD_TONES[i]}`}><div className="text-2xl font-black">{number}</div><div className="text-xs uppercase tracking-[.13em] font-bold text-ink-500">{label}</div></div>)}</div>
       <div className="relative max-w-2xl mb-8"><Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-500"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar área ou curso..." className="w-full rounded-2xl border border-white/10 bg-white/[0.045] py-4 pl-12 pr-4 outline-none focus:border-cyan-300/40"/></div>
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">{filtered.map((item,cardIndex)=><button key={item.id} onClick={()=>selectArea(item)} className={`group relative overflow-hidden text-left rounded-[26px] border bg-gradient-to-br ${CARD_TONES[cardIndex % CARD_TONES.length]} hover:-translate-y-1.5 hover:border-white/25 transition-all duration-300`}>
         <div className="h-32 overflow-hidden relative"><img src={AREA_PHOTOS[cardIndex%AREA_PHOTOS.length]} alt="" className="w-full h-full object-cover opacity-65 group-hover:scale-105 transition-all duration-500" referrerPolicy="no-referrer"/><div className="absolute inset-0 bg-gradient-to-t from-[#0b1120] via-transparent to-transparent"/><span className="absolute top-3 right-3 text-[11px] px-2.5 py-1 rounded-full bg-black/35 border border-white/10">{item.universities.length} faculdades</span></div>
