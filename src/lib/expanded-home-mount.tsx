@@ -4,20 +4,27 @@ import AreaMatchPortal from '@/components/AreaMatchPortal';
 
 export default function ExpandedHomeMount() {
   const [openAreas, setOpenAreas] = useState(false);
+  const [initialAreaId, setInitialAreaId] = useState<string | null>(null);
   const params = new URLSearchParams(window.location.search);
   const legacy = params.get('modo') === 'business';
 
   useEffect(() => {
     const handler = (event: Event) => {
       const detail = (event as CustomEvent<{ areaId?: string }>).detail;
-      if (detail?.areaId) setOpenAreas(true);
+      setInitialAreaId(detail?.areaId ?? null);
+      setOpenAreas(true);
     };
     window.addEventListener('conectae:open-area-match', handler);
     return () => window.removeEventListener('conectae:open-area-match', handler);
   }, []);
 
+  const closeAreas = () => {
+    setOpenAreas(false);
+    setInitialAreaId(null);
+  };
+
   if (legacy) return null;
-  if (openAreas) return <div className="fixed inset-0 z-[90] overflow-y-auto"><AreaMatchPortal onClose={() => setOpenAreas(false)} /></div>;
+  if (openAreas) return <div className="fixed inset-0 z-[90] overflow-y-auto"><AreaMatchPortal onClose={closeAreas} initialAreaId={initialAreaId} /></div>;
 
   return (
     <div className="fixed inset-0 z-[80] overflow-y-auto bg-ink-950 text-ink-50">
@@ -29,7 +36,7 @@ export default function ExpandedHomeMount() {
         <p className="max-w-2xl mx-auto text-lg md:text-xl text-ink-400 mb-12">Comece pelo teste vocacional ou, se você já sabe sua área, vá direto para o questionário que encontra as faculdades com maior compatibilidade com o seu perfil.</p>
         <div className="grid md:grid-cols-2 gap-5 max-w-4xl mx-auto text-left">
           <button className="group rounded-3xl border border-brand-500/40 bg-brand-500/5 p-7 md:p-8 hover:bg-brand-500/10 hover:border-brand-400/60 transition-all"><div className="w-12 h-12 rounded-2xl bg-brand-500/15 text-brand-300 flex items-center justify-center mb-5"><Compass className="w-6 h-6"/></div><div className="text-xs font-bold tracking-wider text-brand-300 uppercase mb-2">Ainda não sei meu curso</div><h2 className="text-2xl font-bold mb-3">Fazer teste vocacional</h2><p className="text-ink-400 mb-6">Descubra as áreas e cursos que mais combinam com seus interesses, aptidões, valores e estilo de trabalho.</p><span className="inline-flex items-center gap-2 font-semibold text-brand-300 group-hover:gap-3 transition-all">Começar teste <ArrowRight className="w-4 h-4"/></span></button>
-          <button onClick={() => setOpenAreas(true)} className="group rounded-3xl border border-ink-700 bg-ink-900/60 p-7 md:p-8 hover:border-accent-500/50 hover:bg-ink-900 transition-all"><div className="w-12 h-12 rounded-2xl bg-accent-500/10 text-accent-300 flex items-center justify-center mb-5"><GraduationCap className="w-6 h-6"/></div><div className="text-xs font-bold tracking-wider text-accent-300 uppercase mb-2">Já sabe seu curso</div><h2 className="text-2xl font-bold mb-3">Descubra a melhor faculdade</h2><p className="text-ink-400 mb-6">Escolha uma das 23 áreas do teste vocacional e responda um questionário específico para receber seu ranking personalizado.</p><span className="inline-flex items-center gap-2 font-semibold text-accent-300 group-hover:gap-3 transition-all">Escolher minha área <ArrowRight className="w-4 h-4"/></span></button>
+          <button onClick={() => { setInitialAreaId(null); setOpenAreas(true); }} className="group rounded-3xl border border-ink-700 bg-ink-900/60 p-7 md:p-8 hover:border-accent-500/50 hover:bg-ink-900 transition-all"><div className="w-12 h-12 rounded-2xl bg-accent-500/10 text-accent-300 flex items-center justify-center mb-5"><GraduationCap className="w-6 h-6"/></div><div className="text-xs font-bold tracking-wider text-accent-300 uppercase mb-2">Já sabe seu curso</div><h2 className="text-2xl font-bold mb-3">Descubra a melhor faculdade</h2><p className="text-ink-400 mb-6">Escolha uma das 23 áreas do teste vocacional e responda um questionário específico para receber seu ranking personalizado.</p><span className="inline-flex items-center gap-2 font-semibold text-accent-300 group-hover:gap-3 transition-all">Escolher minha área <ArrowRight className="w-4 h-4"/></span></button>
         </div>
         <p className="mt-8 text-sm text-ink-500">Business continua disponível como a trilha “Negócios e Gestão”.</p>
       </main>
