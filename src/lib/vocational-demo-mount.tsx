@@ -14,9 +14,14 @@ export default function VocationalDemoMount() {
         setOpen(true);
       }
     };
+    const closeVocational = () => setOpen(false);
 
     document.addEventListener('click', handleClick);
-    return () => document.removeEventListener('click', handleClick);
+    window.addEventListener('conectae:close-vocational', closeVocational);
+    return () => {
+      document.removeEventListener('click', handleClick);
+      window.removeEventListener('conectae:close-vocational', closeVocational);
+    };
   }, []);
 
   useEffect(() => {
