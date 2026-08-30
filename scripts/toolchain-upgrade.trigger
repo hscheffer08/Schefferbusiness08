@@ -1,1 +1,1 @@
-2026-08-30-build-safe-security
+2026-08-30-vite-security-migration
