@@ -4,7 +4,7 @@ import AreaMatchPortal from '@/components/AreaMatchPortal';
 
 const HERO_PHOTO = 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1600&q=86';
 const CAMPUS_PHOTO = 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=1000&q=84';
-const STUDY_PHOTO = 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1000&q=84';
+const STUDY_PHOTO = 'https://images.unsplash.com/photo-1781583716707-26ec9170ca0d?auto=format&fit=crop&w=1000&q=84';
 
 export default function ExpandedHomeMount() {
   const [openAreas, setOpenAreas] = useState(false);
