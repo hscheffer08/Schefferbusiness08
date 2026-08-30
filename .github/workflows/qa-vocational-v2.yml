@@ -1,0 +1,26 @@
+name: QA vocational V2 coherence
+on:
+  push:
+    paths:
+      - 'scripts/qa-vocational-v2.cjs'
+      - '.github/workflows/qa-vocational-v2.yml'
+      - 'src/lib/vocational-data.ts'
+      - 'src/lib/expanded-course-data.ts'
+permissions:
+  contents: read
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: npm ci
+      - name: Compile vocational data for QA
+        run: |
+          mkdir -p /tmp/qa
+          cp src/lib/vocational-data.ts /tmp/qa/vocational-data.ts
+          cp src/lib/expanded-course-data.ts /tmp/qa/expanded-course-data.ts
+          sed -i "s|@/lib/expanded-course-data|./expanded-course-data|g" /tmp/qa/vocational-data.ts
+          sed -i "s|@/lib/vocational-data|./vocational-data|g" /tmp/qa/expanded-course-data.ts
+          npx tsc /tmp/qa/vocational-data.ts /tmp/qa/expanded-course-data.ts --module commonjs --target ES2020 --moduleResolution node --skipLibCheck --esModuleInterop --outDir /tmp/qa/out
+      - name: Run synthetic profiles
+        run: node scripts/qa-vocational-v2.cjs
