@@ -54,7 +54,7 @@ export default function ExpandedHomeMount() {
             <p className="max-w-2xl text-lg md:text-xl text-ink-300 leading-relaxed mb-8">Descubra o que combina com você e compare faculdades com base em perfil acadêmico, ambiente, carreira, metodologia e evidências do curso.</p>
 
             <div className="flex flex-wrap gap-2 mb-9">
-              {['23 áreas','184 opções','24 dimensões','Match por perfil'].map((item, index) => <span key={item} className={`rounded-full border px-3.5 py-2 text-xs font-bold ${index === 0 ? 'border-cyan-300/25 bg-cyan-300/10 text-cyan-200' : index === 1 ? 'border-fuchsia-300/20 bg-fuchsia-300/10 text-fuchsia-200' : index === 2 ? 'border-amber-300/20 bg-amber-300/10 text-amber-100' : 'border-white/10 bg-white/[0.04] text-ink-300'}`}>{item}</span>)}
+              {['23 áreas','276 opções','24 dimensões','Match por perfil'].map((item, index) => <span key={item} className={`rounded-full border px-3.5 py-2 text-xs font-bold ${index === 0 ? 'border-cyan-300/25 bg-cyan-300/10 text-cyan-200' : index === 1 ? 'border-fuchsia-300/20 bg-fuchsia-300/10 text-fuchsia-200' : index === 2 ? 'border-amber-300/20 bg-amber-300/10 text-amber-100' : 'border-white/10 bg-white/[0.04] text-ink-300'}`}>{item}</span>)}
             </div>
 
             <div className="grid sm:grid-cols-2 gap-4 max-w-3xl">
