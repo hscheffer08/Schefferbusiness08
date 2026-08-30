@@ -1,0 +1,28 @@
+name: Security hardening
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/security-hardening.trigger'
+jobs:
+  harden:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install dependencies
+        run: npm ci
+      - name: Apply non-breaking audit fixes
+        run: npm audit fix || true
+      - name: Validate catalog and production build
+        run: npm run build
+      - name: Audit remaining vulnerabilities
+        run: npm audit --audit-level=high || true
+      - name: Commit safe dependency fixes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json package-lock.json
+          git commit -m 'Apply safe dependency security fixes' || exit 0
+          git push
