@@ -12,20 +12,18 @@ jobs:
       - uses: actions/checkout@v5
       - name: Install current dependencies
         run: npm ci
-      - name: Upgrade compatible lint toolchain
-        run: npm install --save-dev eslint@^9.39.1 @eslint/js@^9.39.1 typescript-eslint@^8.68.0
+      - name: Upgrade Vite toolchain
+        run: npm install --save-dev vite@^8.2.2 @vitejs/plugin-react@latest
       - name: Apply remaining non-breaking fixes
         run: npm audit fix || true
       - name: Validate catalog, types and production build
         run: npm run build
-      - name: Report lint debt
-        run: npm run lint || true
       - name: Check remaining vulnerabilities
-        run: npm audit --audit-level=high || true
+        run: npm audit --audit-level=high
       - name: Commit validated toolchain upgrade
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add package.json package-lock.json
-          git commit -m 'Upgrade lint toolchain and reduce dependency risk' || exit 0
+          git commit -m 'Upgrade Vite toolchain and clear dependency audit' || exit 0
           git push
