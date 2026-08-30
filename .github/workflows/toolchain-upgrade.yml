@@ -1,0 +1,29 @@
+name: Controlled toolchain upgrade
+on:
+  push:
+    paths:
+      - 'scripts/toolchain-upgrade.trigger'
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install current dependencies
+        run: npm ci
+      - name: Upgrade build and lint toolchain
+        run: npm install --save-dev vite@^8.2.2 @vitejs/plugin-react@latest eslint@latest @eslint/js@latest typescript-eslint@latest
+      - name: Validate catalog, types and production build
+        run: npm run build
+      - name: Run lint
+        run: npm run lint
+      - name: Check remaining vulnerabilities
+        run: npm audit --audit-level=high || true
+      - name: Commit validated toolchain upgrade
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json package-lock.json
+          git commit -m 'Upgrade build toolchain and reduce dependency risk' || exit 0
+          git push
