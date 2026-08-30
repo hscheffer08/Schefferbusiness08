@@ -276,7 +276,7 @@ export function calculateProfessionalMatches(area: ProfessionalArea, answers: Re
     dimensionIds.forEach(d => student[d] = raw * 20);
   });
 
-  return area.universities.map(university => {
+  const rawResults = area.universities.map(university => {
     let weightedSimilarity = 0;
     let weightTotal = 0;
     let confidenceWeighted = 0;
@@ -287,7 +287,8 @@ export function calculateProfessionalMatches(area: ProfessionalArea, answers: Re
 
     for (const [dimension,target] of Object.entries(university.matchProfile)) {
       const studentValue = student[dimension] ?? 60;
-      const similarity = Math.max(0, 100 - Math.abs(studentValue - Number(target)));
+      const distance = Math.abs(studentValue - Number(target));
+      const similarity = Math.max(0, 100 - Math.pow(distance, 1.18) * 1.35);
       const weight = area.dimensionWeights[dimension] ?? 1;
       weightedSimilarity += similarity * weight;
       weightTotal += weight;
@@ -298,15 +299,46 @@ export function calculateProfessionalMatches(area: ProfessionalArea, answers: Re
       deltas.push({name:dimensionLabel(dimension), similarity});
     }
 
-    const fit = weightTotal ? weightedSimilarity / weightTotal : 60;
+    const rawFit = weightTotal ? weightedSimilarity / weightTotal : 60;
     const confidence = weightTotal ? Math.round((confidenceWeighted / weightTotal) * 100) : university.dataConfidence;
-    const score = Math.round(Math.min(98, Math.max(50, fit)));
     deltas.sort((a,b)=>b.similarity-a.similarity);
     const strengths = deltas.slice(0,3).map(d=>d.name);
     const watchouts = [...deltas].sort((a,b)=>a.similarity-b.similarity).slice(0,2).map(d=>d.name);
-    const breakdown = Object.fromEntries(Object.entries(catScores).map(([k,v])=>[k, Math.round(v.weight ? v.sum/v.weight : score)])) as ProfessionalMatchResult['breakdown'];
-    return { university, score, confidence, breakdown, strengths, watchouts };
-  }).sort((a,b)=>b.score-a.score);
+    const breakdown = Object.fromEntries(Object.entries(catScores).map(([k,v])=>[k, Math.round(Math.min(98, Math.max(35, v.weight ? v.sum/v.weight : rawFit)))])) as ProfessionalMatchResult['breakdown'];
+    return { university, rawFit, confidence, breakdown, strengths, watchouts };
+  });
+
+  if (!rawResults.length) return [];
+
+  const mean = rawResults.reduce((sum, result) => sum + result.rawFit, 0) / rawResults.length;
+  const variance = rawResults.reduce((sum, result) => sum + Math.pow(result.rawFit - mean, 2), 0) / rawResults.length;
+  const std = Math.sqrt(variance);
+  const spreadFactor = std < 2 ? 3.2 : std < 4 ? 2.6 : std < 7 ? 2.1 : 1.7;
+
+  const calibrated = rawResults.map(result => {
+    const absoluteComponent = result.rawFit;
+    const relativeComponent = mean + (result.rawFit - mean) * spreadFactor;
+    const calibratedFit = absoluteComponent * 0.58 + relativeComponent * 0.42;
+    return {
+      university: result.university,
+      score: Math.round(Math.min(97, Math.max(42, calibratedFit))),
+      confidence: result.confidence,
+      breakdown: result.breakdown,
+      strengths: result.strengths,
+      watchouts: result.watchouts,
+      rawFit: result.rawFit,
+    };
+  }).sort((a,b)=>b.score-a.score || b.rawFit-a.rawFit);
+
+  for (let i = 1; i < calibrated.length; i++) {
+    const previous = calibrated[i - 1];
+    const current = calibrated[i];
+    if (previous.rawFit - current.rawFit >= 0.35 && previous.score - current.score < 2) {
+      current.score = Math.max(42, previous.score - 2);
+    }
+  }
+
+  return calibrated.map(({rawFit: _rawFit, ...result}) => result);
 }
 
 function dimensionCategory(id:string): keyof ProfessionalMatchResult['breakdown'] {
