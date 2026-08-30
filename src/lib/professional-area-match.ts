@@ -50,18 +50,20 @@ const QUESTION_DIMENSION_MAP: Record<string, string[]> = {
   rigor: ['academic_rigor'],
   practical: ['practical_learning','project_based'],
   research: ['research_intensity'],
-  people: ['people_contact','collaborative_culture'],
+  people: ['people_contact'],
   technology: ['technology_integration'],
-  leadership: ['leadership','entrepreneurship'],
+  leadership: ['leadership'],
   structure: ['structure_support'],
   international: ['international_exposure'],
   flexibility: ['academic_flexibility','autonomy'],
   faculty: ['faculty_access'],
-  belonging: ['belonging_support','campus_experience'],
+  collaboration: ['collaborative_culture','belonging_support'],
   competition: ['competitive_environment'],
+  campus: ['campus_experience'],
   quantitative: ['quantitative_intensity'],
   theory: ['theory_orientation'],
   career: ['career_integration','employability_focus'],
+  entrepreneurship: ['entrepreneurship'],
   impact: ['social_impact'],
 };
 
@@ -241,7 +243,7 @@ export async function loadProfessionalAreas(fallback: AcademicArea[]): Promise<P
 
       loaded[businessIndex] = {
         ...businessArea,
-        name: 'Negócios e Gestão ',
+        name: 'Negócios e Gestão',
         universities: unifiedBusinessUniversities.length ? unifiedBusinessUniversities : businessArea.universities,
       };
     }
@@ -273,8 +275,6 @@ export function calculateProfessionalMatches(area: ProfessionalArea, answers: Re
     if (raw == null) return;
     dimensionIds.forEach(d => student[d] = raw * 20);
   });
-  if (answers.area_depth != null) student.academic_rigor = answers.area_depth * 20;
-  if (answers.area_environment != null) student.practical_learning = answers.area_environment * 20;
 
   return area.universities.map(university => {
     let weightedSimilarity = 0;
@@ -300,8 +300,7 @@ export function calculateProfessionalMatches(area: ProfessionalArea, answers: Re
 
     const fit = weightTotal ? weightedSimilarity / weightTotal : 60;
     const confidence = weightTotal ? Math.round((confidenceWeighted / weightTotal) * 100) : university.dataConfidence;
-    const reliabilityPenalty = Math.max(0.82, 0.82 + confidence / 100 * 0.18);
-    const score = Math.round(Math.min(98, Math.max(50, fit * reliabilityPenalty)));
+    const score = Math.round(Math.min(98, Math.max(50, fit)));
     deltas.sort((a,b)=>b.similarity-a.similarity);
     const strengths = deltas.slice(0,3).map(d=>d.name);
     const watchouts = [...deltas].sort((a,b)=>a.similarity-b.similarity).slice(0,2).map(d=>d.name);
