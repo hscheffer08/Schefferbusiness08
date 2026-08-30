@@ -8,6 +8,7 @@ import UsReferralPromoMount from './lib/us-referral-promo-mount.tsx';
 import VocationalDemoMount from './lib/vocational-demo-mount.tsx';
 import VocationalFollowupMount from './lib/vocational-followup-mount.tsx';
 import ExpandedHomeMount from './lib/expanded-home-mount.tsx';
+import AccountControlsMount from './lib/account-controls-mount.tsx';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
@@ -19,6 +20,7 @@ createRoot(document.getElementById('root')!).render(
     <VocationalDemoMount />
     <VocationalFollowupMount />
     <ExpandedHomeMount />
+    <AccountControlsMount />
     <Analytics />
   </StrictMode>
 );
