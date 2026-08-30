@@ -33,6 +33,7 @@ import {
 import { getVocationalPresentation, VOCATIONAL_UNIVERSITY_NOTE } from '@/lib/vocational-presentation';
 import { trackEvent } from '@/lib/analytics';
 import { cleanReferralName } from '@/lib/free-referrals';
+import { ACADEMIC_AREAS } from '@/lib/area-match-data';
 
 interface VocationalDemoProps { onBack: () => void }
 type Answers = Record<string, number>;
@@ -81,6 +82,33 @@ function topAlignedDimensions(profile: Record<VocationalDimension, number>, cour
     .filter((item) => item.strength >= 50)
     .sort((a, b) => (a.distance - b.distance) || (b.strength - a.strength))
     .slice(0, limit);
+}
+
+
+function normalizeAcademicLabel(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function academicAreaForCourse(course: VocationalCourse) {
+  const courseName = normalizeAcademicLabel(course.name);
+  return ACADEMIC_AREAS.find((area) => {
+    const courses = normalizeAcademicLabel(area.courses);
+    return courses.includes(courseName) || courseName.includes(courses);
+  }) ?? null;
+}
+
+function matchDimensionValue(profile: Record<VocationalDimension, number>, course: VocationalCourse, dimension: VocationalDimension) {
+  const userSignal = profile[dimension] ?? 50;
+  const courseSignal = course.profile[dimension] ?? 50;
+  const relevance = DIMENSION_WEIGHTS[dimension] ?? 1;
+  const blended = (userSignal * 0.56) + (courseSignal * 0.44);
+  const weighted = blended + ((relevance - 1) * 10);
+  return Math.round(Math.max(38, Math.min(96, weighted)));
 }
 
 export default function VocationalDemoPremium({ onBack }: VocationalDemoProps) {
@@ -168,7 +196,11 @@ export default function VocationalDemoPremium({ onBack }: VocationalDemoProps) {
 
   const top = ranking[0];
   const presentation = getVocationalPresentation(top.course);
-  const topDimensions = (Object.entries(profile) as [VocationalDimension, number][]).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const matchedAcademicArea = academicAreaForCourse(top.course);
+  const topDimensions = (Object.keys(DIMENSION_LABELS) as VocationalDimension[])
+    .map((dimension) => [dimension, matchDimensionValue(profile, top.course, dimension)] as [VocationalDimension, number])
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8);
   const alternatives = ranking.slice(1, 5);
   const visibleRanking = showAll ? ranking : ranking.slice(0, 7);
 
@@ -193,9 +225,32 @@ export default function VocationalDemoPremium({ onBack }: VocationalDemoProps) {
           <div className="absolute right-6 top-6 md:right-10 md:top-10 rounded-3xl border border-white/15 bg-black/25 px-5 py-4 backdrop-blur-xl text-center"><div className="text-4xl md:text-5xl font-black text-white">{top.score}%</div><div className="text-[10px] uppercase tracking-widest text-ink-300 mt-1">compatibilidade</div></div>
         </section>
 
+        {matchedAcademicArea && (
+          <section className="mb-8 overflow-hidden rounded-[26px] border border-cyan-300/30 bg-gradient-to-r from-cyan-400/12 via-brand-500/10 to-violet-500/10 p-6 md:p-8 shadow-xl shadow-cyan-950/10">
+            <div className="flex flex-col lg:flex-row lg:items-center gap-6">
+              <div className="flex-1">
+                <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[.15em] text-cyan-200 font-black mb-2"><GraduationCap className="w-4 h-4" /> Seu próximo passo</div>
+                <h2 className="text-2xl md:text-4xl font-black tracking-tight mb-3">Agora descubra qual faculdade combina mais com você em {top.course.name}</h2>
+                <p className="text-sm md:text-base text-ink-300 leading-relaxed max-w-3xl">Responda ao questionário específico da área e compare as faculdades por ambiente acadêmico, metodologia, carreira, prática, internacionalização e preferências pessoais.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  trackEvent('vocational_college_match_cta_clicked', { course: top.course.name, area_id: matchedAcademicArea.id });
+                  window.dispatchEvent(new CustomEvent('conectae:close-vocational'));
+                  window.dispatchEvent(new CustomEvent('conectae:open-area-match', { detail: { areaId: matchedAcademicArea.id } }));
+                }}
+                className="shrink-0 inline-flex items-center justify-center gap-2 rounded-2xl bg-cyan-300 hover:brightness-110 text-[#06131c] font-black px-6 py-4 shadow-lg shadow-cyan-950/20 transition-all hover:scale-[1.02] active:scale-95"
+              >
+                Encontrar minha faculdade <ArrowRight className="w-5 h-5" />
+              </button>
+            </div>
+          </section>
+        )}
+
         <div className="grid lg:grid-cols-[1.05fr_1fr] gap-6 mb-8">
           <section className="glass rounded-3xl border border-ink-800 p-6 md:p-8">
-            <div className="flex items-center gap-3 mb-6"><div className="w-11 h-11 rounded-2xl bg-brand-500/15 text-brand-300 flex items-center justify-center"><BrainCircuit className="w-5 h-5" /></div><div><p className="text-xs uppercase tracking-widest text-ink-600 font-bold">Seu perfil</p><h2 className="text-xl font-bold">Dimensões que mais pesaram</h2></div></div>
+            <div className="flex items-center gap-3 mb-6"><div className="w-11 h-11 rounded-2xl bg-brand-500/15 text-brand-300 flex items-center justify-center"><BrainCircuit className="w-5 h-5" /></div><div><p className="text-xs uppercase tracking-widest text-ink-600 font-bold">Seu perfil</p><h2 className="text-xl font-bold">Dimensões que mais influenciaram seu match</h2></div></div>
             <div className="space-y-4">{topDimensions.map(([dimension, value]) => <div key={dimension}><div className="flex justify-between gap-4 text-sm mb-1.5"><span className="text-ink-300">{DIMENSION_LABELS[dimension]}</span><span className="font-bold text-ink-100">{value}%</span></div><div className="h-2.5 rounded-full bg-ink-800 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-brand-500 to-accent-400" style={{ width: `${value}%` }} /></div></div>)}</div>
           </section>
 
