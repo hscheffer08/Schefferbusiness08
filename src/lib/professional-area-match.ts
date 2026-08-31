@@ -380,7 +380,7 @@ export function calculateProfessionalMatches(area: ProfessionalArea, answers: Re
       const hasStudentSignal = student[dimension] != null;
       const studentValue = hasStudentSignal ? student[dimension] : 60;
       const distance = Math.abs(studentValue - Number(target));
-      const similarity = Math.max(0, 100 - Math.pow(distance, 1.18) * 1.35);
+      const similarity = Math.max(5, 100 - distance * 0.95);
       const baseWeight = area.dimensionWeights[dimension] ?? 1;
       const preferenceIntensity = hasStudentSignal
         ? 1 + Math.min(0.75, (Math.abs(studentValue - 60) / 40) * 0.75)

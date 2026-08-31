@@ -5,6 +5,10 @@ const home = fs.readFileSync('src/lib/expanded-home-mount.tsx', 'utf8');
 const vocational = fs.readFileSync('src/components/VocationalDemoPremium.tsx', 'utf8');
 const qa = fs.readFileSync('scripts/qa-vocational-v2.cjs', 'utf8');
 
+const professionalMatch = fs.readFileSync('src/lib/professional-area-match.ts', 'utf8');
+const areaPortal = fs.readFileSync('src/components/AreaMatchPortal.tsx', 'utf8');
+const commercialResults = fs.readFileSync('src/components/CommercialAreaResults.tsx', 'utf8');
+
 const checks = [
   [quiz.includes('clearProgress'), 'Quiz imports/uses clearProgress'],
   [quiz.includes('setAnswers({})') && quiz.includes('setCurrentStep(0)'), 'Start-over resets answers and step'],
@@ -15,6 +19,12 @@ const checks = [
   [vocational.includes('48 perguntas'), 'Vocational intro displays 48 questions'],
   [qa.includes('VOCATIONAL_QUESTIONS.length !== 48'), 'Synthetic QA enforces 48 vocational questions'],
   [qa.includes('VOCATIONAL_COURSES.length !== 50'), 'Synthetic QA enforces 50 vocational courses'],
+
+  [professionalMatch.includes('fetchAllRows') && professionalMatch.includes('.range(from, from + PAGE_SIZE - 1)'), 'Professional catalog is paginated beyond Supabase row limits'],
+  [professionalMatch.includes('Math.max(5, 100 - distance * 0.95)'), 'Similarity remains differentiated across the full response scale'],
+  [professionalMatch.includes('eligibleUniversities') && professionalMatch.includes('No dimensional university profiles available'), 'Universities without dimensional profiles cannot receive neutral scores'],
+  [areaPortal.includes('dataReady && adaptiveArea') && areaPortal.includes("if (!dataReady) return;"), 'Area matches wait for the professional database'],
+  [commercialResults.includes("'Não cadastrados'"), 'Missing official indicators are labeled as unavailable instead of zero'],
 ];
 
 const failed = checks.filter(([ok]) => !ok);

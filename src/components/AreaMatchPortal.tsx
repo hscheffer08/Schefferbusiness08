@@ -54,7 +54,7 @@ export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
     ? questionOrder.map(id => baseQuestions.find(question => question.id === id)).filter((question): question is typeof baseQuestions[number] => Boolean(question))
     : baseQuestions;
   const adaptiveArea = useMemo(() => area ? applyAdaptiveCalibration(area, answers, calibration) : null, [area, answers, calibration]);
-  const matches = useMemo(() => adaptiveArea ? calculateProfessionalMatches(adaptiveArea, answers) : [], [adaptiveArea, answers]);
+  const matches = useMemo(() => dataReady && adaptiveArea ? calculateProfessionalMatches(adaptiveArea, answers) : [], [dataReady, adaptiveArea, answers]);
   const learningStatus = adaptiveLearningStatus(calibration);
   const filtered = areas.filter(item => `${item.name} ${item.courses}`.toLowerCase().includes(query.toLowerCase()));
   const totalOptions = areas.reduce((sum, item) => sum + item.universities.length, 0);
@@ -72,6 +72,7 @@ export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
   }, [area]);
 
   const selectArea = (selected:ProfessionalArea) => {
+    if (!dataReady) return;
     setArea(selected); setAnswers({}); setIndex(0); setCalibration({}); setQuestionOrder([]); setStep('quiz');
     trackEvent('area_selected', { area_id:selected.id, area_name:selected.name, courses:selected.courses });
   };
@@ -95,12 +96,14 @@ export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
       </section>
       <div className="grid sm:grid-cols-3 gap-3 mb-8">{[[String(areas.length),'cursos'],[String(totalOptions),'opções'],['24','dimensões por perfil']].map(([number,label],i)=><div key={label} className={`rounded-2xl border p-4 bg-gradient-to-br ${CARD_TONES[i]}`}><div className="text-2xl font-black">{number}</div><div className="text-xs uppercase tracking-[.13em] font-bold text-ink-500">{label}</div></div>)}</div>
       <div className="relative max-w-2xl mb-8"><Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-500"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar área ou curso..." className="w-full rounded-2xl border border-white/10 bg-white/[0.045] py-4 pl-12 pr-4 outline-none focus:border-cyan-300/40"/></div>
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">{filtered.map((item,cardIndex)=><button key={item.id} onClick={()=>selectArea(item)} className={`group relative overflow-hidden text-left rounded-[26px] border bg-gradient-to-br ${CARD_TONES[cardIndex % CARD_TONES.length]} hover:-translate-y-1.5 hover:border-white/25 transition-all duration-300`}>
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">{filtered.map((item,cardIndex)=><button key={item.id} onClick={()=>selectArea(item)} disabled={!dataReady} className={`group relative overflow-hidden text-left rounded-[26px] border disabled:opacity-50 disabled:cursor-wait bg-gradient-to-br ${CARD_TONES[cardIndex % CARD_TONES.length]} hover:-translate-y-1.5 hover:border-white/25 transition-all duration-300`}>
         <div className="h-32 overflow-hidden relative"><img src={AREA_PHOTOS[cardIndex%AREA_PHOTOS.length]} alt="" className="w-full h-full object-cover opacity-65 group-hover:scale-105 transition-all duration-500" referrerPolicy="no-referrer"/><div className="absolute inset-0 bg-gradient-to-t from-[#0b1120] via-transparent to-transparent"/><span className="absolute top-3 right-3 text-[11px] px-2.5 py-1 rounded-full bg-black/35 border border-white/10">{item.universities.length} faculdades</span></div>
         <div className="p-5"><div className="w-10 h-10 -mt-10 relative z-10 rounded-xl bg-[#10182a] border border-white/10 text-cyan-200 flex items-center justify-center mb-4"><BookOpen className="w-5 h-5"/></div><h3 className="font-black text-xl mb-1">{item.name}</h3><p className="text-sm text-cyan-200 mb-2 font-medium">{item.courses}</p><p className="text-sm text-ink-500 leading-relaxed min-h-[60px]">{item.description}</p><span className="mt-5 inline-flex items-center gap-1.5 text-sm font-bold text-ink-300 group-hover:text-white">Fazer match <ArrowRight className="w-4 h-4"/></span></div>
       </button>)}</div>
     </main>
   </div>;
+
+  if (!dataReady) return <div className="min-h-screen bg-[#070b16] text-ink-50 flex items-center justify-center px-6"><div className="text-center max-w-md"><div className="w-12 h-12 mx-auto mb-5 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 flex items-center justify-center"><Database className="w-6 h-6 text-cyan-200"/></div><h2 className="text-2xl font-black mb-2">Carregando banco profissional</h2><p className="text-sm text-ink-400">Estamos conectando perguntas, pesos e os 24 indicadores de perfil de cada faculdade antes de iniciar o match.</p></div></div>;
 
   if (!area) return null;
 
