@@ -28,9 +28,12 @@ portal = portal.replace(
     "onClick={()=>selectArea(item)} className={`group relative overflow-hidden text-left rounded-[26px] border",
     "onClick={()=>selectArea(item)} disabled={!dataReady} className={`group relative overflow-hidden text-left rounded-[26px] border disabled:opacity-50 disabled:cursor-wait"
 )
-loading_gate = '''\n  if (!dataReady && step !== 'areas') return <div className="min-h-screen bg-[#070b16] text-ink-50 flex items-center justify-center px-6"><div className="text-center max-w-md"><div className="w-12 h-12 mx-auto mb-5 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 flex items-center justify-center"><Database className="w-6 h-6 text-cyan-200"/></div><h2 className="text-2xl font-black mb-2">Carregando banco profissional</h2><p className="text-sm text-ink-400">Estamos conectando perguntas, pesos e os 24 indicadores de perfil de cada faculdade antes de iniciar o match.</p></div></div>;\n'''
-needle = "\n  if (!area) return null;\n"
-if loading_gate.strip() not in portal:
+loading_gate = '''\n  if (!dataReady) return <div className="min-h-screen bg-[#070b16] text-ink-50 flex items-center justify-center px-6"><div className="text-center max-w-md"><div className="w-12 h-12 mx-auto mb-5 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 flex items-center justify-center"><Database className="w-6 h-6 text-cyan-200"/></div><h2 className="text-2xl font-black mb-2">Carregando banco profissional</h2><p className="text-sm text-ink-400">Estamos conectando perguntas, pesos e os 24 indicadores de perfil de cada faculdade antes de iniciar o match.</p></div></div>;\n'''
+old_loading_gate = '''\n  if (!dataReady && step !== 'areas') return <div className="min-h-screen bg-[#070b16] text-ink-50 flex items-center justify-center px-6"><div className="text-center max-w-md"><div className="w-12 h-12 mx-auto mb-5 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 flex items-center justify-center"><Database className="w-6 h-6 text-cyan-200"/></div><h2 className="text-2xl font-black mb-2">Carregando banco profissional</h2><p className="text-sm text-ink-400">Estamos conectando perguntas, pesos e os 24 indicadores de perfil de cada faculdade antes de iniciar o match.</p></div></div>;\n'''
+if old_loading_gate in portal:
+    portal = portal.replace(old_loading_gate, loading_gate)
+elif loading_gate.strip() not in portal:
+    needle = "\n  if (!area) return null;\n"
     if needle not in portal:
         raise SystemExit('Area loading insertion point not found')
     portal = portal.replace(needle, loading_gate + needle)
@@ -67,4 +70,4 @@ if "Professional catalog is paginated beyond Supabase row limits" not in validat
 validator_path.write_text(validator, encoding='utf-8')
 
 print('Presentation hardening applied.')
-# Trigger marker: final presentation preflight
+# Trigger marker: final presentation preflight v2
