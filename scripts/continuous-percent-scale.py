@@ -71,3 +71,4 @@ if 'Continuous percentages are used directly' not in pv:
 professional_validator_path.write_text(pv, encoding='utf-8')
 
 print('Continuous percentage scale applied.')
+# rollout trigger
