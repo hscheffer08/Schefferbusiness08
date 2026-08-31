@@ -67,3 +67,4 @@ if "Professional catalog is paginated beyond Supabase row limits" not in validat
 validator_path.write_text(validator, encoding='utf-8')
 
 print('Presentation hardening applied.')
+# Trigger marker: final presentation preflight
