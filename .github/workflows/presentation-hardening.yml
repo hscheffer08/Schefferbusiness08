@@ -1,0 +1,25 @@
+name: Presentation hardening
+on:
+  push:
+    paths:
+      - 'scripts/presentation-hardening.py'
+jobs:
+  harden:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply presentation hardening
+        run: python scripts/presentation-hardening.py
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate production build
+        run: npm run build
+      - name: Commit hardened production flow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/lib/professional-area-match.ts src/components/AreaMatchPortal.tsx src/lib/expanded-home-mount.tsx scripts/validate-questionnaires.mjs
+          git commit -m 'Harden all course matches for presentation' || exit 0
+          git push
