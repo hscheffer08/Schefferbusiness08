@@ -40,5 +40,8 @@
   .conectae-balanced-private-header,
   .conectae-balanced-results > article[data-institution-type='public'],
   .conectae-balanced-results > article[data-institution-type='private'] { grid-column: 1; }
-  .conectae-balanced-private-header { margin-top: 10px; }
+  .conectae-balanced-public-header { order: 1; }
+  .conectae-balanced-results > article[data-institution-type='public'] { order: 2; }
+  .conectae-balanced-private-header { order: 3; margin-top: 10px; }
+  .conectae-balanced-results > article[data-institution-type='private'] { order: 4; }
 }
