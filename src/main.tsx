@@ -9,6 +9,7 @@ import VocationalDemoMount from './lib/vocational-demo-mount.tsx';
 import ExpandedHomeMount from './lib/expanded-home-mount.tsx';
 import AccountControlsMount from './lib/account-controls-mount.tsx';
 import BalancedAreaResultsMount from './lib/balanced-area-results-mount.tsx';
+import PremiumDemoMount from './lib/premium-demo-mount.tsx';
 import './index.css';
 import './lib/balanced-area-results.css';
 
@@ -22,6 +23,7 @@ createRoot(document.getElementById('root')!).render(
     <ExpandedHomeMount />
     <AccountControlsMount />
     <BalancedAreaResultsMount />
+    <PremiumDemoMount />
     <Analytics />
   </StrictMode>
 );
