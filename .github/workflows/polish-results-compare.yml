@@ -1,0 +1,25 @@
+name: Polish results and compare
+on:
+  push:
+    paths:
+      - 'scripts/polish-results-compare.py'
+jobs:
+  polish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply results and compare polish
+        run: python scripts/polish-results-compare.py
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate production build
+        run: npm run build
+      - name: Commit polished results and compare
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/components/CommercialAreaResults.tsx src/components/Comparator.tsx
+          git commit -m 'Improve confidence explanations and comparison data' || exit 0
+          git push
