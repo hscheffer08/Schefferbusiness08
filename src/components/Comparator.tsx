@@ -29,6 +29,20 @@ export default function Comparator({ dbData, matchResults, onBack }: ComparatorP
     .map((id) => universities.find((u: University) => u.university_id === id))
     .filter(Boolean) as University[];
 
+  const hasText = (value: string | null | undefined) => Boolean(value && value.trim());
+  const optionalRows = [
+    { label: 'Curso', value: (uni: University) => uni.course },
+    { label: 'Localização', value: (uni: University) => uni.location },
+    { label: 'Formato', value: (uni: University) => uni.format },
+    { label: 'Posicionamento', value: (uni: University) => uni.positioning },
+    { label: 'Diferenciais do programa', value: (uni: University) => uni.program_differentiators },
+    { label: 'Admissão', value: (uni: University) => uni.admissions },
+    { label: 'Valores e cultura', value: (uni: University) => uni.values },
+    { label: 'Perfil de alta aderência', value: (uni: University) => uni.high_fit_student },
+    { label: 'Pontos de atenção', value: (uni: University) => uni.low_fit_student },
+    { label: 'Por que combina', value: (uni: University) => uni.match_rationale },
+  ].filter((row) => selectedUniversities.some((uni) => hasText(row.value(uni))));
+
   return (
     <div className="min-h-screen relative overflow-hidden">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -99,6 +113,7 @@ export default function Comparator({ dbData, matchResults, onBack }: ComparatorP
 
         {selected.length >= 2 && (
           <>
+            <div className="mb-5 rounded-2xl border border-brand-400/15 bg-brand-400/[0.05] p-4 text-sm text-ink-400">O comparador mostra apenas critérios que têm informação em pelo menos uma das faculdades selecionadas. Campos totalmente vazios são removidos automaticamente.</div>
             <div className="flex flex-wrap gap-2 mb-6">
               {selected.map((id) => {
                 const uni = universities.find((u: University) => u.university_id === id);
@@ -170,16 +185,18 @@ export default function Comparator({ dbData, matchResults, onBack }: ComparatorP
                       })}
                     </ComparisonRow>
                   ))}
-                  <ComparisonRow label="Localização">
-                    {selectedUniversities.map((uni) => (
-                      <td key={uni.university_id} className="p-4 text-sm text-ink-300">{uni.location ?? '—'}</td>
-                    ))}
-                  </ComparisonRow>
-                  <ComparisonRow label="Formato">
-                    {selectedUniversities.map((uni) => (
-                      <td key={uni.university_id} className="p-4 text-sm text-ink-300">{uni.format ?? '—'}</td>
-                    ))}
-                  </ComparisonRow>
+                  {optionalRows.map((row) => (
+                    <ComparisonRow key={row.label} label={row.label}>
+                      {selectedUniversities.map((uni) => {
+                        const value = row.value(uni);
+                        return (
+                          <td key={uni.university_id} className="p-4 text-sm text-ink-300 leading-relaxed align-top min-w-[190px]">
+                            {hasText(value) ? value : <span className="text-ink-700">—</span>}
+                          </td>
+                        );
+                      })}
+                    </ComparisonRow>
+                  ))}
                 </tbody>
               </table>
             </div>
