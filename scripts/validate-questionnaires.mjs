@@ -25,6 +25,11 @@ const checks = [
   [professionalMatch.includes('eligibleUniversities') && professionalMatch.includes('No dimensional university profiles available'), 'Universities without dimensional profiles cannot receive neutral scores'],
   [areaPortal.includes('dataReady && adaptiveArea') && areaPortal.includes("if (!dataReady) return;"), 'Area matches wait for the professional database'],
   [commercialResults.includes("'Não cadastrados'"), 'Missing official indicators are labeled as unavailable instead of zero'],
+
+  [areaPortal.includes('ContinuousPercentInput') && areaPortal.includes('step={0.1}'), 'Area questionnaire accepts arbitrary decimal percentages'],
+  [professionalMatch.includes('Math.max(0, Math.min(100, raw))') && !professionalMatch.includes('raw * 20, question.weight'), 'Professional match compares continuous percentages directly'],
+  [commercialResults.includes('Math.max(0,Math.min(100,raw))'), 'Profile summary preserves exact percentages'],
+  [quiz.includes('parseFloat(value)') && quiz.includes('placeholder="Digite um valor"'), 'Main slider accepts exact decimal percentages'],
 ];
 
 const failed = checks.filter(([ok]) => !ok);

@@ -336,13 +336,13 @@ export function calculateProfessionalMatches(area: ProfessionalArea, answers: Re
       const raw = answers[question.id];
       if (raw == null) continue;
       const dimensionIds = QUESTION_DIMENSION_MAP[question.dimension] ?? [question.dimension];
-      dimensionIds.forEach((dimensionId) => addSignal(dimensionId, raw * 20, question.weight ?? 1));
+      dimensionIds.forEach((dimensionId) => addSignal(dimensionId, Math.max(0, Math.min(100, raw)), question.weight ?? 1));
     }
   } else {
     Object.entries(QUESTION_DIMENSION_MAP).forEach(([questionId, dimensionIds]) => {
       const raw = answers[questionId];
       if (raw == null) return;
-      dimensionIds.forEach((dimensionId) => addSignal(dimensionId, raw * 20, 1));
+      dimensionIds.forEach((dimensionId) => addSignal(dimensionId, Math.max(0, Math.min(100, raw)), 1));
     });
   }
 

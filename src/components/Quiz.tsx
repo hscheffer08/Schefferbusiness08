@@ -333,9 +333,8 @@ function QuestionInput({
 }
 
 function SliderInput({ question, value, onChange }: { question: Question; value: string; onChange: (v: string) => void }) {
-  const numValue = value ? parseInt(value, 10) : 50;
-  const sliderValue = Math.round(numValue / 5) * 5;
-  const clamped = Math.max(0, Math.min(100, sliderValue));
+  const numValue = value ? parseFloat(value) : 50;
+  const clamped = Math.max(0, Math.min(100, Number.isFinite(numValue) ? numValue : 50));
   const pct = clamped;
 
   const minLabel = question.scale_min_label;
@@ -354,8 +353,14 @@ function SliderInput({ question, value, onChange }: { question: Question; value:
     <div>
       <div className="flex items-center justify-center mb-4">
         <div className="flex-shrink-0 w-20 h-20 rounded-2xl bg-gradient-to-br from-brand-500/20 to-accent-500/20 border border-brand-700/40 flex items-center justify-center">
-          <span className="text-3xl font-bold text-brand-400">{clamped}</span>
+          <span className="text-3xl font-bold text-brand-400">{Number.isInteger(clamped) ? clamped : clamped.toFixed(1)}</span>
         </div>
+      </div>
+
+
+      <div className="flex items-center justify-center gap-2 mb-4">
+        <input type="number" min={0} max={100} step={0.1} value={value} placeholder="Digite um valor" onChange={(e) => { const raw=e.target.value; if(raw===''){onChange('');return;} const n=Number(raw); if(Number.isFinite(n)) onChange(String(Math.max(0,Math.min(100,n)))); }} className="w-36 rounded-xl border border-brand-700/40 bg-ink-900/60 px-3 py-2 text-center text-sm font-semibold text-ink-100 outline-none focus:border-brand-400"/>
+        <span className="text-sm font-bold text-ink-400">%</span>
       </div>
 
       {interpretation(clamped) && (
@@ -369,7 +374,7 @@ function SliderInput({ question, value, onChange }: { question: Question; value:
           type="range"
           min={0}
           max={100}
-          step={5}
+          step={1}
           value={clamped}
           onChange={(e) => onChange(e.target.value)}
           className="w-full h-2 rounded-full appearance-none cursor-pointer slider-thumb"

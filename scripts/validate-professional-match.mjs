@@ -8,6 +8,7 @@ const checks = [
   [engine.includes("fetchAllRows('area_questions'"), 'Area questions are paginated'],
   [engine.includes('normalizeFallbackMatchProfile'), 'Fallback profiles use professional dimension IDs'],
   [engine.includes('eligibleUniversities'), 'Universities without dimensional profiles are excluded'],
+  [engine.includes('Math.max(0, Math.min(100, raw))') && !engine.includes('raw * 20, question.weight'), 'Continuous percentages are used directly'],
   [results.includes("'Não cadastrados'"), 'Missing official indicators are not shown as 0/5'],
 ];
 let failed = 0;

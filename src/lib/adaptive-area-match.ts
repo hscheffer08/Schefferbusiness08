@@ -34,6 +34,9 @@ const QUESTION_DIMENSIONS: Record<string, string[]> = {
   impact: ['social_impact'],
 };
 
+
+const percentToCalibrationScale = (value: number) => Math.max(0, Math.min(5, value / 20));
+
 const emptyPoint = (): AreaCalibrationPoint => ({
   sampleCount: 0,
   mean: 3,
@@ -110,7 +113,7 @@ export function applyAdaptiveCalibration(
     const learned = calibration[question.dimension];
     if (!learned || (learned.sampleCount < 20 && learned.feedbackCount < 10)) continue;
     const answer = answers[question.id];
-    const personalDeviation = answer == null || learned.sampleCount < 20 ? 0 : Math.min(1, Math.abs(answer - learned.mean) / 2);
+    const personalDeviation = answer == null || learned.sampleCount < 20 ? 0 : Math.min(1, Math.abs(percentToCalibrationScale(answer) - learned.mean) / 2);
     const personalBoost = 1 + personalDeviation * 0.12;
     const combined = Math.max(0.85, Math.min(1.25, effectiveMultiplier(learned) * personalBoost));
     const dimensions = QUESTION_DIMENSIONS[question.dimension] ?? [question.dimension];
@@ -135,7 +138,7 @@ export async function recordAreaResponses(
       area_id: area.id,
       question_id: question.id,
       dimension_id: question.dimension,
-      answer_value: answers[question.id],
+      answer_value: percentToCalibrationScale(answers[question.id]),
     }));
   if (!rows.length) return;
   const { error } = await supabase.from('area_match_responses').insert(rows);
@@ -156,7 +159,7 @@ function feedbackSignals(
     for (const dimension of dimensions) {
       const target = Number(top.university.matchProfile[dimension]);
       if (!Number.isFinite(target)) continue;
-      const student = raw * 20;
+      const student = Math.max(0, Math.min(100, raw));
       const similarity = Math.max(0, Math.min(1, 1 - Math.abs(student - target) / 100));
       const signed = expectation === 'yes'
         ? (similarity - 0.5) * 2
