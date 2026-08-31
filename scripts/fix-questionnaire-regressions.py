@@ -45,3 +45,4 @@ if 'validate:questionnaires' not in old_build:
 package_path.write_text(json.dumps(package, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 
 print('Questionnaire regressions repaired and build guard installed.')
+# Trigger marker: 2026-08-31
