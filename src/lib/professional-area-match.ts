@@ -104,31 +104,61 @@ const LEGACY_BUSINESS_DIMENSION_MAP: Record<string, string[]> = {
   academic_value_added: ['critical_thinking', 'problem_solving', 'curiosity_learning'],
 };
 
+const PAGE_SIZE = 1000;
+
+async function fetchAllRows(table: string, columns: string, orderColumns: string[] = []): Promise<any[]> {
+  if (!supabase) return [];
+  const rows: any[] = [];
+  let from = 0;
+
+  while (true) {
+    let query: any = supabase.from(table).select(columns);
+    for (const column of orderColumns) query = query.order(column, { ascending: true });
+    const { data, error } = await query.range(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    const page = data ?? [];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+
+  return rows;
+}
+
+function normalizeFallbackMatchProfile(profile: Record<string, number>): Record<string, number> {
+  const normalized: Record<string, number> = {};
+  for (const [dimension, score] of Object.entries(profile ?? {})) {
+    const targets = QUESTION_DIMENSION_MAP[dimension] ?? [dimension];
+    for (const target of targets) normalized[target] = Number(score);
+  }
+  return normalized;
+}
+
 export async function loadProfessionalAreas(fallback: AcademicArea[]): Promise<ProfessionalArea[]> {
   if (!supabase) return fallback.map(toFallbackProfessionalArea);
   try {
     const [
-      { data: areas },
-      { data: universities },
-      { data: profiles },
-      { data: weights },
-      { data: evidence },
-      { data: areaQuestions },
-      { data: legacyUniversities },
-      { data: legacyWeights },
-      { data: legacyEvidence },
+      areas,
+      universities,
+      profiles,
+      weights,
+      evidence,
+      areaQuestions,
+      legacyUniversities,
+      legacyWeights,
+      legacyEvidence,
     ] = await Promise.all([
-      supabase.from('academic_areas').select('area_id,name,courses,description'),
-      supabase.from('area_universities').select('*'),
-      supabase.from('area_university_dimension_profiles').select('*'),
-      supabase.from('area_dimension_priorities').select('*'),
-      supabase.from('area_university_evidence').select('area_university_id,confidence'),
-      supabase.from('area_questions').select('question_id,area_id,question_order,question_text,dimension,scale_min_label,scale_max_label,is_required'),
-      supabase.from('universities').select('*'),
-      supabase.from('university_dimension_weights').select('university_id,dimension_id,weight'),
-      supabase.from('official_evidence').select('university_id,evidence_id'),
+      fetchAllRows('academic_areas', 'area_id,name,courses,description', ['area_id']),
+      fetchAllRows('area_universities', '*', ['area_university_id']),
+      fetchAllRows('area_university_dimension_profiles', '*', ['area_university_id', 'dimension_id']),
+      fetchAllRows('area_dimension_priorities', '*', ['area_id', 'dimension_id']),
+      fetchAllRows('area_university_evidence', 'area_university_id,confidence', ['area_university_id']),
+      fetchAllRows('area_questions', 'question_id,area_id,question_order,question_text,dimension,scale_min_label,scale_max_label,is_required', ['area_id', 'question_order', 'question_id']),
+      fetchAllRows('universities', '*', ['university_id']),
+      fetchAllRows('university_dimension_weights', 'university_id,dimension_id,weight', ['university_id', 'dimension_id']),
+      fetchAllRows('official_evidence', 'university_id,evidence_id', ['university_id', 'evidence_id']),
     ]);
-    if (!areas?.length || !universities?.length) return fallback.map(toFallbackProfessionalArea);
+    if (!areas.length || !universities.length) return fallback.map(toFallbackProfessionalArea);
 
     const profilesByUniversity = new Map<number, Record<string, { score:number; confidence:number }>>();
     for (const p of profiles ?? []) {
@@ -285,6 +315,7 @@ function toFallbackProfessionalArea(area: AcademicArea): ProfessionalArea {
     questions: [],
     universities: area.universities.map((u,index)=>({
       ...u,
+      matchProfile: normalizeFallbackMatchProfile(u.matchProfile),
       areaUniversityId:index+1,
       dataConfidence:40,
       evidenceCount:0,
@@ -323,7 +354,16 @@ export function calculateProfessionalMatches(area: ProfessionalArea, answers: Re
     })
   );
 
-  const rawResults = area.universities.map(university => {
+  const eligibleUniversities = area.universities.filter((university) =>
+    Object.values(university.matchProfile ?? {}).some((value) => Number.isFinite(Number(value)))
+  );
+
+  if (!eligibleUniversities.length) {
+    console.error(`No dimensional university profiles available for area ${area.id}.`);
+    return [];
+  }
+
+  const rawResults = eligibleUniversities.map(university => {
     let weightedSimilarity = 0;
     let weightTotal = 0;
     let confidenceWeighted = 0;
