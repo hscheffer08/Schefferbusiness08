@@ -15,7 +15,8 @@ function inferInstitutionType(name: string): InstitutionType {
 
 export default function BalancedAreaResultsMount() {
   useEffect(() => {
-    if (!supabase) return;
+    const client = supabase;
+    if (!client) return;
     let cancelled = false;
     let typeByName = new Map<string, InstitutionType>();
 
@@ -57,7 +58,7 @@ export default function BalancedAreaResultsMount() {
     };
 
     const load = async () => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('area_universities')
         .select('university_name,institution_type')
         .not('institution_type', 'is', null);
