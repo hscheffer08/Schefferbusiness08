@@ -1,0 +1,26 @@
+name: Fix questionnaire regressions
+on:
+  push:
+    paths:
+      - 'scripts/fix-questionnaire-regressions.py'
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply questionnaire repairs
+        run: python scripts/fix-questionnaire-regressions.py
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate production build
+        run: npm run build
+      - name: Commit repaired questionnaire flows
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/components/Quiz.tsx src/lib/expanded-home-mount.tsx scripts/validate-questionnaires.mjs package.json
+          git commit -m 'Fix questionnaire reset and vocational count regressions' || exit 0
+          git push
