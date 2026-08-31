@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - 'scripts/polish-results-compare.py'
+      - '.github/workflows/polish-results-compare.yml'
 jobs:
   polish:
     runs-on: ubuntu-latest
