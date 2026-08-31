@@ -9,7 +9,7 @@ import {
   isMultiChoiceQuestion,
   MULTI_CHOICE_MAX,
 } from '@/lib/question-options';
-import { saveProgress, loadProgress } from '@/lib/api';
+import { saveProgress, loadProgress, clearProgress } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { trackEvent } from '@/lib/analytics';
 
@@ -114,8 +114,22 @@ export default function Quiz({ questions, mode, onComplete, onBack }: QuizProps)
   }, [answers, completeQuiz, currentQuestion.question_id, currentStep, isLast, user]);
 
 
-  const skipSavedProgress = () => {
+  const startFreshQuestionnaire = async () => {
+    setAnswers({});
+    setCurrentStep(0);
+    setDirection('forward');
     setHasSavedProgress(false);
+
+    if (user) {
+      try {
+        await clearProgress();
+        await saveProgress({}, 0);
+      } catch {
+        // The local reset is still authoritative for the current session.
+      }
+    }
+
+    trackEvent('questionnaire_restarted', { mode }, user?.id);
   };
 
   const goBack = useCallback(() => {
@@ -160,7 +174,7 @@ export default function Quiz({ questions, mode, onComplete, onBack }: QuizProps)
               Continuar de onde parei
             </button>
             <button
-              onClick={skipSavedProgress}
+              onClick={() => void startFreshQuestionnaire()}
               className="w-full py-3.5 rounded-xl bg-ink-800 hover:bg-ink-700 text-ink-300 font-medium transition-colors"
             >
               Começar do zero

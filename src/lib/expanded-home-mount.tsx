@@ -64,7 +64,7 @@ export default function ExpandedHomeMount() {
                   <div className="w-12 h-12 rounded-2xl bg-cyan-300 text-[#06131c] flex items-center justify-center mb-5 shadow-lg shadow-cyan-300/15"><Compass className="w-6 h-6" /></div>
                   <div className="text-[11px] font-black tracking-[.15em] text-cyan-200 uppercase mb-2">Ainda explorando</div>
                   <h2 className="text-2xl font-black mb-2">Fazer teste vocacional</h2>
-                  <p className="text-sm text-ink-400 leading-relaxed mb-5">36 perguntas para cruzar interesses, valores, estilo de trabalho e aptidões percebidas.</p>
+                  <p className="text-sm text-ink-400 leading-relaxed mb-5">48 perguntas para cruzar interesses, valores, estilo de trabalho e aptidões percebidas.</p>
                   <span className="inline-flex items-center gap-2 font-bold text-cyan-200 group-hover:gap-3 transition-all">Descobrir meu caminho <ArrowRight className="w-4 h-4" /></span>
                 </div>
               </button>
