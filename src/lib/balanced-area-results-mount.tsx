@@ -5,6 +5,14 @@ type InstitutionType = 'public' | 'private';
 
 const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
+function inferInstitutionType(name: string): InstitutionType {
+  const value = normalize(name);
+  const publicMarkers = [
+    'usp','fea-usp','unicamp','unesp','ufmg','ufrj','ufrgs','ufpr','ufsc','unb','ufpe','ufba','ufg','ufrn','ufabc','ufscar','unifesp','uerj','uff','ufv','ufla','ufsm','ufpb','ufc','uel','uem','udesc','utfpr','fatec','instituto federal','ifsp','ifsc','ifrs','ifce','ifpe','ifpb','ifba','ifrn','ifg','ifes','ufrpe','ufpel','ufes','ufal','ufpa','ufjf','ufpi','ufrb','ufs'
+  ];
+  return publicMarkers.some((marker) => value === marker || value.startsWith(`${marker} `) || value.startsWith(`${marker}/`) || value.includes(` ${marker}`)) ? 'public' : 'private';
+}
+
 export default function BalancedAreaResultsMount() {
   useEffect(() => {
     if (!supabase) return;
@@ -22,9 +30,7 @@ export default function BalancedAreaResultsMount() {
       for (const article of articles) {
         const name = article.querySelector('h3')?.textContent?.trim();
         if (!name) continue;
-        const type = typeByName.get(normalize(name));
-        if (!type) continue;
-        article.dataset.institutionType = type;
+        article.dataset.institutionType = typeByName.get(normalize(name)) ?? inferInstitutionType(name);
       }
 
       let publicHeader = section.querySelector('[data-balanced-header="public"]') as HTMLElement | null;
