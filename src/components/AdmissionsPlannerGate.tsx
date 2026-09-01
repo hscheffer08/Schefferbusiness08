@@ -1,8 +1,9 @@
-import { Loader2, LockKeyhole } from 'lucide-react';
+import { Loader2, LockKeyhole, LogOut } from 'lucide-react';
 import Auth from '@/components/Auth';
 import AdmissionsPlannerV9 from '@/components/AdmissionsPlannerV9';
 import PlannerStudyLab from '@/components/PlannerStudyLab';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
+import { supabase } from '@/lib/supabase';
 import './admissions-planner-v8.css';
 
 function Gate({ onBack }: { onBack: () => void }) {
@@ -25,7 +26,26 @@ function Gate({ onBack }: { onBack: () => void }) {
     </div>;
   }
 
-  return <><AdmissionsPlannerV9 onBack={onBack} /><PlannerStudyLab /></>;
+  const signOut = async () => {
+    try {
+      await supabase?.auth.signOut();
+    } finally {
+      window.location.reload();
+    }
+  };
+
+  return <div className="relative">
+    <button
+      type="button"
+      onClick={signOut}
+      className="fixed top-3 right-3 z-[80] inline-flex items-center gap-2 rounded-xl border border-[#234576] bg-[#071a38]/95 px-3 py-2 text-xs font-bold text-white shadow-lg backdrop-blur hover:bg-[#0c2857]"
+      aria-label="Sair da conta"
+    >
+      <LogOut className="w-4 h-4" /> Sair
+    </button>
+    <AdmissionsPlannerV9 onBack={onBack} />
+    <PlannerStudyLab />
+  </div>;
 }
 
 export default function AdmissionsPlannerGate({ onBack }: { onBack: () => void }) {
