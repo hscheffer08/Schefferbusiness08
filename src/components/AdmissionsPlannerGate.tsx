@@ -1,6 +1,7 @@
 import { Loader2, LockKeyhole } from 'lucide-react';
 import Auth from '@/components/Auth';
 import AdmissionsPlannerV7 from '@/components/AdmissionsPlannerV7';
+import PlannerStudyLab from '@/components/PlannerStudyLab';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 
 function Gate({ onBack }: { onBack: () => void }) {
@@ -23,7 +24,7 @@ function Gate({ onBack }: { onBack: () => void }) {
     </div>;
   }
 
-  return <AdmissionsPlannerV7 onBack={onBack} />;
+  return <><AdmissionsPlannerV7 onBack={onBack} /><PlannerStudyLab /></>;
 }
 
 export default function AdmissionsPlannerGate({ onBack }: { onBack: () => void }) {
