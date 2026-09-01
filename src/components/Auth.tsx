@@ -39,17 +39,22 @@ export default function Auth({ onBack, onSuccess, onPrivacy, onTerms, compact = 
         setLoading(false);
         return;
       }
-      const { error: err } = await signUp(email, password, displayName);
+      const { error: err, needsConfirmation } = await signUp(email, password, displayName);
       if (err) setError(err);
       else {
         trackEvent('signup_started');
-        setSuccess('Tudo certo! Se este e-mail ainda não tiver conta, ela foi criada. Faça login para continuar.');
-        setMode('login');
+        if (needsConfirmation) {
+          setSuccess('Conta criada. Abra o e-mail de confirmação e toque no link para voltar ao Conectaê e ativar sua conta.');
+          setMode('login');
+        } else {
+          setSuccess('Conta criada e conectada com sucesso.');
+          onSuccess();
+        }
       }
     } else {
       const { error: err } = await resetPassword(email);
       if (err) setError(err);
-      else setSuccess('Se houver uma conta com esse e-mail, enviamos um link de recuperação.');
+      else setSuccess('Se houver uma conta com esse e-mail, enviamos um link de recuperação que volta para o Conectaê.');
     }
     setLoading(false);
   };
