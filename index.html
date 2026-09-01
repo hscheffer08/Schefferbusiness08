@@ -14,35 +14,17 @@
     <meta name="robots" content="index, follow" />
     <meta name="googlebot" content="index, follow" />
 
-    <link
-      rel="canonical"
-      href="https://businessschoolfit.vercel.app/"
-    />
+    <link rel="canonical" href="https://businessschoolfit.vercel.app/" />
 
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="pt_BR" />
-    <meta
-      property="og:url"
-      content="https://businessschoolfit.vercel.app/"
-    />
-    <meta
-      property="og:title"
-      content="Conectaê | Descubra a faculdade ideal para o seu perfil"
-    />
-    <meta
-      property="og:description"
-      content="Compare seu perfil com faculdades e receba um ranking personalizado de compatibilidade no Conectaê."
-    />
+    <meta property="og:url" content="https://businessschoolfit.vercel.app/" />
+    <meta property="og:title" content="Conectaê | Descubra a faculdade ideal para o seu perfil" />
+    <meta property="og:description" content="Compare seu perfil com faculdades e receba um ranking personalizado de compatibilidade no Conectaê." />
 
     <meta name="twitter:card" content="summary" />
-    <meta
-      name="twitter:title"
-      content="Conectaê | Descubra a faculdade ideal para o seu perfil"
-    />
-    <meta
-      name="twitter:description"
-      content="Descubra quais faculdades mais combinam com seu perfil usando o Conectaê."
-    />
+    <meta name="twitter:title" content="Conectaê | Descubra a faculdade ideal para o seu perfil" />
+    <meta name="twitter:description" content="Descubra quais faculdades mais combinam com seu perfil usando o Conectaê." />
 
     <script type="application/ld+json">
       {
@@ -57,14 +39,67 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Instrument+Serif&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Instrument+Serif&display=swap" rel="stylesheet" />
   </head>
 
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      (() => {
+        let scheduled = false;
+        const polishPlanner = () => {
+          scheduled = false;
+          const planner = document.querySelector('.plan6');
+          if (!planner) return;
+
+          planner.querySelectorAll('.plan6-card').forEach((card) => {
+            const heading = Array.from(card.querySelectorAll('h2')).find((node) => /horas por semana/i.test(node.textContent || ''));
+            const range = card.querySelector('input.plan6-slider[type="range"][min="3"][max="30"]');
+            if (!heading || !range) return;
+            let scale = card.querySelector('.plan6-hour-scale');
+            if (!scale) {
+              scale = document.createElement('div');
+              scale.className = 'plan6-hour-scale';
+              scale.innerHTML = '<span>3h</span><strong></strong><span>30h</span>';
+              range.insertAdjacentElement('afterend', scale);
+              range.addEventListener('input', () => {
+                const strong = scale.querySelector('strong');
+                if (strong) strong.textContent = `${range.value}h selecionadas`;
+              });
+            }
+            const strong = scale.querySelector('strong');
+            if (strong) strong.textContent = `${range.value}h selecionadas`;
+          });
+
+          planner.querySelectorAll('.plan6-statline').forEach((row) => {
+            const value = row.querySelector('.plan6-statvalue');
+            if (!value) return;
+            const match = (value.textContent || '').match(/^(\d+)\s+a evoluir$/i);
+            if (!match) return;
+            const gap = Number(match[1]);
+            const meta = row.querySelector('.plan6-statmeta')?.textContent || '';
+            const maxMatch = meta.match(/agora\s+[\d.]+\/(\d+)/i);
+            const max = maxMatch ? Number(maxMatch[1]) : 45;
+            const unit = max > 80 ? 'pontos' : 'acertos';
+            value.textContent = gap === 0
+              ? `0 ${unit} faltam · meta atingida`
+              : `${gap} ${unit} ${gap === 1 ? 'falta' : 'faltam'} para a meta`;
+          });
+        };
+
+        const schedule = () => {
+          if (scheduled) return;
+          scheduled = true;
+          requestAnimationFrame(polishPlanner);
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+          schedule();
+          const root = document.getElementById('root');
+          if (root) new MutationObserver(schedule).observe(root, { subtree: true, childList: true, characterData: true });
+        });
+      })();
+    </script>
   </body>
 </html>
