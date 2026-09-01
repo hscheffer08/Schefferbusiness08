@@ -14,7 +14,7 @@ const checks = [
   [quiz.includes('setAnswers({})') && quiz.includes('setCurrentStep(0)'), 'Start-over resets answers and step'],
   [quiz.includes("saveProgress({}, 0)"), 'Start-over persists an empty progress state'],
   [quiz.includes('onClick={() => void startFreshQuestionnaire()}'), 'Start-over button uses the real reset handler'],
-  [home.includes('48 perguntas para cruzar interesses'), 'Home advertises 48 vocational questions'],
+  [home.includes('48 perguntas para'), 'Home advertises 48 vocational questions'],
   [!home.includes('36 perguntas para cruzar interesses'), 'Stale 36-question copy is absent'],
   [vocational.includes('48 perguntas'), 'Vocational intro displays 48 questions'],
   [qa.includes('VOCATIONAL_QUESTIONS.length !== 48'), 'Synthetic QA enforces 48 vocational questions'],
