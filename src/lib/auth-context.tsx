@@ -4,13 +4,15 @@ import { supabase } from '@/lib/supabase';
 import type { UserProfile } from '@/types';
 
 const PROFILE_SELECT = 'id, display_name, school_year, city, state, age_range, onboarding_completed, created_at';
+const CANONICAL_ORIGIN = 'https://businessschoolfit.vercel.app';
+const PLANNER_REDIRECT = `${CANONICAL_ORIGIN}/?planner=aprovacao`;
 
 interface AuthState {
   user: User | null;
   session: Session | null;
   profile: UserProfile | null;
   loading: boolean;
-  signUp: (email: string, password: string, displayName: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, displayName: string) => Promise<{ error: string | null; needsConfirmation?: boolean }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
@@ -22,21 +24,11 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null);
 
-/**
- * Provider error messages leak whether an address already has an account and expose
- * internal detail. Map them onto a small set of generic messages instead.
- */
 function genericAuthError(raw: string): string {
   const m = raw.toLowerCase();
-  if (m.includes('email not confirmed')) {
-    return 'Confirme seu e-mail antes de entrar.';
-  }
-  if (m.includes('rate limit') || m.includes('too many')) {
-    return 'Muitas tentativas. Aguarde alguns instantes e tente novamente.';
-  }
-  if (m.includes('password') && m.includes('short')) {
-    return 'A senha deve ter pelo menos 6 caracteres.';
-  }
+  if (m.includes('email not confirmed')) return 'Confirme seu e-mail antes de entrar.';
+  if (m.includes('rate limit') || m.includes('too many')) return 'Muitas tentativas. Aguarde alguns instantes e tente novamente.';
+  if (m.includes('password') && m.includes('short')) return 'A senha deve ter pelo menos 6 caracteres.';
   return 'E-mail ou senha inválidos.';
 }
 
@@ -48,83 +40,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadProfile = useCallback(async (uid: string) => {
     if (!supabase) return;
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select(PROFILE_SELECT)
-      .eq('id', uid)
-      .maybeSingle();
-
+    const { data, error } = await supabase.from('user_profiles').select(PROFILE_SELECT).eq('id', uid).maybeSingle();
     if (error) return;
-    if (data) {
-      setProfile(data as UserProfile);
-    } else {
-      const { data: newProfile } = await supabase
-        .from('user_profiles')
-        .insert({ id: uid })
-        .select(PROFILE_SELECT)
-        .maybeSingle();
+    if (data) setProfile(data as UserProfile);
+    else {
+      const { data: newProfile } = await supabase.from('user_profiles').insert({ id: uid }).select(PROFILE_SELECT).maybeSingle();
       if (newProfile) setProfile(newProfile as UserProfile);
     }
   }, []);
 
   useEffect(() => {
-    if (!supabase) {
-      setLoading(false);
-      return;
-    }
-
+    if (!supabase) { setLoading(false); return; }
     supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      if (s?.user) {
-        loadProfile(s.user.id).finally(() => setLoading(false));
-      } else {
-        setLoading(false);
-      }
+      setSession(s); setUser(s?.user ?? null);
+      if (s?.user) loadProfile(s.user.id).finally(() => setLoading(false));
+      else setLoading(false);
     });
-
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, s) => {
       (async () => {
-        setSession(s);
-        setUser(s?.user ?? null);
-        if (s?.user) {
-          await loadProfile(s.user.id);
-        } else {
-          setProfile(null);
-        }
+        setSession(s); setUser(s?.user ?? null);
+        if (s?.user) await loadProfile(s.user.id);
+        else setProfile(null);
       })();
     });
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
+    return () => authListener.subscription.unsubscribe();
   }, [loadProfile]);
 
   const signUp = useCallback(async (email: string, password: string, displayName: string) => {
     if (!supabase) return { error: 'Cliente não inicializado' };
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const normalizedEmail = email.trim().toLowerCase();
+    const { data, error } = await supabase.auth.signUp({
+      email: normalizedEmail,
+      password,
+      options: {
+        emailRedirectTo: PLANNER_REDIRECT,
+        data: { display_name: displayName.trim() },
+      },
+    });
     if (error) {
-      // Never distinguish "already registered" from a fresh signup: that difference is
-      // all an attacker needs to enumerate accounts. Only genuinely non-revealing
-      // errors (rate limiting, weak password) are surfaced.
       const m = error.message.toLowerCase();
-      if (m.includes('rate limit') || m.includes('too many') || m.includes('password')) {
-        return { error: genericAuthError(error.message) };
-      }
-      return { error: null };
+      if (m.includes('rate limit') || m.includes('too many') || m.includes('password')) return { error: genericAuthError(error.message) };
+      console.error('signUp failed', error);
+      return { error: 'Não foi possível criar a conta agora. Tente novamente em instantes.' };
     }
     if (data.user) {
-      await supabase.from('user_profiles').upsert({
-        id: data.user.id,
-        display_name: displayName,
-      });
+      await supabase.from('user_profiles').upsert({ id: data.user.id, display_name: displayName.trim() });
     }
-    return { error: null };
+    return { error: null, needsConfirmation: !data.session };
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
     if (!supabase) return { error: 'Cliente não inicializado' };
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
     if (error) return { error: genericAuthError(error.message) };
     return { error: null };
   }, []);
@@ -137,87 +104,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resetPassword = useCallback(async (email: string) => {
     if (!supabase) return { error: 'Cliente não inicializado' };
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
-    // A failure here (including "user not found") must not tell the caller whether the
-    // address is registered. Only rate limiting is worth reporting.
-    if (error && /rate limit|too many/i.test(error.message)) {
-      return { error: genericAuthError(error.message) };
-    }
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: PLANNER_REDIRECT });
+    if (error && /rate limit|too many/i.test(error.message)) return { error: genericAuthError(error.message) };
+    if (error) console.error('resetPassword failed', error);
     return { error: null };
   }, []);
 
   const updateDisplayName = useCallback(async (name: string) => {
     if (!supabase || !user) return { error: 'Não autenticado' };
-    const { error } = await supabase
-      .from('user_profiles')
-      .update({ display_name: name })
-      .eq('id', user.id);
-    if (error) {
-      console.error('updateDisplayName failed', error);
-      return { error: 'Não foi possível salvar seu nome. Tente novamente.' };
-    }
+    const { error } = await supabase.from('user_profiles').update({ display_name: name }).eq('id', user.id);
+    if (error) { console.error('updateDisplayName failed', error); return { error: 'Não foi possível salvar seu nome. Tente novamente.' }; }
     setProfile((prev) => prev ? { ...prev, display_name: name } : prev);
     return { error: null };
   }, [user]);
 
   const updateProfile = useCallback(async (fields: Partial<UserProfile>) => {
     if (!supabase || !user) return { error: 'Não autenticado' };
-    const { error } = await supabase
-      .from('user_profiles')
-      .update(fields)
-      .eq('id', user.id);
-    if (error) {
-      console.error('updateProfile failed', error);
-      return { error: 'Não foi possível salvar seu perfil. Tente novamente.' };
-    }
+    const { error } = await supabase.from('user_profiles').update(fields).eq('id', user.id);
+    if (error) { console.error('updateProfile failed', error); return { error: 'Não foi possível salvar seu perfil. Tente novamente.' }; }
     setProfile((prev) => prev ? { ...prev, ...fields } : prev);
     return { error: null };
   }, [user]);
 
   const deleteAccount = useCallback(async () => {
     if (!supabase || !user) return { error: 'Não autenticado' };
-
-    // Deleting an auth account requires the service-role key, which must never reach
-    // the browser. The edge function verifies the caller's token and deletes only the
-    // account that token belongs to.
-    const { error } = await supabase.functions.invoke('delete-account', {
-      method: 'POST',
-    });
-
-    if (error) {
-      console.error('deleteAccount failed', error);
-      return { error: 'Não foi possível excluir sua conta. Tente novamente mais tarde.' };
-    }
-
-    await supabase.auth.signOut();
-    setProfile(null);
-    return { error: null };
+    const { error } = await supabase.functions.invoke('delete-account', { method: 'POST' });
+    if (error) { console.error('deleteAccount failed', error); return { error: 'Não foi possível excluir sua conta. Tente novamente mais tarde.' }; }
+    await supabase.auth.signOut(); setProfile(null); return { error: null };
   }, [user]);
 
-  const refreshProfile = useCallback(async () => {
-    if (user) await loadProfile(user.id);
-  }, [user, loadProfile]);
+  const refreshProfile = useCallback(async () => { if (user) await loadProfile(user.id); }, [user, loadProfile]);
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        session,
-        profile,
-        loading,
-        signUp,
-        signIn,
-        signOut,
-        resetPassword,
-        updateDisplayName,
-        updateProfile,
-        deleteAccount,
-        refreshProfile,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={{ user, session, profile, loading, signUp, signIn, signOut, resetPassword, updateDisplayName, updateProfile, deleteAccount, refreshProfile }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
