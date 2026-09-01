@@ -28,7 +28,9 @@ function genericAuthError(raw: string): string {
   const m = raw.toLowerCase();
   if (m.includes('email not confirmed')) return 'Confirme seu e-mail antes de entrar.';
   if (m.includes('rate limit') || m.includes('too many')) return 'Muitas tentativas. Aguarde alguns instantes e tente novamente.';
-  if (m.includes('password') && m.includes('short')) return 'A senha deve ter pelo menos 6 caracteres.';
+  if ((m.includes('already') && m.includes('registered')) || m.includes('user already registered')) return 'Este e-mail já possui uma conta. Entre ou recupere sua senha.';
+  if (m.includes('invalid email')) return 'Digite um e-mail válido.';
+  if (m.includes('password') && (m.includes('short') || m.includes('least'))) return 'A senha deve ter pelo menos 6 caracteres.';
   return 'E-mail ou senha inválidos.';
 }
 
@@ -78,13 +80,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     });
     if (error) {
-      const m = error.message.toLowerCase();
-      if (m.includes('rate limit') || m.includes('too many') || m.includes('password')) return { error: genericAuthError(error.message) };
+      const friendly = genericAuthError(error.message);
       console.error('signUp failed', error);
-      return { error: 'Não foi possível criar a conta agora. Tente novamente em instantes.' };
+      return { error: friendly === 'E-mail ou senha inválidos.' ? 'Não foi possível criar a conta agora. Confira os dados e tente novamente.' : friendly };
     }
     if (data.user) {
-      await supabase.from('user_profiles').upsert({ id: data.user.id, display_name: displayName.trim() });
+      const { error: profileError } = await supabase.from('user_profiles').upsert({ id: data.user.id, display_name: displayName.trim() });
+      if (profileError) console.error('profile upsert after signUp failed', profileError);
     }
     return { error: null, needsConfirmation: !data.session };
   }, []);
@@ -105,8 +107,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const resetPassword = useCallback(async (email: string) => {
     if (!supabase) return { error: 'Cliente não inicializado' };
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: PLANNER_REDIRECT });
-    if (error && /rate limit|too many/i.test(error.message)) return { error: genericAuthError(error.message) };
-    if (error) console.error('resetPassword failed', error);
+    if (error) {
+      console.error('resetPassword failed', error);
+      const friendly = genericAuthError(error.message);
+      return { error: friendly === 'E-mail ou senha inválidos.' ? 'Não foi possível enviar o link de recuperação agora. Tente novamente em instantes.' : friendly };
+    }
     return { error: null };
   }, []);
 
