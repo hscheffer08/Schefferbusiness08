@@ -2,6 +2,7 @@ import { Loader2, LockKeyhole, LogOut } from 'lucide-react';
 import Auth from '@/components/Auth';
 import AdmissionsPlannerV11 from '@/components/AdmissionsPlannerV11';
 import PlannerStudyLabV2 from '@/components/PlannerStudyLabV2';
+import EssayPractice from '@/components/EssayPractice';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
 import './admissions-planner-v8.css';
@@ -35,6 +36,7 @@ function Gate({ onBack }: { onBack: () => void }) {
     <button type="button" onClick={signOut} className="fixed top-3 right-3 z-[80] inline-flex items-center gap-2 rounded-xl border border-[#234576] bg-[#071a38]/95 px-3 py-2 text-xs font-bold text-white shadow-lg backdrop-blur hover:bg-[#0c2857]" aria-label="Sair da conta"><LogOut className="w-4 h-4" /> Sair</button>
     <AdmissionsPlannerV11 onBack={onBack} />
     <PlannerStudyLabV2 />
+    <EssayPractice />
   </div>;
 }
 
