@@ -288,7 +288,29 @@ export default function AdmissionsPlannerIntelligence({ onBack }: { onBack: () =
   const examResources = resources.filter((r) => r.exam_id === examId);
   const target = targets.find((t) => t.exam_id === examId && normalize(t.course_label) === normalize(course)) ?? fallbackTarget(course, examId);
   const metrics = METRICS[examId];
-  const targetValues = useMemo(() => Object.fromEntries(metrics.map((m) => [m.key, targetForMetric(examId, m, target, target.area_weights ?? {})])), [examId, metrics, target]);
+  const targetValues = useMemo(() => {
+    const baseGoals = Object.fromEntries(metrics.map((metric) => [metric.key, targetForMetric(examId, metric, target, target.area_weights ?? {})]));
+    const levels = metrics.map((metric) => (values[metric.key] ?? metric.defaultValue) / Math.max(1, metric.max));
+    const averageLevel = levels.reduce((sum, level) => sum + level, 0) / Math.max(1, levels.length);
+
+    return Object.fromEntries(metrics.map((metric) => {
+      const baseGoal = Number(baseGoals[metric.key] ?? metric.max);
+      const current = values[metric.key] ?? metric.defaultValue;
+      const relativeStrength = (current / Math.max(1, metric.max)) - averageLevel;
+      const adjustmentWindow = examId === 'enem' && metric.key === 'Redação'
+        ? 70
+        : Math.max(2, Math.round(metric.max * 0.08));
+      const strengthAdjustment = Math.round(relativeStrength * adjustmentWindow * 2.4);
+      const masteryStep = current >= baseGoal
+        ? (examId === 'enem' && metric.key === 'Redação' ? 20 : Math.max(1, Math.round(metric.max * 0.02)))
+        : 0;
+      const minimumGoal = examId === 'enem' && metric.key === 'Redação'
+        ? 720
+        : Math.round(metric.max * 0.58);
+      const adaptiveGoal = Math.round(baseGoal + strengthAdjustment + masteryStep);
+      return [metric.key, Math.min(metric.max, Math.max(minimumGoal, adaptiveGoal))];
+    }));
+  }, [examId, metrics, target, values]);
   const remainingDays = daysUntil(profile?.exam_date ?? null);
 
   const readiness = useMemo(() => {
@@ -490,7 +512,7 @@ export default function AdmissionsPlannerIntelligence({ onBack }: { onBack: () =
         {tab === 'dashboard' && <div className="grid xl:grid-cols-[1fr_.8fr] gap-5">
           <section className="rounded-[28px] border border-white/10 bg-white/[0.03] p-6">
             <div className="flex items-center justify-between gap-4 mb-5"><div><div className="text-xs uppercase tracking-[.14em] font-black text-cyan-200">Seu nível agora</div><h2 className="text-2xl font-black mt-1">Desempenho por componente</h2></div><button onClick={saveAttempt} disabled={saving} className="rounded-xl bg-cyan-300 text-[#07111d] px-4 py-2.5 font-black text-sm inline-flex items-center gap-2 disabled:opacity-60">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Salvar simulado</button></div>
-            <div className="space-y-5">{metrics.map((metric) => { const value = values[metric.key] ?? 0; const goal = targetValues[metric.key] ?? metric.max; return <div key={metric.key}><div className="flex items-end justify-between gap-3 mb-2"><div><div className="font-bold">{metric.label}</div><div className="text-xs text-ink-500">meta atual: {goal} {metric.unit}</div></div><div className={`text-lg font-black ${value >= goal ? 'text-emerald-300' : 'text-ink-200'}`}>{value}</div></div><input type="range" min={0} max={metric.max} step={metric.max > 100 ? 10 : 1} value={value} onChange={(e) => setValues((v) => ({ ...v, [metric.key]: Number(e.target.value) }))} className="w-full accent-cyan-300" /></div>; })}</div>
+            <div className="space-y-5">{metrics.map((metric) => { const value = values[metric.key] ?? 0; const goal = targetValues[metric.key] ?? metric.max; return <div key={metric.key}><div className="flex items-end justify-between gap-3 mb-2"><div><div className="font-bold">{metric.label}</div><div className="text-xs text-ink-500">meta adaptativa agora: {goal} {metric.unit}</div></div><div className={`text-lg font-black ${value >= goal ? 'text-emerald-300' : 'text-ink-200'}`}>{value}</div></div><input type="range" min={0} max={metric.max} step={metric.max > 100 ? 10 : 1} value={value} onChange={(e) => setValues((v) => ({ ...v, [metric.key]: Number(e.target.value) }))} className="w-full accent-cyan-300" /></div>; })}</div>
             {examId === 'enem' && <div className="mt-5 rounded-2xl border border-amber-300/15 bg-amber-300/[0.05] p-4 text-xs text-amber-100/80">No ENEM, acertos e nota TRI não têm relação linear. O sistema usa acertos como meta de consistência, não promete uma nota exata a partir de um número fixo de questões.</div>}
           </section>
           <section className="rounded-[28px] border border-white/10 bg-white/[0.03] p-6">
