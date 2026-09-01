@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight, BookOpen, Compass, Database, GraduationCap, Layers3, Search } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookOpen, Compass, Database, GraduationCap, Layers3, Search, Target } from 'lucide-react';
 import { ACADEMIC_AREAS, type AcademicArea } from '@/lib/area-match-data';
 import { professionalQuestionsForArea } from '@/lib/professional-area-matching';
 import { calculateProfessionalMatches, loadProfessionalAreas, type ProfessionalArea } from '@/lib/professional-area-match';
@@ -12,7 +12,7 @@ type Step = 'areas' | 'quiz' | 'results';
 
 const AREA_PHOTOS = [
   'https://images.unsplash.com/photo-1538108149393-fbbd81895907?auto=format&fit=crop&w=900&q=78',
-  'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=78',
+  'https://images.unsplash.com/photo-1516321318423-f06f85e504b3d57bc86b40?auto=format&fit=crop&w=900&q=78',
   'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=900&q=78',
   'https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=900&q=78',
   'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=900&q=78',
@@ -76,30 +76,45 @@ export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
     setArea(selected); setAnswers({}); setIndex(0); setCalibration({}); setQuestionOrder([]); setStep('quiz');
     trackEvent('area_selected', { area_id:selected.id, area_name:selected.name, courses:selected.courses });
   };
+  const openPlanner = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('planner','aprovacao');
+    window.location.assign(`${url.pathname}${url.search}${url.hash}`);
+  };
 
-  if (step === 'areas') return <div className="min-h-screen bg-[#070b16] text-ink-50 relative overflow-hidden">
+  if (step === 'areas') return <div className="min-h-screen bg-[#070b16] text-ink-50 relative">
     <div className="fixed inset-0 pointer-events-none"><div className="absolute -left-36 top-20 w-[500px] h-[500px] rounded-full bg-cyan-500/10 blur-[140px]"/><div className="absolute -right-40 top-[35%] w-[520px] h-[520px] rounded-full bg-violet-500/10 blur-[150px]"/></div>
-    <header className="sticky top-0 z-20 border-b border-white/10 bg-[#070b16]/85 backdrop-blur-2xl px-5 md:px-10 py-4 flex items-center justify-between">
-      <button onClick={onClose} className="inline-flex items-center gap-2 text-sm text-ink-300 hover:text-white"><ArrowLeft className="w-4 h-4"/> Voltar</button>
-      <div className="flex items-center gap-2 font-extrabold"><div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-300 to-brand-500 flex items-center justify-center"><GraduationCap className="w-4 h-4 text-[#07101d]"/></div>Conecta<span className="text-cyan-300">ê</span></div>
-      <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-ink-500"><Database className="w-3.5 h-3.5"/>{dataReady?'Banco profissional ativo':'Carregando dados'}</span>
+    <header className="sticky top-0 z-20 border-b border-white/10 bg-[#070b16]/95 backdrop-blur-2xl px-4 md:px-8 py-3.5">
+      <div className="mx-auto max-w-6xl grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <button onClick={onClose} className="justify-self-start inline-flex items-center gap-2 text-sm text-ink-300 hover:text-white"><ArrowLeft className="w-4 h-4"/> <span className="hidden sm:inline">Início</span></button>
+        <div className="flex items-center gap-2 font-extrabold"><div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-300 to-brand-500 flex items-center justify-center"><GraduationCap className="w-4 h-4 text-[#07101d]"/></div><span>Conectaê</span></div>
+        <div className="justify-self-end flex items-center gap-2">
+          <span className="hidden lg:inline-flex items-center gap-1 text-[11px] text-ink-500"><Database className="w-3.5 h-3.5"/>{dataReady?'Banco profissional ativo':'Carregando dados'}</span>
+          <button onClick={openPlanner} className="inline-flex items-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-300/[0.08] px-3 py-2 text-xs font-bold text-cyan-100 hover:bg-cyan-300/[0.14]"><Target className="w-4 h-4"/><span className="hidden sm:inline">Plano de aprovação</span><span className="sm:hidden">Plano</span></button>
+        </div>
+      </div>
     </header>
-    <main className="relative max-w-6xl mx-auto px-5 md:px-8 py-10 md:py-14">
-      <section className="relative overflow-hidden rounded-[34px] border border-white/10 min-h-[350px] mb-10 shadow-2xl shadow-black/30">
+    <main className="relative max-w-6xl mx-auto px-5 md:px-8 py-8 md:py-10 pb-24">
+      <section className="relative overflow-hidden rounded-[28px] border border-white/10 min-h-[300px] md:min-h-[320px] mb-7 shadow-2xl shadow-black/30">
         <img src={HERO} alt="Campus universitário" className="absolute inset-0 w-full h-full object-cover" referrerPolicy="no-referrer"/>
-        <div className="absolute inset-0 bg-gradient-to-r from-[#07101d] via-[#07101d]/90 to-[#07101d]/30"/>
-        <div className="relative z-10 max-w-3xl p-7 md:p-11 min-h-[350px] flex flex-col justify-end">
+        <div className="absolute inset-0 bg-gradient-to-r from-[#07101d] via-[#07101d]/90 to-[#07101d]/35"/>
+        <div className="relative z-10 max-w-3xl p-7 md:p-10 min-h-[300px] md:min-h-[320px] flex flex-col justify-end">
           <span className="inline-flex w-fit items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-cyan-200 text-sm font-semibold mb-4"><Compass className="w-4 h-4"/> Já sabe seu curso?</span>
           <h1 className="text-4xl md:text-6xl font-black tracking-[-.035em] leading-[1.02] mb-4">Descubra onde você pode <span className="text-cyan-200">se encaixar melhor.</span></h1>
           <p className="text-ink-300 text-base md:text-lg max-w-2xl">Compare faculdades por fit, ambiente, carreira, qualidade disponível e confiança dos dados — sem transformar tudo em um ranking genérico.</p>
         </div>
       </section>
-      <div className="grid sm:grid-cols-3 gap-3 mb-8">{[[String(areas.length),'cursos'],[String(totalOptions),'opções'],['24','dimensões por perfil']].map(([number,label],i)=><div key={label} className={`rounded-2xl border p-4 bg-gradient-to-br ${CARD_TONES[i]}`}><div className="text-2xl font-black">{number}</div><div className="text-xs uppercase tracking-[.13em] font-bold text-ink-500">{label}</div></div>)}</div>
-      <div className="relative max-w-2xl mb-8"><Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-500"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar área ou curso..." className="w-full rounded-2xl border border-white/10 bg-white/[0.045] py-4 pl-12 pr-4 outline-none focus:border-cyan-300/40"/></div>
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">{filtered.map((item,cardIndex)=><button key={item.id} onClick={()=>selectArea(item)} disabled={!dataReady} className={`group relative overflow-hidden text-left rounded-[26px] border disabled:opacity-50 disabled:cursor-wait bg-gradient-to-br ${CARD_TONES[cardIndex % CARD_TONES.length]} hover:-translate-y-1.5 hover:border-white/25 transition-all duration-300`}>
+      <div className="grid grid-cols-3 gap-3 mb-6">{[[String(areas.length),'cursos'],[String(totalOptions),'opções'],['24','dimensões por perfil']].map(([number,label],i)=><div key={label} className={`rounded-2xl border p-4 bg-gradient-to-br ${CARD_TONES[i]}`}><div className="text-xl md:text-2xl font-black">{number}</div><div className="text-[10px] md:text-xs uppercase tracking-[.10em] md:tracking-[.13em] font-bold text-ink-500">{label}</div></div>)}</div>
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-5">
+        <div><div className="text-xs font-bold uppercase tracking-[.14em] text-cyan-200 mb-1">Todos os cursos</div><h2 className="text-2xl md:text-3xl font-black tracking-[-.03em]">Escolha entre {areas.length} áreas e cursos</h2><p className="text-sm text-ink-500 mt-1">Role a página para ver todos. Nenhum curso fica escondido atrás desta tela.</p></div>
+        <div className="relative w-full md:max-w-md"><Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-500"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar área ou curso..." className="w-full rounded-2xl border border-white/10 bg-white/[0.045] py-4 pl-12 pr-4 outline-none focus:border-cyan-300/40"/></div>
+      </div>
+      <div className="mb-4 text-xs text-ink-500">Mostrando <b className="text-white">{filtered.length}</b> de {areas.length} cursos</div>
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">{filtered.map((item,cardIndex)=><button key={item.id} onClick={()=>selectArea(item)} disabled={!dataReady} className={`group relative overflow-hidden text-left rounded-[22px] border disabled:opacity-50 disabled:cursor-wait bg-gradient-to-br ${CARD_TONES[cardIndex % CARD_TONES.length]} hover:-translate-y-1 hover:border-white/25 transition-all duration-300`}>
         <div className="h-32 overflow-hidden relative"><img src={AREA_PHOTOS[cardIndex%AREA_PHOTOS.length]} alt="" className="w-full h-full object-cover opacity-65 group-hover:scale-105 transition-all duration-500" referrerPolicy="no-referrer"/><div className="absolute inset-0 bg-gradient-to-t from-[#0b1120] via-transparent to-transparent"/><span className="absolute top-3 right-3 text-[11px] px-2.5 py-1 rounded-full bg-black/35 border border-white/10">{item.universities.length} faculdades</span></div>
         <div className="p-5"><div className="w-10 h-10 -mt-10 relative z-10 rounded-xl bg-[#10182a] border border-white/10 text-cyan-200 flex items-center justify-center mb-4"><BookOpen className="w-5 h-5"/></div><h3 className="font-black text-xl mb-1">{item.name}</h3><p className="text-sm text-cyan-200 mb-2 font-medium">{item.courses}</p><p className="text-sm text-ink-500 leading-relaxed min-h-[60px]">{item.description}</p><span className="mt-5 inline-flex items-center gap-1.5 text-sm font-bold text-ink-300 group-hover:text-white">Fazer match <ArrowRight className="w-4 h-4"/></span></div>
       </button>)}</div>
+      {filtered.length===0&&<div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center text-ink-400">Nenhum curso encontrado com essa busca.</div>}
     </main>
   </div>;
 
@@ -122,7 +137,6 @@ export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
 
   return <CommercialAreaResults area={area} answers={answers} matches={matches} onBack={()=>setStep('areas')} onHome={onClose}/>;
 }
-
 
 function ContinuousPercentInput({ value, low, high, onChange }: { value: number | undefined; low: string; high: string; onChange: (value:number)=>void }) {
   const shown = value == null ? 50 : Math.max(0, Math.min(100, value));
