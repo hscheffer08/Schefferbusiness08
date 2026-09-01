@@ -131,6 +131,7 @@ export type Screen =
   | 'terms'
   | 'faculty-questionnaire'
   | 'vocational-demo'
+  | 'admissions-planner'
   | 'admin';
 
 export type FacultyEvidenceCategory =
