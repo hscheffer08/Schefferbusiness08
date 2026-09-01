@@ -3,6 +3,7 @@ import Auth from '@/components/Auth';
 import AdmissionsPlannerV8 from '@/components/AdmissionsPlannerV8';
 import PlannerStudyLab from '@/components/PlannerStudyLab';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
+import './admissions-planner-v8.css';
 
 function Gate({ onBack }: { onBack: () => void }) {
   const { user, loading } = useAuth();
