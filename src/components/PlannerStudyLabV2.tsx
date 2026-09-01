@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, BrainCircuit, Camera, CheckCircle2, ImagePlus, Loader2, Trash2, Upload } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import './planner-study-lab.css';
+import './planner-study-lab-v2.css';
 
 type ErrorReason='conteudo'|'interpretacao'|'tempo'|'calculo'|'distracao'|'estrategia'|'outro';
 type Skill={exam_id:string;area:string;skill_code:string;skill_name:string;diagnostic_tags:string[]};
