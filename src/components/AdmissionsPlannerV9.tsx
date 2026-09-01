@@ -9,7 +9,6 @@ type AcademicArea = { area_id: string; name: string; courses: string };
 type University = { area_university_id: number; area_id: string; university_name: string; course_label: string };
 type Question = { id:number; exam_id:string; area:string; skill_name:string; difficulty:number; prompt:string; option_a:string|null; option_b:string|null; option_c:string|null; option_d:string|null; option_e:string|null; correct_option:string|null; explanation:string|null };
 type Attempt = { exam_id:string; area:string; skill_name:string|null; correct:boolean|null; created_at:string };
-
 type Priority = { metric: ExamMetric; current:number; goal:number; missing:number; score:number; accuracy:number|null };
 
 const RETAINED = new Set(['UFMG','USP','Faculdade Ciências Médicas de Minas Gerais','Insper','Link School of Business']);
@@ -32,7 +31,7 @@ function goalFor(metric:ExamMetric, examId:string){
   if(examId==='enem') return metric.key==='Redação'?820:32;
   if(examId==='cmmg') {
     if(metric.key==='Redação') return 64;
-    const pct:Record<string,number>={'Língua Portuguesa':.78,'Literatura':.75,'Inglês':.78,'Biologia':.82,'Física':.75,'Química':.8,'Matemática':.8};
+    const pct:Record<string,number>={'Língua Portuguesa':.78,'Literatura':.75,'Inglês':.78,'Biologia':.82,'Física':.75,'Química':.8,'Matemática':.8,'Linguagens':.8,'Conhecimentos Gerais':.75};
     return Math.max(1,Math.round(metric.max*(pct[metric.key]??.78)));
   }
   if(examId==='insper') return metric.key==='Redação'?75:12;
@@ -102,19 +101,20 @@ export default function AdmissionsPlannerV9({onBack}:{onBack:()=>void}){
   const course=university?.course_label||area?.courses||area?.name||'Curso';
   const model=useMemo(()=>getExamModel(university?.university_name??'UFMG',course),[university?.university_name,course]);
   const metrics=model.metrics;
+  const scoreStorageKey=useMemo(()=>`conectae:exam-values:${model.examId}:${university?.university_name??'sem-faculdade'}:${course}`,[model.examId,university?.university_name,course]);
 
   useEffect(()=>{
     const defaults=Object.fromEntries(metrics.map(m=>[m.key,m.defaultValue]));
-    try{Object.assign(defaults,JSON.parse(localStorage.getItem(`conectae:exam-values:${model.examId}:${course}`)||'{}'))}catch{}
+    try{Object.assign(defaults,JSON.parse(localStorage.getItem(scoreStorageKey)||'{}'))}catch{}
     setValues(defaults);setQuestionArea('Todas');setActiveQuestion(null);setSelectedOption('');setPracticeResult(null);
-  },[model.examId,course]);
-  useEffect(()=>{if(Object.keys(values).length)localStorage.setItem(`conectae:exam-values:${model.examId}:${course}`,JSON.stringify(values))},[values,model.examId,course]);
+  },[scoreStorageKey]);
+  useEffect(()=>{if(Object.keys(values).length)localStorage.setItem(scoreStorageKey,JSON.stringify(values))},[values,scoreStorageKey]);
 
   const allowedQuestions=useMemo(()=>questions.filter(q=>q.exam_id===model.examId && model.allowedQuestionAreas.some(a=>normalize(a)===normalize(q.area)||matchQuestionArea(q.area,a))),[questions,model]);
   const examAreas=['Todas',...Array.from(new Set(allowedQuestions.map(q=>q.area)))];
   const filteredQuestions=questionArea==='Todas'?allowedQuestions:allowedQuestions.filter(q=>q.area===questionArea);
 
-  const priorities:Priority[]=useMemo(()=>metrics.map(metric=>{
+  const diagnosis:Priority[]=useMemo(()=>metrics.map(metric=>{
     const current=values[metric.key]??metric.defaultValue;
     const goal=goalFor(metric,model.examId);
     const relevant=attempts.filter(a=>a.exam_id===model.examId&&matchQuestionArea(a.area,metric.key)&&a.correct!==null).slice(0,40);
@@ -122,13 +122,14 @@ export default function AdmissionsPlannerV9({onBack}:{onBack:()=>void}){
     const missing=Math.max(0,goal-current);
     const score=(missing/Math.max(1,metric.max))*(accuracy==null?1:accuracy<.6?1.25:accuracy>.85?.8:1);
     return {metric,current,goal,missing,score,accuracy};
-  }).sort((a,b)=>b.score-a.score),[metrics,values,attempts,model.examId]);
-  const readiness=Math.round(priorities.reduce((s,p)=>s+Math.min(1,p.current/Math.max(1,p.goal)),0)/Math.max(1,priorities.length)*100);
+  }),[metrics,values,attempts,model.examId]);
+  const priorities=useMemo(()=>[...diagnosis].sort((a,b)=>b.score-a.score),[diagnosis]);
+  const readiness=Math.round(diagnosis.reduce((s,p)=>s+Math.min(1,p.current/Math.max(1,p.goal)),0)/Math.max(1,diagnosis.length)*100);
   const top=priorities[0];
   const recent=attempts.filter(a=>a.exam_id===model.examId&&a.correct!==null).slice(0,100);
   const recentAccuracy=recent.length?Math.round(recent.filter(a=>a.correct).length/recent.length*100):null;
 
-  const updateScore=(m:ExamMetric,n:number)=>setValues(v=>({...v,[m.key]:clamp(Math.round(n),0,m.max)}));
+  const updateScore=(m:ExamMetric,n:number)=>setValues(v=>({...v,[m.key]:clamp(Math.round(Number.isFinite(n)?n:0),0,m.max)}));
   const save=async()=>{setSaving(true);setMessage('');try{if(!supabase)throw new Error();const{data}=await supabase.auth.getUser();if(!data.user)throw new Error();const{error}=await supabase.from('student_exam_preferences').upsert({user_id:data.user.id,exam_id:model.examId,weekly_hours:weeklyHours,current_scores:values,selected_area_id:selectedArea,selected_university_id:selectedUniversity?Number(selectedUniversity):null,course_label:course,updated_at:new Date().toISOString()},{onConflict:'user_id,exam_id'});if(error)throw error;setMessage('Plano, curso e desempenho salvos.')}catch{setMessage('Não foi possível sincronizar agora.')}finally{setSaving(false)}};
   const openQuestion=(q?:Question)=>{const next=q??filteredQuestions[Math.floor(Math.random()*Math.max(1,filteredQuestions.length))]??allowedQuestions[0];setActiveQuestion(next??null);setSelectedOption('');setPracticeResult(null);setQuestionStartedAt(Date.now())};
   const checkQuestion=async()=>{if(!activeQuestion||!selectedOption)return;const ok=selectedOption===activeQuestion.correct_option;setPracticeResult(ok);try{if(!supabase)return;const{data}=await supabase.auth.getUser();if(!data.user)return;await supabase.from('student_practice_attempts').insert({user_id:data.user.id,exam_id:model.examId,question_id:activeQuestion.id,area:activeQuestion.area,skill_name:activeQuestion.skill_name,selected_option:selectedOption,correct:ok,duration_seconds:questionStartedAt?Math.max(1,Math.round((Date.now()-questionStartedAt)/1000)):null});setAttempts(v=>[{exam_id:model.examId,area:activeQuestion.area,skill_name:activeQuestion.skill_name,correct:ok,created_at:new Date().toISOString()},...v])}catch{}};
@@ -147,7 +148,7 @@ export default function AdmissionsPlannerV9({onBack}:{onBack:()=>void}){
       {tab==='hoje'&&<div className="plan6-grid">
         <section className="plan6-card span7"><div className="plan6-sectionlabel">Prioridade real</div><h2>{top?.metric.label??'Diagnóstico'}</h2><p>{top?.missing?`Faltam ${top.missing} ${top.metric.unit==='acertos'?'acertos':top.metric.unit==='pontos'?'pontos':'pontos de desempenho'} para a meta atual.`:'Meta atual atingida. Mantenha a matéria e transfira mais tempo para a próxima prioridade.'}</p><div className="plan6-callout"><strong>Modelo considerado</strong><p>{model.structure}</p></div><div className="plan6-actions" style={{marginTop:16}}><button className="plan6-btn primary" onClick={()=>{setTab('questoes');openQuestion()}}><PlayCircle size={15}/>Começar questões compatíveis</button></div></section>
         <section className="plan6-card span5"><div className="plan6-sectionlabel">Seu ritmo</div><h2>{weeklyHours} horas por semana</h2><p>O volume se adapta à prova selecionada e às matérias que realmente entram nela.</p><input className="plan6-slider" type="range" min="3" max="30" step="1" value={weeklyHours} onChange={e=>setWeeklyHours(Number(e.target.value))}/><div className="plan6-hour-scale"><span>3h</span><strong>{weeklyHours}h selecionadas</strong><span>30h</span></div><div className="plan6-callout blue" style={{marginTop:18}}><strong>Histórico de questões</strong><p>{recentAccuracy==null?'Ainda sem histórico suficiente.':`${recentAccuracy}% de acerto nas últimas questões desta prova.`}</p></div></section>
-        <section className="plan6-card span12"><div className="plan6-sectionlabel">Componentes cobrados</div><h2>{course} · {university?.university_name}</h2><p>Estes são os componentes usados pelo diagnóstico. Nada fora deste modelo entra nas metas.</p>{priorities.map(p=>{const step=p.metric.max>100?10:1;return <div className="plan6-statline" key={p.metric.key}><div><div className="plan6-statname">{p.metric.label}</div><div className="plan6-statmeta">Agora <b>{p.current}</b> de {p.metric.max} • meta {p.goal} de {p.metric.max}{p.metric.phase?` • ${p.metric.phase}`:''}{p.accuracy!=null?` • histórico ${Math.round(p.accuracy*100)}%`:''}</div><div className="plan6-score-control"><button type="button" onClick={()=>updateScore(p.metric,p.current-step)}><Minus size={16}/></button><input className="plan6-slider" type="range" min="0" max={p.metric.max} step={step} value={p.current} onChange={e=>updateScore(p.metric,Number(e.target.value))}/><input className="plan6-score-number" type="number" min="0" max={p.metric.max} step={step} value={p.current} onChange={e=>updateScore(p.metric,Number(e.target.value||0))}/><button type="button" onClick={()=>updateScore(p.metric,p.current+step)}><Plus size={16}/></button></div></div><div className="plan6-statvalue">{p.missing===0?'Meta atingida':`${p.missing} ${p.metric.unit==='acertos'?'acertos':p.metric.unit==='pontos'?'pontos':'pontos'} faltam`}</div></div>})}</section>
+        <section className="plan6-card span12"><div className="plan6-sectionlabel">Componentes cobrados</div><h2>{course} · {university?.university_name}</h2><p>Altere uma matéria por vez. A ordem desta lista fica fixa; mudar um valor não troca nem altera os outros campos.</p>{diagnosis.map(p=>{const step=p.metric.max>100?10:1;return <div className="plan6-statline" key={p.metric.key}><div><div className="plan6-statname">{p.metric.label}</div><div className="plan6-statmeta">Agora <b>{p.current}</b> de {p.metric.max} • meta {p.goal} de {p.metric.max}{p.metric.phase?` • ${p.metric.phase}`:''}{p.accuracy!=null?` • histórico ${Math.round(p.accuracy*100)}%`:''}</div><div className="plan6-score-control"><button type="button" aria-label={`Diminuir ${p.metric.label}`} onClick={()=>updateScore(p.metric,p.current-step)}><Minus size={16}/></button><input className="plan6-slider" aria-label={`Nota de ${p.metric.label}`} type="range" min="0" max={p.metric.max} step={step} value={p.current} onChange={e=>updateScore(p.metric,Number(e.target.value))}/><input className="plan6-score-number" aria-label={`Valor de ${p.metric.label}`} type="number" min="0" max={p.metric.max} step={step} value={p.current} onChange={e=>updateScore(p.metric,Number(e.target.value||0))}/><button type="button" aria-label={`Aumentar ${p.metric.label}`} onClick={()=>updateScore(p.metric,p.current+step)}><Plus size={16}/></button></div></div><div className="plan6-statvalue">{p.missing===0?'Meta atingida':`${p.missing} ${p.metric.unit==='acertos'?'acertos':p.metric.unit==='pontos'?'pontos':'pontos'} faltam`}</div></div>})}</section>
       </div>}
 
       {tab==='plano'&&<div className="plan6-grid"><section className="plan6-card span12"><div className="plan6-sectionlabel">Distribuição semanal</div><h2>Seu tempo segue o peso real da prova.</h2><p>O plano não cria matérias extras. A prioridade é definida pelo seu gap até a meta e pelo histórico de acertos.</p>{priorities.map((p,i)=>{const hours=Math.max(.5,Math.round((weeklyHours*(Math.max(.15,p.score)/priorities.reduce((s,x)=>s+Math.max(.15,x.score),0))*2))/2);return <div className="plan6-statline" key={p.metric.key}><div><div className="plan6-statname">{i+1}. {p.metric.label}</div><div className="plan6-statmeta">Questões + correção ativa + revisão dos erros</div></div><div className="plan6-statvalue">~{hours}h/semana</div></div>})}</section></div>}
