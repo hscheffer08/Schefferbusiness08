@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Camera, ClipboardCheck, Loader2, LockKeyhole, LogIn, LogOut, UserCheck } from 'lucide-react';
 import Auth from '@/components/Auth';
 import AdmissionsPlannerV11 from '@/components/AdmissionsPlannerV11';
+import AdmissionsTargetIntelligence from '@/components/AdmissionsTargetIntelligence';
 import PlannerStudyLabV2 from '@/components/PlannerStudyLabV2';
 import EssayPractice from '@/components/EssayPractice';
 import EnemVisualPractice from '@/components/EnemVisualPractice';
@@ -68,6 +69,7 @@ function Gate({ onBack }: { onBack: () => void }) {
     </div>
 
     <AdmissionsPlannerV11 onBack={onBack} />
+    <AdmissionsTargetIntelligence />
     <OfficialExamReviewV2 />
     <PlannerStudyLabV2 />
     <EnemVisualPractice />
