@@ -26,7 +26,7 @@ const ENEM_METRICS: ExamMetric[] = [
   { key: 'Redação', label: 'Redação', max: 1000, defaultValue: 760, unit: 'pontos' },
 ];
 
-const CMMG_METRICS: ExamMetric[] = [
+const CMMG_MEDICINA_METRICS: ExamMetric[] = [
   { key: 'Língua Portuguesa', label: 'Língua Portuguesa', max: 8, defaultValue: 5, unit: 'acertos' },
   { key: 'Literatura', label: 'Literatura', max: 4, defaultValue: 2, unit: 'acertos' },
   { key: 'Inglês', label: 'Língua Estrangeira — Inglês', max: 12, defaultValue: 7, unit: 'acertos' },
@@ -35,6 +35,13 @@ const CMMG_METRICS: ExamMetric[] = [
   { key: 'Química', label: 'Química', max: 8, defaultValue: 5, unit: 'acertos' },
   { key: 'Matemática', label: 'Matemática', max: 10, defaultValue: 6, unit: 'acertos' },
   { key: 'Redação', label: 'Redação', max: 80, defaultValue: 52, unit: 'pontos' },
+];
+
+const CMMG_EFFPO_METRICS: ExamMetric[] = [
+  { key: 'Linguagens', label: 'Língua Portuguesa + Literatura', max: 15, defaultValue: 9, unit: 'acertos' },
+  { key: 'Biologia', label: 'Biologia', max: 15, defaultValue: 9, unit: 'acertos' },
+  { key: 'Humanas', label: 'Conhecimentos Gerais', max: 10, defaultValue: 6, unit: 'acertos' },
+  { key: 'Redação', label: 'Redação', max: 100, defaultValue: 65, unit: 'desempenho' },
 ];
 
 const INSPER_METRICS: ExamMetric[] = [
@@ -54,8 +61,6 @@ const LINK_METRICS: ExamMetric[] = [
   { key: 'Entrevista', label: 'Entrevista final', max: 100, defaultValue: 65, unit: 'desempenho' },
 ];
 
-// FUVEST 2027 — 2ª fase, considerando a carreira principal associada ao curso na USP.
-// Siglas oficiais: B Biologia, F Física, G Geografia, H História, M Matemática, Q Química.
 const FUVEST_SECOND_PHASE: Record<string, string[]> = {
   'Administração': ['Geografia', 'História', 'Matemática'],
   'Arquitetura e Urbanismo': ['Física', 'Geografia', 'História'],
@@ -99,6 +104,8 @@ const FUVEST_SECOND_PHASE: Record<string, string[]> = {
   'Terapia Ocupacional': ['Biologia', 'Geografia', 'História'],
 };
 
+const CMMG_EFFPO_COURSES = ['Enfermagem', 'Fisioterapia', 'Fonoaudiologia', 'Odontologia', 'Psicologia'];
+
 export const supportedFuvestCourse = (course: string) => Boolean(FUVEST_SECOND_PHASE[course]);
 
 export function getExamId(university: string): ExamId {
@@ -114,11 +121,21 @@ export function getExamModel(university: string, course: string): ExamModel {
   const examId = getExamId(university);
 
   if (examId === 'cmmg') {
+    if (CMMG_EFFPO_COURSES.includes(course)) {
+      return {
+        examId,
+        title: `Vestibular Ciências Médicas-MG — ${course}`,
+        structure: '40 questões objetivas: 15 de Língua Portuguesa + Literatura, 15 de Biologia e 10 de Conhecimentos Gerais (Geografia, História, Filosofia e Sociologia), mais uma Redação. Não há Inglês, Física, Química ou Matemática neste modelo.',
+        metrics: CMMG_EFFPO_METRICS,
+        allowedQuestionAreas: ['Linguagens', 'Língua Portuguesa', 'Literatura', 'Biologia', 'Humanas', 'Conhecimentos Gerais', 'Geografia', 'História', 'Filosofia', 'Sociologia', 'Redação'],
+        officialSource: 'https://vestibular.cmmg.edu.br/wp-content/uploads/2026/07/Manual-do-Candidato-EFFPO-1_2027.pdf',
+      };
+    }
     return {
       examId,
       title: 'Vestibular Medicina Ciências Médicas-MG',
       structure: '56 questões objetivas: Português 8, Literatura 4, Inglês 12, Biologia 14, Física 4, Química 8 e Matemática 10, mais uma redação de 80 pontos.',
-      metrics: CMMG_METRICS,
+      metrics: CMMG_MEDICINA_METRICS,
       allowedQuestionAreas: ['Língua Portuguesa', 'Literatura', 'Inglês', 'Linguagens', 'Biologia', 'Física', 'Química', 'Matemática', 'Redação'],
       officialSource: 'https://vestibular.cmmg.edu.br/',
     };
@@ -184,7 +201,7 @@ export function getExamModel(university: string, course: string): ExamModel {
 export function isSupportedInstitutionCourse(university: string, course: string) {
   if (university === 'UFMG') return true;
   if (university === 'USP') return supportedFuvestCourse(course);
-  if (university === 'Faculdade Ciências Médicas de Minas Gerais') return course === 'Medicina';
+  if (university === 'Faculdade Ciências Médicas de Minas Gerais') return course === 'Medicina' || CMMG_EFFPO_COURSES.includes(course);
   if (university === 'Link School of Business') return course === 'Administração';
   if (university === 'Insper') return ['Administração', 'Ciências Econômicas', 'Direito', 'Ciência da Computação', 'Engenharia de Computação', 'Engenharia de Produção', 'Engenharia Mecânica', 'Engenharia Mecatrônica'].includes(course);
   return false;
