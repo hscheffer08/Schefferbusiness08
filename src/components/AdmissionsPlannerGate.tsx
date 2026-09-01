@@ -13,14 +13,14 @@ function Gate({ onBack }: { onBack: () => void }) {
   }
 
   if (!user) {
-    return <div className="min-h-screen bg-[radial-gradient(circle_at_70%_0%,rgba(36,108,255,.12),transparent_32%),linear-gradient(180deg,#020817,#041027)] text-white">
-      <div className="max-w-2xl mx-auto px-6 pt-12 text-center">
-        <div className="inline-flex items-center gap-2 text-sm font-bold text-[#72a5ff]"><LockKeyhole className="w-4 h-4" /> Seu plano fica salvo na sua conta</div>
-        <h1 className="mt-5 text-4xl md:text-6xl font-extrabold tracking-[-0.05em]">Entre para continuar de onde parou.</h1>
-        <p className="mt-4 text-[#a9bddc] leading-relaxed">Curso, faculdade, acertos atuais, simulados, questões respondidas e evolução ficam vinculados à sua conta para o plano se adaptar com você.</p>
+    return <div className="min-h-screen bg-[radial-gradient(circle_at_70%_0%,rgba(36,108,255,.12),transparent_32%),linear-gradient(180deg,#020817,#041027)] text-white flex flex-col">
+      <div className="w-full max-w-xl mx-auto px-5 pt-8 md:pt-10 text-center">
+        <div className="inline-flex items-center gap-2 text-xs md:text-sm font-bold text-[#72a5ff]"><LockKeyhole className="w-4 h-4" /> Seu plano fica salvo na sua conta</div>
+        <h1 className="mt-4 text-3xl md:text-5xl font-extrabold tracking-[-0.045em] leading-[1.02]">Entre para abrir seu Plano de Aprovação.</h1>
+        <p className="mt-3 text-sm md:text-base text-[#a9bddc] leading-relaxed">Curso, faculdade, acertos, questões, fotos de dificuldade e evolução ficam vinculados à sua conta.</p>
       </div>
-      <div className="[&>div]:!bg-transparent [&_h1]:!text-white [&_label]:!text-[#a9bddc] [&_p]:!text-[#a9bddc] [&_input]:!bg-[#081a38] [&_input]:!text-white [&_input]:!border-[#173765] [&_button]:!rounded-[12px]">
-        <Auth onBack={onBack} onSuccess={() => {}} onPrivacy={onBack} onTerms={onBack} />
+      <div className="w-full max-w-xl mx-auto mt-5 md:mt-6 px-1 [&_h1]:!text-white [&_label]:!text-[#b8cae4] [&_p]:!text-[#9fb5d4] [&_input]:!bg-[#081a38] [&_input]:!text-white [&_input]:!border-[#173765] [&_button]:!rounded-[12px]">
+        <Auth compact onBack={onBack} onSuccess={() => {}} onPrivacy={onBack} onTerms={onBack} />
       </div>
     </div>;
   }
