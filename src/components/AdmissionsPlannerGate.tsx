@@ -1,6 +1,6 @@
 import { Loader2, LockKeyhole, LogOut } from 'lucide-react';
 import Auth from '@/components/Auth';
-import AdmissionsPlannerV9 from '@/components/AdmissionsPlannerV9';
+import AdmissionsPlannerV10 from '@/components/AdmissionsPlannerV10';
 import PlannerStudyLab from '@/components/PlannerStudyLab';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
@@ -43,7 +43,7 @@ function Gate({ onBack }: { onBack: () => void }) {
     >
       <LogOut className="w-4 h-4" /> Sair
     </button>
-    <AdmissionsPlannerV9 onBack={onBack} />
+    <AdmissionsPlannerV10 onBack={onBack} />
     <PlannerStudyLab />
   </div>;
 }
