@@ -2,14 +2,16 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
-  BookOpenCheck,
+  BookOpen,
   Brain,
   CalendarDays,
   Camera,
   CheckCircle2,
-  ChevronRight,
+  Download,
   ExternalLink,
+  FileText,
   Loader2,
+  PlayCircle,
   RefreshCw,
   Save,
   ScanLine,
@@ -17,9 +19,9 @@ import {
   Target,
   TrendingUp,
 } from 'lucide-react';
+import { jsPDF } from 'jspdf';
 import { supabase } from '@/lib/supabase';
 import {
-  ENEM_AREAS,
   daysUntil,
   estimatedTargetScore,
   getCourseTarget,
@@ -27,16 +29,8 @@ import {
   type EnemArea,
 } from '@/lib/admissions-planner-data';
 
-interface AdmissionsPlannerProps {
-  onBack: () => void;
-}
-
-interface AcademicAreaRow {
-  area_id: string;
-  name: string;
-  courses: string;
-}
-
+interface AdmissionsPlannerProps { onBack: () => void; }
+interface AcademicAreaRow { area_id: string; name: string; courses: string; }
 interface AreaUniversityRow {
   area_university_id: number;
   area_id: string;
@@ -46,501 +40,282 @@ interface AreaUniversityRow {
   admissions_summary: string | null;
   source_url: string | null;
 }
+interface PracticeQuestion {
+  id: number;
+  exam_id: string;
+  area: string;
+  skill_name: string;
+  difficulty: number;
+  prompt: string;
+  option_a: string | null;
+  option_b: string | null;
+  option_c: string | null;
+  option_d: string | null;
+  option_e: string | null;
+  correct_option: string | null;
+  explanation: string;
+  estimated_minutes: number;
+}
+interface StudyResource {
+  id: number;
+  exam_id: string;
+  area: string | null;
+  skill_name: string | null;
+  resource_type: string;
+  title: string;
+  url: string | null;
+  search_query: string | null;
+  description: string | null;
+  official: boolean;
+}
 
 type ScoreMap = Record<EnemArea, number>;
 type ObjectiveArea = Exclude<EnemArea, 'essay'>;
-
-type SimulationRecord = {
-  id: string;
-  createdAt: string;
-  examLabel: string;
-  course: string;
-  university: string;
-  scores: ScoreMap;
-};
+type Tab = 'goal' | 'plan' | 'practice' | 'scanner';
+type SimulationRecord = { id: string; createdAt: string; examLabel: string; course: string; university: string; scores: ScoreMap; };
 
 const OBJECTIVE_AREAS: ObjectiveArea[] = ['languages', 'humanities', 'nature', 'math'];
+const defaultScores: ScoreMap = { languages: 27, humanities: 27, nature: 24, math: 25, essay: 760 };
+const AREA_LABEL: Record<EnemArea, string> = { languages: 'Linguagens', humanities: 'Humanas', nature: 'Natureza', math: 'Matemática', essay: 'Redação' };
+const AREA_SHORT: Record<EnemArea, string> = { languages: 'LIN', humanities: 'HUM', nature: 'NAT', math: 'MAT', essay: 'RED' };
 
-const defaultScores: ScoreMap = {
-  languages: 27,
-  humanities: 27,
-  nature: 24,
-  math: 25,
-  essay: 760,
-};
-
-const AREA_LABEL: Record<EnemArea, string> = {
-  languages: 'Linguagens',
-  humanities: 'Humanas',
-  nature: 'Natureza',
-  math: 'Matemática',
-  essay: 'Redação',
-};
-
-const AREA_SHORT: Record<EnemArea, string> = {
-  languages: 'LIN',
-  humanities: 'HUM',
-  nature: 'NAT',
-  math: 'MAT',
-  essay: 'RED',
-};
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
+function clamp(value: number, min: number, max: number) { return Math.max(min, Math.min(max, value)); }
+function readScores(key: string) {
+  try { return { ...defaultScores, ...JSON.parse(localStorage.getItem(key) || '{}') } as ScoreMap; }
+  catch { return defaultScores; }
 }
-
-function classifyQuestion(text: string): { area: EnemArea; skill: string; explanation: string } {
-  const t = text.toLowerCase();
-  if (/função|equação|porcent|probabil|geometr|triâng|matriz|derivad|gráfico|razão|proporção/.test(t)) {
-    const skill = /probabil/.test(t)
-      ? 'Probabilidade'
-      : /geometr|triâng/.test(t)
-        ? 'Geometria'
-        : /função|gráfico/.test(t)
-          ? 'Funções e gráficos'
-          : 'Álgebra e resolução de problemas';
-    return { area: 'math', skill, explanation: 'A questão exige modelagem quantitativa, reconhecimento de relações e execução matemática.' };
-  }
-  if (/célula|dna|genét|ecolog|químic|mol|reação|força|energia|circuit|velocidade|vírus|bactér/.test(t)) {
-    const skill = /dna|genét/.test(t)
-      ? 'Genética'
-      : /ecolog/.test(t)
-        ? 'Ecologia'
-        : /químic|mol|reação/.test(t)
-          ? 'Química e transformações'
-          : /força|energia|circuit|velocidade/.test(t)
-            ? 'Física aplicada'
-            : 'Biologia e saúde';
-    return { area: 'nature', skill, explanation: 'A habilidade central está em interpretar fenômenos naturais e aplicar conceitos científicos ao problema.' };
-  }
-  if (/revolução|estado|democr|território|globalização|capitalismo|guerra|filosof|sociolog|história|geografia/.test(t)) {
-    return { area: 'humanities', skill: 'Interpretação histórico-social', explanation: 'A questão depende de contexto, leitura de evidências e relações entre processos sociais, políticos e espaciais.' };
-  }
-  if (/texto|autor|linguagem|metáfora|poema|narrador|gênero|charge|publicidade|argument|gramát/.test(t)) {
-    return { area: 'languages', skill: 'Interpretação e efeitos de sentido', explanation: 'O foco é compreender propósito, construção de sentido e estratégia linguística do texto.' };
-  }
-  return { area: 'languages', skill: 'Interpretação de enunciado', explanation: 'Sem palavras-chave suficientes, o sistema prioriza leitura do comando, inferência e eliminação de alternativas.' };
+function resolveExamId(name: string) {
+  const n = name.toLowerCase();
+  if (/ciências médicas|ciencias medicas|fcm-mg|cmmg/.test(n)) return 'cmmg';
+  if (/link school/.test(n)) return 'link';
+  if (/insper/.test(n)) return 'insper';
+  if (/usp|universidade de são paulo/.test(n)) return 'fuvest';
+  return getInstitutionExam(name).id || 'enem';
 }
-
+function examLabel(examId: string, fallback: string) {
+  if (examId === 'cmmg') return 'Ciências Médicas-MG 2027.1';
+  if (examId === 'link') return 'Link School · Processo seletivo';
+  return fallback;
+}
 function buildTargets(course: string, targetScore: number, scores: ScoreMap, comfortAreas: ObjectiveArea[]) {
   const profile = getCourseTarget(course);
-  const strength = Object.fromEntries(OBJECTIVE_AREAS.map((area) => [area, scores[area] / 45])) as Record<ObjectiveArea, number>;
   const totalWeight = OBJECTIVE_AREAS.reduce((sum, area) => sum + profile.weights[area], 0);
-  const scoreFactor = clamp((targetScore - 640) / 210, 0.32, 0.94);
-
-  const raw = OBJECTIVE_AREAS.map((area) => {
+  const factor = clamp((targetScore - 640) / 210, 0.32, 0.94);
+  const pairs = OBJECTIVE_AREAS.map((area) => {
+    const strength = scores[area] / 45;
     const courseImportance = profile.weights[area] / totalWeight;
-    const userStrength = strength[area];
-    const declaredStrengthBoost = comfortAreas.includes(area) ? 2 : 0;
-    const compensation = (userStrength - 0.58) * 7;
-    const courseBoost = (courseImportance - 0.25) * 18;
-    const base = 22 + scoreFactor * 17;
-    return [area, clamp(Math.round(base + compensation + courseBoost + declaredStrengthBoost), 20, 42)] as const;
+    const declaredBoost = comfortAreas.includes(area) ? 2 : 0;
+    const value = 22 + factor * 17 + (strength - 0.58) * 7 + (courseImportance - 0.25) * 18 + declaredBoost;
+    return [area, clamp(Math.round(value), 20, 42)] as const;
   });
-
-  const targets = Object.fromEntries(raw) as Record<EnemArea, number>;
+  const targets = Object.fromEntries(pairs) as ScoreMap;
   targets.essay = clamp(Math.round(760 + (targetScore - 720) * 1.25), 760, 940);
   return targets;
 }
-
-function weekPlan(course: string, targetScore: number, scores: ScoreMap, weeks: number, comfortAreas: ObjectiveArea[]) {
+function buildWeekPlan(course: string, targetScore: number, scores: ScoreMap, weeks: number, comfortAreas: ObjectiveArea[]) {
   const profile = getCourseTarget(course);
   const targets = buildTargets(course, targetScore, scores, comfortAreas);
-  const safeWeeks = Math.max(1, weeks);
-  const visibleWeeks = Math.min(safeWeeks, 12);
-
-  const rankedAreas = [...OBJECTIVE_AREAS].sort((a, b) => {
-    const gapA = Math.max(0, targets[a] - scores[a]);
-    const gapB = Math.max(0, targets[b] - scores[b]);
-    const comfortPenaltyA = comfortAreas.includes(a) ? 0.72 : 1.15;
-    const comfortPenaltyB = comfortAreas.includes(b) ? 0.72 : 1.15;
-    const priorityA = gapA * profile.weights[a] * comfortPenaltyA;
-    const priorityB = gapB * profile.weights[b] * comfortPenaltyB;
-    return priorityB - priorityA;
+  const visibleWeeks = Math.min(Math.max(1, weeks), 12);
+  const ranked = [...OBJECTIVE_AREAS].sort((a, b) => {
+    const score = (area: ObjectiveArea) => Math.max(0, targets[area] - scores[area]) * profile.weights[area] * (comfortAreas.includes(area) ? 0.72 : 1.18);
+    return score(b) - score(a);
   });
-
   const rows = Array.from({ length: visibleWeeks }, (_, index) => {
-    const progress = (index + 1) / visibleWeeks;
-    const objective = OBJECTIVE_AREAS.map((area) => {
-      const start = scores[area];
-      const target = targets[area];
-      const easedProgress = 1 - Math.pow(1 - progress, 1.15);
-      return { area, hits: Math.round(start + (target - start) * easedProgress) };
-    });
-
-    const rotation = index % rankedAreas.length;
-    const primary = rankedAreas[rotation];
-    const secondary = rankedAreas[(rotation + 1) % rankedAreas.length];
+    const progress = 1 - Math.pow(1 - (index + 1) / visibleWeeks, 1.15);
+    const objective = OBJECTIVE_AREAS.map((area) => ({ area, hits: Math.round(scores[area] + (targets[area] - scores[area]) * progress) }));
+    const primary = ranked[index % ranked.length];
+    const secondary = ranked[(index + 1) % ranked.length];
     const focus = [primary, secondary].map((area) => profile.focusSkills[area][index % profile.focusSkills[area].length]);
-    const essay = Math.round(scores.essay + (targets.essay - scores.essay) * progress);
-
-    return { week: index + 1, objective, essay, focus, priorityAreas: [primary, secondary] };
+    return { week: index + 1, objective, essay: Math.round(scores.essay + (targets.essay - scores.essay) * progress), priorityAreas: [primary, secondary], focus };
   });
-
-  return { targets, rows, rankedAreas };
+  return { targets, rows, ranked };
 }
-
-function readStoredScores(key: string, fallback: ScoreMap) {
-  try {
-    const saved = localStorage.getItem(key);
-    return saved ? { ...fallback, ...JSON.parse(saved) } : fallback;
-  } catch {
-    return fallback;
-  }
+function classifyQuestion(text: string) {
+  const t = text.toLowerCase();
+  if (/função|equação|porcent|probabil|geometr|triâng|gráfico|razão|proporção/.test(t)) return { area: 'math' as EnemArea, skill: /probabil/.test(t) ? 'Probabilidade' : /geometr|triâng/.test(t) ? 'Geometria' : 'Álgebra e modelagem' };
+  if (/dna|genét|ecolog|químic|mol|reação|força|energia|circuit|célula/.test(t)) return { area: 'nature' as EnemArea, skill: /dna|genét/.test(t) ? 'Genética' : /ecolog/.test(t) ? 'Ecologia' : 'Ciências da Natureza' };
+  if (/revolução|estado|democr|território|globalização|guerra|história|geografia/.test(t)) return { area: 'humanities' as EnemArea, skill: 'Interpretação histórico-social' };
+  return { area: 'languages' as EnemArea, skill: 'Interpretação e efeitos de sentido' };
 }
 
 export default function AdmissionsPlanner({ onBack }: AdmissionsPlannerProps) {
   const [areas, setAreas] = useState<AcademicAreaRow[]>([]);
   const [universities, setUniversities] = useState<AreaUniversityRow[]>([]);
+  const [questions, setQuestions] = useState<PracticeQuestion[]>([]);
+  const [resources, setResources] = useState<StudyResource[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedArea, setSelectedArea] = useState('');
   const [selectedUniversityId, setSelectedUniversityId] = useState<number | null>(null);
-  const [scores, setScores] = useState<ScoreMap>(() => readStoredScores('conectae:approval-scores', defaultScores));
-  const [draftScores, setDraftScores] = useState<ScoreMap>(() => readStoredScores('conectae:approval-scores', defaultScores));
+  const [scores, setScores] = useState<ScoreMap>(() => readScores('conectae:approval-scores'));
+  const [draftScores, setDraftScores] = useState<ScoreMap>(() => readScores('conectae:approval-scores'));
   const [comfortAreas, setComfortAreas] = useState<ObjectiveArea[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('conectae:comfort-areas') || '[]') as ObjectiveArea[];
-    } catch {
-      return [];
-    }
+    try { return JSON.parse(localStorage.getItem('conectae:comfort-areas') || '[]'); } catch { return []; }
   });
   const [simulations, setSimulations] = useState<SimulationRecord[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('conectae:simulations') || '[]') as SimulationRecord[];
-    } catch {
-      return [];
-    }
+    try { return JSON.parse(localStorage.getItem('conectae:simulations') || '[]'); } catch { return []; }
   });
+  const [tab, setTab] = useState<Tab>('goal');
   const [lastPlanUpdate, setLastPlanUpdate] = useState<string | null>(() => localStorage.getItem('conectae:last-plan-update'));
-  const [tab, setTab] = useState<'goal' | 'plan' | 'scanner'>('goal');
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [showCorrection, setShowCorrection] = useState(false);
   const [questionText, setQuestionText] = useState('');
-  const [scanResult, setScanResult] = useState<ReturnType<typeof classifyQuestion> | null>(null);
+  const [scanResult, setScanResult] = useState<{ area: EnemArea; skill: string } | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [scanning, setScanning] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let active = true;
     (async () => {
-      if (!supabase) {
-        setLoading(false);
-        return;
-      }
-      const [areaResult, universityResult] = await Promise.all([
+      if (!supabase) { setLoading(false); return; }
+      const [a, u, q, r] = await Promise.all([
         supabase.from('academic_areas').select('area_id,name,courses').order('name'),
         supabase.from('area_universities').select('area_university_id,area_id,university_name,course_label,institution_type,admissions_summary,source_url').order('university_name'),
+        supabase.from('exam_practice_questions').select('*').eq('active', true).order('difficulty'),
+        supabase.from('exam_study_resources').select('*').eq('active', true).order('priority', { ascending: false }),
       ]);
       if (!active) return;
-      setAreas((areaResult.data ?? []) as AcademicAreaRow[]);
-      setUniversities((universityResult.data ?? []) as AreaUniversityRow[]);
-      const firstArea = (areaResult.data?.[0] as AcademicAreaRow | undefined)?.area_id ?? '';
-      setSelectedArea((current) => current || firstArea);
+      setAreas((a.data || []) as AcademicAreaRow[]);
+      setUniversities((u.data || []) as AreaUniversityRow[]);
+      setQuestions((q.data || []) as PracticeQuestion[]);
+      setResources((r.data || []) as StudyResource[]);
+      setSelectedArea((current) => current || ((a.data?.[0] as AcademicAreaRow | undefined)?.area_id ?? ''));
       setLoading(false);
     })();
     return () => { active = false; };
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem('conectae:approval-scores', JSON.stringify(scores));
-  }, [scores]);
+  useEffect(() => { localStorage.setItem('conectae:approval-scores', JSON.stringify(scores)); }, [scores]);
+  useEffect(() => { localStorage.setItem('conectae:comfort-areas', JSON.stringify(comfortAreas)); }, [comfortAreas]);
+  useEffect(() => { localStorage.setItem('conectae:simulations', JSON.stringify(simulations.slice(0, 12))); }, [simulations]);
 
-  useEffect(() => {
-    localStorage.setItem('conectae:comfort-areas', JSON.stringify(comfortAreas));
-  }, [comfortAreas]);
-
-  useEffect(() => {
-    localStorage.setItem('conectae:simulations', JSON.stringify(simulations.slice(0, 12)));
-  }, [simulations]);
-
-  const area = areas.find((item) => item.area_id === selectedArea) ?? null;
+  const area = areas.find((item) => item.area_id === selectedArea) || null;
   const areaUniversities = useMemo(() => universities.filter((item) => item.area_id === selectedArea), [universities, selectedArea]);
-
   useEffect(() => {
-    if (!areaUniversities.length) {
-      setSelectedUniversityId(null);
-      return;
-    }
-    if (!areaUniversities.some((item) => item.area_university_id === selectedUniversityId)) {
-      setSelectedUniversityId(areaUniversities[0].area_university_id);
-    }
+    if (!areaUniversities.length) { setSelectedUniversityId(null); return; }
+    if (!areaUniversities.some((item) => item.area_university_id === selectedUniversityId)) setSelectedUniversityId(areaUniversities[0].area_university_id);
   }, [areaUniversities, selectedUniversityId]);
 
-  const university = areaUniversities.find((item) => item.area_university_id === selectedUniversityId) ?? null;
-  const course = university?.course_label || area?.courses || '';
-  const exam = getInstitutionExam(university?.university_name ?? '');
-  const targetScore = university
-    ? estimatedTargetScore(course, university.university_name, university.institution_type)
-    : getCourseTarget(course || 'Administração').targetScore;
-  const days = daysUntil(exam.date);
+  const university = areaUniversities.find((item) => item.area_university_id === selectedUniversityId) || null;
+  const course = university?.course_label || area?.courses || 'Administração';
+  const baseExam = getInstitutionExam(university?.university_name || '');
+  const examId = resolveExamId(university?.university_name || '');
+  const displayExam = examLabel(examId, baseExam.label);
+  const targetScore = university ? estimatedTargetScore(course, university.university_name, university.institution_type) : getCourseTarget(course).targetScore;
+  const days = daysUntil(baseExam.date);
   const weeks = Math.max(1, Math.ceil(days / 7));
-  const plan = useMemo(
-    () => weekPlan(course || 'Administração', targetScore, scores, weeks, comfortAreas),
-    [course, targetScore, scores, weeks, comfortAreas],
-  );
-
-  const averageObjective = Math.round(OBJECTIVE_AREAS.reduce((sum, areaId) => sum + scores[areaId], 0) / OBJECTIVE_AREAS.length);
-  const targetAverage = Math.round(OBJECTIVE_AREAS.reduce((sum, areaId) => sum + plan.targets[areaId], 0) / OBJECTIVE_AREAS.length);
-  const hasDraftChanges = ENEM_AREAS.some(({ id }) => draftScores[id] !== scores[id]);
+  const plan = useMemo(() => buildWeekPlan(course, targetScore, scores, weeks, comfortAreas), [course, targetScore, scores, weeks, comfortAreas]);
+  const currentQuestions = useMemo(() => questions.filter((q) => q.exam_id === examId), [questions, examId]);
+  const currentResources = useMemo(() => resources.filter((r) => r.exam_id === examId), [resources, examId]);
+  const practice = currentQuestions[questionIndex % Math.max(1, currentQuestions.length)] || null;
 
   const registerSimulation = () => {
     const now = new Date();
-    const record: SimulationRecord = {
-      id: `${now.getTime()}`,
-      createdAt: now.toISOString(),
-      examLabel: exam.label,
-      course: course || 'Curso selecionado',
-      university: university?.university_name || 'Faculdade selecionada',
-      scores: { ...draftScores },
-    };
-    setScores({ ...draftScores });
-    setSimulations((current) => [record, ...current].slice(0, 12));
-    const timestamp = now.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
-    setLastPlanUpdate(timestamp);
-    localStorage.setItem('conectae:last-plan-update', timestamp);
+    const nextScores = { ...draftScores };
+    setScores(nextScores);
+    setSimulations((current) => [{ id: String(now.getTime()), createdAt: now.toISOString(), examLabel: displayExam, course, university: university?.university_name || '', scores: nextScores }, ...current].slice(0, 12));
+    const stamp = now.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+    setLastPlanUpdate(stamp);
+    localStorage.setItem('conectae:last-plan-update', stamp);
     setTab('plan');
   };
-
-  const toggleComfortArea = (areaId: ObjectiveArea) => {
-    setComfortAreas((current) => current.includes(areaId) ? current.filter((item) => item !== areaId) : [...current, areaId]);
+  const toggleComfort = (areaId: ObjectiveArea) => setComfortAreas((current) => current.includes(areaId) ? current.filter((x) => x !== areaId) : [...current, areaId]);
+  const openVideo = (skill: string) => window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(`${displayExam} ${skill} aula resolução`)}`, '_blank', 'noopener,noreferrer');
+  const nextQuestion = () => { setQuestionIndex((i) => i + 1); setSelectedAnswer(null); setShowCorrection(false); };
+  const generatePdf = (week = 1) => {
+    const doc = new jsPDF();
+    const row = plan.rows[Math.min(week - 1, plan.rows.length - 1)];
+    doc.setFontSize(18); doc.text(`Conectaê · Semana ${week}`, 16, 18);
+    doc.setFontSize(11); doc.text(`${course} · ${university?.university_name || ''} · ${displayExam}`, 16, 27);
+    doc.text(`Meta geral de referência: ${targetScore}`, 16, 35);
+    doc.text(`Prioridades: ${row.priorityAreas.map((a) => AREA_LABEL[a]).join(' + ')}`, 16, 43);
+    let y = 54;
+    row.objective.forEach(({ area: a, hits }) => { doc.text(`${AREA_LABEL[a]}: meta ${hits}/45`, 18, y); y += 7; });
+    doc.text(`Redação: meta ${row.essay}/1000`, 18, y); y += 12;
+    doc.setFontSize(14); doc.text('Questões de prática', 16, y); y += 9; doc.setFontSize(10);
+    currentQuestions.slice(0, 6).forEach((q, idx) => {
+      const lines = doc.splitTextToSize(`${idx + 1}. ${q.prompt}`, 175); doc.text(lines, 16, y); y += lines.length * 5 + 5;
+      if (y > 270) { doc.addPage(); y = 18; }
+    });
+    doc.save(`conectae-semana-${week}-${examId}.pdf`);
   };
-
-  const handleImage = async (file: File | undefined) => {
+  const handleImage = async (file?: File) => {
     if (!file) return;
     if (imageUrl) URL.revokeObjectURL(imageUrl);
     setImageUrl(URL.createObjectURL(file));
-    setScanResult(null);
-    setScanning(true);
-    try {
-      const TextDetectorCtor = (window as typeof window & { TextDetector?: new () => { detect: (source: ImageBitmap) => Promise<Array<{ rawValue?: string }>> } }).TextDetector;
-      if (TextDetectorCtor) {
-        const bitmap = await createImageBitmap(file);
-        const blocks = await new TextDetectorCtor().detect(bitmap);
-        const text = blocks.map((block) => block.rawValue || '').join(' ').trim();
-        if (text) setQuestionText(text);
-      }
-    } catch {
-      // Fallback manual permanece disponível.
-    } finally {
-      setScanning(false);
-    }
   };
+  const analyzeQuestion = () => { if (questionText.trim()) setScanResult(classifyQuestion(questionText)); };
 
-  const analyzeQuestion = () => {
-    const text = questionText.trim();
-    if (!text) return;
-    const result = classifyQuestion(text);
-    setScanResult(result);
-    const key = `conectae:skill-errors:${result.area}:${result.skill}`;
-    const current = Number(localStorage.getItem(key) || '0');
-    localStorage.setItem(key, String(current + 1));
-  };
-
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-brand-400" /></div>;
-  }
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-[#070b16]"><Loader2 className="w-8 h-8 animate-spin text-cyan-300" /></div>;
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-48 left-1/4 w-[560px] h-[560px] rounded-full bg-brand-500/15 blur-[150px]" />
-        <div className="absolute top-1/2 -right-56 w-[520px] h-[520px] rounded-full bg-accent-500/10 blur-[150px]" />
-      </div>
-
-      <header className="relative z-10 flex items-center justify-between px-6 py-6 md:px-12">
-        <button onClick={onBack} className="flex items-center gap-2 text-ink-400 hover:text-ink-100 text-sm font-medium"><ArrowLeft className="w-4 h-4" /> Voltar</button>
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-300 text-xs font-semibold"><Target className="w-4 h-4" /> Plano de Aprovação</div>
+    <div className="min-h-screen bg-[#070b16] text-ink-50">
+      <header className="max-w-7xl mx-auto px-5 md:px-8 py-6 flex items-center justify-between">
+        <button onClick={onBack} className="inline-flex items-center gap-2 text-sm text-ink-400 hover:text-white"><ArrowLeft className="w-4 h-4" />Voltar</button>
+        <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-xs font-bold text-cyan-200">Plano de Aprovação</span>
       </header>
 
-      <main className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 pb-24">
-        <section className="max-w-4xl mb-8">
-          <h1 className="text-3xl md:text-5xl font-bold tracking-tight">Da nota que você tem à nota que precisa.</h1>
-          <p className="mt-3 text-ink-400 leading-relaxed">Registre cada simulado. O plano recalcula o ponto de partida, as metas intermediárias e as matérias prioritárias automaticamente.</p>
+      <main className="max-w-7xl mx-auto px-5 md:px-8 pb-24">
+        <section className="mb-7">
+          <h1 className="text-4xl md:text-6xl font-black tracking-tight">Seu plano muda quando <span className="text-cyan-300">seu desempenho muda.</span></h1>
+          <p className="mt-3 max-w-3xl text-ink-400">Registre simulados, marque suas matérias fortes e receba metas, semanas de estudo, questões autorais, vídeos e PDFs alinhados à prova que você quer passar.</p>
         </section>
 
-        <section className="grid lg:grid-cols-[1.05fr_1.45fr] gap-5 mb-5">
-          <div className="glass rounded-2xl border border-ink-800 p-5">
-            <p className="text-xs font-bold text-ink-500 uppercase tracking-wider mb-4">1. Seu objetivo</p>
-            <label className="block text-sm text-ink-300 mb-2">Curso</label>
-            <select value={selectedArea} onChange={(e) => setSelectedArea(e.target.value)} className="w-full rounded-xl border border-ink-700 bg-ink-900 px-3 py-3 text-ink-100 outline-none focus:border-brand-500">
-              {areas.map((item) => <option key={item.area_id} value={item.area_id}>{item.courses}</option>)}
-            </select>
-            <label className="block text-sm text-ink-300 mb-2 mt-4">Faculdade</label>
-            <select value={selectedUniversityId ?? ''} onChange={(e) => setSelectedUniversityId(Number(e.target.value))} className="w-full rounded-xl border border-ink-700 bg-ink-900 px-3 py-3 text-ink-100 outline-none focus:border-brand-500">
-              {areaUniversities.map((item) => <option key={item.area_university_id} value={item.area_university_id}>{item.university_name}</option>)}
-            </select>
-
-            {university && (
-              <div className="mt-5 rounded-2xl border border-brand-500/35 bg-brand-500/10 p-5">
-                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-300">Sua meta principal</p>
-                <div className="mt-2 flex items-end justify-between gap-4">
-                  <div>
-                    <p className="text-5xl font-black text-brand-200 leading-none">{targetScore}</p>
-                    <p className="text-xs text-ink-400 mt-2">meta competitiva estimada para {course}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-ink-100">{exam.label}</p>
-                    <p className="text-xs text-accent-300 mt-1">{days} dias · {weeks} semanas</p>
-                  </div>
-                </div>
-                <div className="mt-4 border-t border-brand-500/15 pt-3">
-                  <p className="text-xs leading-relaxed text-ink-400">{university.admissions_summary || exam.admissions}</p>
-                  <a href={university.source_url || exam.sourceUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-brand-300 hover:text-brand-200">Ver fonte de ingresso <ExternalLink className="w-3.5 h-3.5" /></a>
-                </div>
-              </div>
-            )}
+        <section className="grid lg:grid-cols-2 gap-5 mb-5">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.035] p-5">
+            <p className="text-xs uppercase tracking-widest text-ink-500 font-black">1 · Objetivo</p>
+            <div className="grid sm:grid-cols-2 gap-3 mt-4">
+              <label className="text-sm text-ink-400">Curso<select value={selectedArea} onChange={(e) => setSelectedArea(e.target.value)} className="mt-2 w-full rounded-xl border border-ink-700 bg-ink-900 px-3 py-3 text-white">{areas.map((x) => <option key={x.area_id} value={x.area_id}>{x.courses}</option>)}</select></label>
+              <label className="text-sm text-ink-400">Faculdade<select value={selectedUniversityId ?? ''} onChange={(e) => setSelectedUniversityId(Number(e.target.value))} className="mt-2 w-full rounded-xl border border-ink-700 bg-ink-900 px-3 py-3 text-white">{areaUniversities.map((x) => <option key={x.area_university_id} value={x.area_university_id}>{x.university_name}</option>)}</select></label>
+            </div>
+            <div className="mt-5 rounded-2xl border border-cyan-300/25 bg-cyan-300/[0.07] p-5">
+              <p className="text-xs font-black uppercase tracking-widest text-cyan-300">Sua meta final</p>
+              <div className="mt-2 flex flex-wrap items-end justify-between gap-4"><div><div className="text-5xl font-black text-white">{targetScore}</div><p className="text-xs text-ink-500">referência competitiva geral</p></div><div className="text-right"><strong className="text-cyan-200">{displayExam}</strong><p className="text-xs text-ink-500">{days} dias · {weeks} semanas</p></div></div>
+              <div className="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-2">{([...OBJECTIVE_AREAS, 'essay'] as EnemArea[]).map((a) => <div key={a} className="rounded-xl bg-black/20 p-2.5 text-center"><p className="text-[10px] font-bold text-ink-500">{AREA_SHORT[a]}</p><p className="font-black text-cyan-100">{plan.targets[a]}{a === 'essay' ? '/1000' : '/45'}</p></div>)}</div>
+            </div>
           </div>
 
-          <div className="glass rounded-2xl border border-ink-800 p-5">
-            <div className="flex items-center justify-between gap-3 mb-4">
-              <div><p className="text-xs font-bold text-ink-500 uppercase tracking-wider">2. Novo simulado</p><p className="text-sm text-ink-400 mt-1">Coloque o resultado mais recente e salve para recalcular o calendário.</p></div>
-              <TrendingUp className="w-5 h-5 text-accent-400" />
-            </div>
-            <div className="grid sm:grid-cols-2 gap-3">
-              {OBJECTIVE_AREAS.map((areaId) => (
-                <label key={areaId} className="p-3 rounded-xl bg-ink-900/70 border border-ink-800">
-                  <span className="flex items-center justify-between text-sm"><span className="text-ink-300">{AREA_LABEL[areaId]}</span><strong className="text-ink-100">{draftScores[areaId]}/45</strong></span>
-                  <input type="range" min={0} max={45} value={draftScores[areaId]} onChange={(e) => setDraftScores((current) => ({ ...current, [areaId]: Number(e.target.value) }))} className="w-full mt-3 accent-current" />
-                  <div className="mt-2 flex justify-between text-[10px]"><span className="text-ink-600">Atual: {scores[areaId]}</span><span className="text-brand-300">Meta: {plan.targets[areaId]}</span></div>
-                </label>
-              ))}
-              <label className="sm:col-span-2 p-3 rounded-xl bg-ink-900/70 border border-ink-800">
-                <span className="flex items-center justify-between text-sm"><span className="text-ink-300">Redação</span><strong className="text-ink-100">{draftScores.essay}/1000</strong></span>
-                <input type="range" min={0} max={1000} step={20} value={draftScores.essay} onChange={(e) => setDraftScores((current) => ({ ...current, essay: Number(e.target.value) }))} className="w-full mt-3 accent-current" />
-                <div className="mt-2 flex justify-between text-[10px]"><span className="text-ink-600">Atual: {scores.essay}</span><span className="text-brand-300">Meta: {plan.targets.essay}</span></div>
-              </label>
-            </div>
-            <button onClick={registerSimulation} className={`mt-4 w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-black transition-colors ${hasDraftChanges ? 'bg-brand-500 hover:bg-brand-400 text-ink-950' : 'bg-ink-800 hover:bg-ink-700 text-ink-200'}`}>
-              {hasDraftChanges ? <RefreshCw className="w-4 h-4" /> : <Save className="w-4 h-4" />} Registrar simulado e recalcular plano
-            </button>
-            {lastPlanUpdate && <p className="mt-2 text-center text-[11px] text-ink-500">Calendário recalculado em {lastPlanUpdate}</p>}
+          <div className="rounded-3xl border-2 border-amber-300/25 bg-gradient-to-br from-amber-300/[0.09] to-transparent p-5 shadow-xl shadow-amber-950/10">
+            <div className="flex items-center gap-3"><div className="w-11 h-11 rounded-2xl bg-amber-300 text-[#1b1200] flex items-center justify-center"><Sparkles className="w-5 h-5" /></div><div><p className="text-xs font-black uppercase tracking-widest text-amber-200">2 · Importante</p><h2 className="text-xl font-black">Quais matérias são mais confortáveis para você?</h2></div></div>
+            <p className="mt-3 text-sm text-ink-400">Marque suas forças. O algoritmo usa isso para explorar matérias em que você consegue pontuar mais e redistribuir esforço sem abandonar seus pontos fracos.</p>
+            <div className="mt-4 grid grid-cols-2 gap-3">{OBJECTIVE_AREAS.map((a) => { const active = comfortAreas.includes(a); return <button key={a} onClick={() => toggleComfort(a)} className={`rounded-2xl border p-4 text-left transition-all ${active ? 'border-amber-300 bg-amber-300/15 text-amber-100' : 'border-white/10 bg-black/15 text-ink-300 hover:border-amber-300/35'}`}><div className="flex items-center justify-between"><strong>{AREA_LABEL[a]}</strong>{active && <CheckCircle2 className="w-5 h-5" />}</div><p className="mt-1 text-xs opacity-70">{active ? 'Marcada como força' : 'Toque para marcar'}</p></button>; })}</div>
+            <p className="mt-4 text-xs text-amber-100/70">Selecionadas: {comfortAreas.length ? comfortAreas.map((a) => AREA_LABEL[a]).join(', ') : 'nenhuma ainda'}</p>
           </div>
         </section>
 
-        <section className="glass rounded-2xl border border-ink-800 p-5 mb-6">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div>
-              <p className="text-xs font-bold text-ink-500 uppercase tracking-wider">3. Suas matérias de conforto</p>
-              <p className="text-sm text-ink-400 mt-1">Marque onde você se sente mais seguro. O motor usa isso para proteger seus pontos fortes e concentrar mais estudo nos gargalos.</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {OBJECTIVE_AREAS.map((areaId) => {
-                const selected = comfortAreas.includes(areaId);
-                return (
-                  <button key={areaId} onClick={() => toggleComfortArea(areaId)} className={`px-3 py-2 rounded-xl border text-sm font-semibold transition-colors ${selected ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-300' : 'border-ink-800 bg-ink-900/60 text-ink-400 hover:text-ink-200'}`}>
-                    {selected && <CheckCircle2 className="inline w-4 h-4 mr-1.5" />}{AREA_LABEL[areaId]}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+        <section className="rounded-3xl border border-white/10 bg-white/[0.035] p-5 mb-6">
+          <div className="flex items-center justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-ink-500">3 · Novo simulado</p><h2 className="text-xl font-black mt-1">Atualize o que você realmente está acertando</h2></div><TrendingUp className="w-5 h-5 text-cyan-300" /></div>
+          <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-5 gap-3">{OBJECTIVE_AREAS.map((a) => <label key={a} className="rounded-2xl border border-white/10 bg-black/15 p-3"><span className="text-xs text-ink-400">{AREA_LABEL[a]}</span><div className="mt-1 flex items-end justify-between"><strong className="text-2xl">{draftScores[a]}</strong><span className="text-xs text-cyan-300">meta {plan.targets[a]}</span></div><input type="range" min={0} max={45} value={draftScores[a]} onChange={(e) => setDraftScores((s) => ({ ...s, [a]: Number(e.target.value) }))} className="w-full mt-3" /></label>)}<label className="rounded-2xl border border-white/10 bg-black/15 p-3"><span className="text-xs text-ink-400">Redação</span><div className="mt-1 flex items-end justify-between"><strong className="text-2xl">{draftScores.essay}</strong><span className="text-xs text-cyan-300">meta {plan.targets.essay}</span></div><input type="range" min={0} max={1000} step={20} value={draftScores.essay} onChange={(e) => setDraftScores((s) => ({ ...s, essay: Number(e.target.value) }))} className="w-full mt-3" /></label></div>
+          <button onClick={registerSimulation} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-cyan-300 px-5 py-3 font-black text-[#07111d]"><RefreshCw className="w-4 h-4" />Registrar simulado e recalcular tudo</button>
         </section>
 
-        <nav className="mb-5 flex gap-2 overflow-x-auto pb-1">
-          {[
-            ['goal', 'Metas de nota', Target],
-            ['plan', 'Plano semanal', CalendarDays],
-            ['scanner', 'Scanner de questões', ScanLine],
-          ].map(([id, label, Icon]) => (
-            <button key={String(id)} onClick={() => setTab(id as typeof tab)} className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border whitespace-nowrap text-sm font-semibold transition-colors ${tab === id ? 'border-brand-500/50 bg-brand-500/10 text-brand-200' : 'border-ink-800 bg-ink-900/50 text-ink-400 hover:text-ink-200'}`}><Icon className="w-4 h-4" />{String(label)}</button>
-          ))}
-        </nav>
+        <nav className="flex gap-2 overflow-x-auto mb-5">{([['goal','Metas',Target],['plan','Plano semanal',CalendarDays],['practice','Questões',BookOpen],['scanner','Scanner',ScanLine]] as const).map(([id,label,Icon]) => <button key={id} onClick={() => setTab(id)} className={`whitespace-nowrap rounded-xl border px-4 py-2.5 text-sm font-bold inline-flex items-center gap-2 ${tab === id ? 'border-cyan-300/40 bg-cyan-300/10 text-cyan-200' : 'border-white/10 text-ink-400'}`}><Icon className="w-4 h-4" />{label}</button>)}</nav>
 
-        {tab === 'goal' && (
-          <section className="space-y-4">
-            <div className="glass rounded-2xl border border-brand-500/30 bg-brand-500/5 p-5 md:p-6">
-              <div className="grid md:grid-cols-3 gap-4 items-center">
-                <div><p className="text-xs font-bold text-ink-500 uppercase tracking-wider">Meta final</p><p className="text-5xl font-black text-brand-200 mt-1">{targetScore}</p><p className="text-xs text-ink-500 mt-1">referência competitiva</p></div>
-                <div><p className="text-xs font-bold text-ink-500 uppercase tracking-wider">Média objetiva atual</p><p className="text-4xl font-black text-ink-100 mt-1">{averageObjective}<span className="text-base text-ink-500">/45</span></p></div>
-                <div><p className="text-xs font-bold text-ink-500 uppercase tracking-wider">Média objetiva alvo</p><p className="text-4xl font-black text-accent-300 mt-1">{targetAverage}<span className="text-base text-ink-500">/45</span></p></div>
+        {tab === 'goal' && <section className="rounded-3xl border border-white/10 bg-white/[0.035] p-5"><div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">{([...OBJECTIVE_AREAS, 'essay'] as EnemArea[]).map((a) => { const now = scores[a], target = plan.targets[a], max = a === 'essay' ? 1000 : 45; return <div key={a} className="rounded-2xl border border-white/10 bg-black/20 p-4"><p className="text-xs font-black text-ink-500">{AREA_LABEL[a]}</p><p className="mt-2 text-3xl font-black text-cyan-200">{target}<span className="text-xs text-ink-600">/{max}</span></p><p className="mt-2 text-xs text-ink-400">Atual {now} · {target > now ? `faltam ${target-now}` : 'meta atingida'}</p></div>; })}</div>{simulations.length > 0 && <div className="mt-5 text-xs text-ink-500">Último recálculo: {lastPlanUpdate || new Date(simulations[0].createdAt).toLocaleDateString('pt-BR')}</div>}</section>}
+
+        {tab === 'plan' && <section className="space-y-4">
+          <div className="rounded-3xl border border-cyan-300/20 bg-cyan-300/[0.05] p-5 flex flex-col md:flex-row md:items-center justify-between gap-4"><div><h2 className="text-xl font-black">Plano adaptativo até {displayExam}</h2><p className="text-sm text-ink-400">Cada novo simulado recria os checkpoints e os materiais sugeridos.</p></div><button onClick={() => generatePdf(1)} className="rounded-xl border border-cyan-300/30 px-4 py-2.5 text-sm font-bold text-cyan-200 inline-flex items-center gap-2"><Download className="w-4 h-4" />PDF do plano</button></div>
+          {plan.rows.map((row) => {
+            const weeklyQuestions = currentQuestions.filter((q) => row.focus.some((f) => q.skill_name.toLowerCase().includes(f.split(' ')[0].toLowerCase()))).slice(0,2);
+            return <div key={row.week} className="rounded-3xl border border-white/10 bg-white/[0.035] p-5">
+              <div className="flex flex-col lg:flex-row lg:items-center gap-4"><div className="lg:w-28"><p className="text-xs text-ink-500">CHECKPOINT</p><h3 className="text-xl font-black">Semana {row.week}</h3></div><div className="grid grid-cols-2 sm:grid-cols-5 gap-2 flex-1">{row.objective.map(({area:a,hits}) => <div key={a} className="rounded-xl bg-black/20 p-2.5 text-center"><p className="text-[10px] text-ink-500 font-bold">{AREA_SHORT[a]}</p><p className="font-black">{hits}/45</p></div>)}<div className="rounded-xl bg-cyan-300/[0.07] p-2.5 text-center"><p className="text-[10px] text-cyan-400 font-bold">RED</p><p className="font-black text-cyan-100">{row.essay}</p></div></div></div>
+              <div className="mt-4 grid md:grid-cols-3 gap-3">
+                <div className="rounded-2xl border border-white/10 bg-black/15 p-4"><p className="text-xs font-black uppercase tracking-wider text-ink-500">Prioridade</p><p className="mt-2 font-bold">{row.priorityAreas.map((a) => AREA_LABEL[a]).join(' + ')}</p><p className="mt-2 text-xs text-ink-500">Foco: {row.focus.join(' · ')}</p></div>
+                <button onClick={() => { setQuestionIndex(Math.max(0, currentQuestions.findIndex((q) => weeklyQuestions.some((x) => x.id === q.id)))); setTab('practice'); }} className="rounded-2xl border border-violet-300/20 bg-violet-300/[0.06] p-4 text-left hover:border-violet-300/40"><BookOpen className="w-5 h-5 text-violet-300" /><strong className="block mt-2">Fazer questões agora</strong><span className="text-xs text-ink-500">Prática alinhada à prova e às habilidades da semana.</span></button>
+                <div className="grid grid-cols-2 gap-2"><button onClick={() => openVideo(row.focus[0])} className="rounded-2xl border border-rose-300/20 bg-rose-300/[0.05] p-3 text-left"><PlayCircle className="w-5 h-5 text-rose-300" /><strong className="block mt-2 text-sm">Vídeo</strong><span className="text-[11px] text-ink-500">Buscar aula da habilidade</span></button><button onClick={() => generatePdf(row.week)} className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.05] p-3 text-left"><FileText className="w-5 h-5 text-amber-300" /><strong className="block mt-2 text-sm">PDF</strong><span className="text-[11px] text-ink-500">Semana + questões</span></button></div>
               </div>
-            </div>
+            </div>;
+          })}
+          {currentResources.length > 0 && <div className="rounded-3xl border border-white/10 bg-white/[0.035] p-5"><h3 className="font-black">Fontes e materiais da prova</h3><div className="mt-3 grid md:grid-cols-2 gap-3">{currentResources.slice(0,6).map((r) => <a key={r.id} href={r.url || `https://www.youtube.com/results?search_query=${encodeURIComponent(r.search_query || '')}`} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/10 bg-black/15 p-4 hover:border-cyan-300/30"><div className="flex items-center justify-between"><strong className="text-sm">{r.title}</strong><ExternalLink className="w-4 h-4 text-cyan-300" /></div><p className="mt-1 text-xs text-ink-500">{r.description}</p></a>)}</div></div>}
+        </section>}
 
-            <div className="glass rounded-2xl border border-ink-800 p-5 md:p-6">
-              <h2 className="font-bold text-ink-100">Metas por matéria</h2>
-              <p className="text-sm text-ink-400 mt-1 mb-5">O número grande é exatamente o que o plano quer que você alcance até a prova.</p>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                {ENEM_AREAS.map(({ id, label }) => {
-                  const current = scores[id];
-                  const target = plan.targets[id];
-                  const max = id === 'essay' ? 1000 : 45;
-                  const gap = target - current;
-                  return (
-                    <div key={id} className={`p-4 rounded-2xl border ${gap <= 0 ? 'border-emerald-500/25 bg-emerald-500/5' : 'border-ink-800 bg-ink-900/60'}`}>
-                      <div className="flex items-center justify-between"><span className="text-xs font-bold text-ink-500">{AREA_SHORT[id]}</span>{target <= current ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <ArrowRight className="w-4 h-4 text-brand-400" />}</div>
-                      <p className="mt-3 text-sm text-ink-300">{label}</p>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-brand-400 mt-3">META</p>
-                      <div className="flex items-end gap-1"><strong className="text-3xl text-ink-100">{target}</strong><span className="text-xs text-ink-500 mb-1">/{max}</span></div>
-                      <div className="mt-3 pt-3 border-t border-ink-800 text-xs"><p className="text-ink-500">Atual: <strong className="text-ink-300">{current}</strong></p><p className={gap > 0 ? 'text-accent-300 mt-1' : 'text-emerald-400 mt-1'}>{gap > 0 ? `Faltam ${gap}` : `Acima da meta em ${Math.abs(gap)}`}</p></div>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="mt-5 p-4 rounded-xl bg-accent-500/5 border border-accent-500/20 text-sm text-ink-300 leading-relaxed"><Sparkles className="inline w-4 h-4 text-accent-300 mr-2" />As matérias marcadas como conforto podem carregar uma parcela maior da sua estratégia, mas o plano ainda preserva um piso mínimo nas áreas fracas.</div>
-            </div>
-          </section>
-        )}
+        {tab === 'practice' && <section className="grid lg:grid-cols-[1.4fr_.6fr] gap-5">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.035] p-5 md:p-7">{practice ? <><div className="flex items-center justify-between gap-3"><span className="rounded-full bg-violet-300/10 border border-violet-300/20 px-3 py-1 text-xs font-bold text-violet-200">{practice.area} · {practice.skill_name}</span><span className="text-xs text-ink-500">Dificuldade {practice.difficulty}/5</span></div><h2 className="mt-5 text-xl md:text-2xl font-black leading-relaxed">{practice.prompt}</h2>{practice.option_a ? <div className="mt-5 space-y-2">{(['A','B','C','D','E'] as const).map((letter) => { const value = practice[`option_${letter.toLowerCase()}` as keyof PracticeQuestion] as string | null; if (!value) return null; const chosen = selectedAnswer === letter; return <button key={letter} onClick={() => { setSelectedAnswer(letter); setShowCorrection(false); }} className={`w-full rounded-2xl border p-4 text-left ${chosen ? 'border-cyan-300 bg-cyan-300/10' : 'border-white/10 bg-black/15'}`}><strong className="mr-3 text-cyan-300">{letter}</strong>{value}</button>; })}</div> : <textarea className="mt-5 w-full min-h-36 rounded-2xl border border-white/10 bg-black/20 p-4" placeholder="Escreva sua resposta discursiva antes de ver a correção." />}
+          <div className="mt-5 flex flex-wrap gap-2"><button onClick={() => setShowCorrection(true)} className="rounded-xl bg-cyan-300 px-5 py-3 font-black text-[#07111d]">Corrigir</button><button onClick={nextQuestion} className="rounded-xl border border-white/15 px-5 py-3 font-bold">Próxima questão <ArrowRight className="w-4 h-4 inline ml-1" /></button><button onClick={() => generatePdf(1)} className="rounded-xl border border-amber-300/25 px-4 py-3 text-amber-200 font-bold"><Download className="w-4 h-4 inline mr-1" />PDF</button></div>{showCorrection && <div className={`mt-5 rounded-2xl border p-4 ${!practice.correct_option || selectedAnswer === practice.correct_option ? 'border-emerald-300/20 bg-emerald-300/[0.05]' : 'border-rose-300/20 bg-rose-300/[0.05]'}`}><strong>{practice.correct_option ? `Resposta: ${practice.correct_option}` : 'Resposta esperada'}</strong><p className="mt-2 text-sm text-ink-300">{practice.explanation}</p></div>}</> : <div className="text-center py-16 text-ink-500">Ainda não há questões autorais para esta prova.</div>}</div>
+          <aside className="rounded-3xl border border-white/10 bg-white/[0.035] p-5"><Brain className="w-7 h-7 text-cyan-300" /><h3 className="mt-3 text-lg font-black">Banco da prova</h3><p className="mt-2 text-sm text-ink-400">{currentQuestions.length} questões autorais disponíveis nesta versão, conectadas à taxonomia da prova.</p><button onClick={() => practice && openVideo(practice.skill_name)} className="mt-4 w-full rounded-xl border border-rose-300/20 bg-rose-300/[0.05] p-3 font-bold text-rose-200"><PlayCircle className="w-4 h-4 inline mr-2" />Ver aula desta habilidade</button></aside>
+        </section>}
 
-        {tab === 'plan' && (
-          <section className="space-y-3">
-            <div className="glass rounded-2xl border border-ink-800 p-5 flex items-start gap-3">
-              <BookOpenCheck className="w-5 h-5 text-brand-400 mt-0.5" />
-              <div className="flex-1"><h2 className="font-bold text-ink-100">Rota recalculada até {exam.label}</h2><p className="text-sm text-ink-400 mt-1">Cada vez que você registra um novo simulado, a Semana 1 passa a partir desse novo desempenho e todas as metas seguintes são redistribuídas.</p></div>
-              {lastPlanUpdate && <span className="hidden md:inline text-[11px] text-ink-500">Atualizado {lastPlanUpdate}</span>}
-            </div>
-
-            <div className="glass rounded-2xl border border-ink-800 p-4">
-              <p className="text-xs font-bold text-ink-500 uppercase tracking-wider">Prioridade atual do motor</p>
-              <div className="mt-2 flex flex-wrap gap-2">{plan.rankedAreas.map((areaId, index) => <span key={areaId} className={`px-3 py-1.5 rounded-full text-xs font-bold ${index < 2 ? 'bg-accent-500/10 text-accent-300 border border-accent-500/20' : 'bg-ink-900 text-ink-400 border border-ink-800'}`}>{index + 1}. {AREA_LABEL[areaId]}</span>)}</div>
-            </div>
-
-            {plan.rows.map((row) => (
-              <div key={`${lastPlanUpdate || 'initial'}-${row.week}`} className="glass rounded-2xl border border-ink-800 p-4 md:p-5">
-                <div className="flex flex-col md:flex-row md:items-center gap-4">
-                  <div className="md:w-28"><span className="text-xs text-ink-500">Checkpoint</span><p className="font-bold text-ink-100">Semana {row.week}</p></div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1">{row.objective.map(({ area: areaId, hits }) => <div key={areaId} className={`rounded-xl px-3 py-2 text-center ${row.priorityAreas.includes(areaId) ? 'bg-accent-500/10 border border-accent-500/15' : 'bg-ink-900 border border-transparent'}`}><p className="text-[10px] font-bold text-ink-500">{AREA_SHORT[areaId]}</p><p className="text-lg font-bold text-ink-100">{hits}/45</p><p className="text-[9px] text-ink-600">meta da semana</p></div>)}</div>
-                  <div className="md:w-36 rounded-xl bg-brand-500/5 border border-brand-500/15 px-3 py-2"><p className="text-[10px] font-bold text-brand-400">REDAÇÃO</p><p className="text-lg font-bold text-brand-200">{row.essay}</p><p className="text-[9px] text-ink-600">meta da semana</p></div>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">{row.focus.map((skill) => <span key={skill} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-ink-800 text-xs text-ink-300"><Brain className="w-3 h-3 text-accent-400" />{skill}</span>)}</div>
-              </div>
-            ))}
-
-            {simulations.length > 0 && (
-              <div className="glass rounded-2xl border border-ink-800 p-5 mt-4">
-                <p className="text-xs font-bold text-ink-500 uppercase tracking-wider">Histórico recente de simulados</p>
-                <div className="mt-3 space-y-2">{simulations.slice(0, 4).map((item) => <div key={item.id} className="flex flex-col md:flex-row md:items-center justify-between gap-2 rounded-xl bg-ink-900/60 border border-ink-800 px-3 py-2"><div><p className="text-sm font-semibold text-ink-200">{item.examLabel}</p><p className="text-[11px] text-ink-500">{new Date(item.createdAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</p></div><div className="flex flex-wrap gap-2 text-[10px] text-ink-400">{OBJECTIVE_AREAS.map((areaId) => <span key={areaId}>{AREA_SHORT[areaId]} <strong className="text-ink-200">{item.scores[areaId]}</strong></span>)}<span>RED <strong className="text-ink-200">{item.scores.essay}</strong></span></div></div>)}</div>
-              </div>
-            )}
-          </section>
-        )}
-
-        {tab === 'scanner' && (
-          <section className="grid lg:grid-cols-2 gap-5">
-            <div className="glass rounded-2xl border border-ink-800 p-5">
-              <div className="flex items-center gap-3 mb-4"><div className="w-10 h-10 rounded-xl bg-brand-500/10 text-brand-300 flex items-center justify-center"><Camera className="w-5 h-5" /></div><div><h2 className="font-bold text-ink-100">Escaneie uma questão</h2><p className="text-xs text-ink-500">Foto, print ou imagem da questão.</p></div></div>
-              <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => void handleImage(e.target.files?.[0])} />
-              <button onClick={() => fileRef.current?.click()} className="w-full min-h-44 rounded-2xl border border-dashed border-ink-700 bg-ink-900/60 hover:border-brand-500/50 transition-colors overflow-hidden flex items-center justify-center">
-                {imageUrl ? <img src={imageUrl} alt="Questão enviada" className="max-h-72 w-full object-contain" /> : <div className="text-center text-ink-500"><ScanLine className="w-8 h-8 mx-auto mb-2" /><p className="text-sm font-semibold text-ink-300">Tirar foto ou enviar imagem</p><p className="text-xs mt-1">O reconhecimento de texto é automático quando disponível no navegador.</p></div>}
-              </button>
-              <label className="block mt-4 text-sm text-ink-300">Texto reconhecido / enunciado</label>
-              <textarea value={questionText} onChange={(e) => setQuestionText(e.target.value)} rows={6} placeholder="Se o reconhecimento automático não funcionar, cole ou digite o enunciado aqui." className="mt-2 w-full rounded-xl border border-ink-700 bg-ink-900 px-3 py-3 text-sm text-ink-100 outline-none focus:border-brand-500" />
-              <button onClick={analyzeQuestion} disabled={!questionText.trim() || scanning} className="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 hover:bg-brand-400 disabled:opacity-40 disabled:cursor-not-allowed text-ink-950 font-bold px-4 py-3">{scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Analisar habilidade</button>
-            </div>
-
-            <div className="glass rounded-2xl border border-ink-800 p-5">
-              {!scanResult ? <div className="h-full min-h-80 flex items-center justify-center text-center"><div><Brain className="w-10 h-10 text-ink-700 mx-auto mb-3" /><h3 className="font-bold text-ink-300">Seu diagnóstico aparece aqui</h3><p className="text-sm text-ink-500 max-w-sm mt-2">O sistema classifica área e habilidade e transforma o erro em prioridade de estudo nas próximas sessões.</p></div></div> : (
-                <div>
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-500/10 border border-accent-500/20 text-accent-300 text-xs font-bold">{AREA_LABEL[scanResult.area]}</div>
-                  <h3 className="text-2xl font-bold mt-4 text-ink-100">{scanResult.skill}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-ink-400">{scanResult.explanation}</p>
-                  <div className="mt-5 p-4 rounded-xl border border-ink-800 bg-ink-900/70"><p className="text-xs font-bold text-ink-500 uppercase tracking-wider">Como melhorar agora</p><ol className="mt-3 space-y-3 text-sm text-ink-300"><li className="flex gap-2"><span className="text-brand-400 font-bold">1.</span><span>Revise a teoria mínima da habilidade por 15–20 minutos.</span></li><li className="flex gap-2"><span className="text-brand-400 font-bold">2.</span><span>Resolva 5 questões do mesmo tipo sem consultar a resposta.</span></li><li className="flex gap-2"><span className="text-brand-400 font-bold">3.</span><span>Marque o motivo do erro: conteúdo, interpretação, cálculo ou tempo.</span></li><li className="flex gap-2"><span className="text-brand-400 font-bold">4.</span><span>Refaça a questão em 48 horas e novamente na revisão semanal.</span></li></ol></div>
-                  <button onClick={() => setTab('plan')} className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-300 hover:text-brand-200">Voltar ao plano semanal <ChevronRight className="w-4 h-4" /></button>
-                </div>
-              )}
-            </div>
-          </section>
-        )}
-
-        <footer className="mt-8 text-xs text-ink-600 leading-relaxed">As metas exibidas são metas competitivas de planejamento, não garantia de aprovação. Notas de corte mudam por ano, modalidade, campus, turno e ações afirmativas. Para processos próprios, o sistema usa a prova institucional quando identificada e mantém o link de fonte para conferência.</footer>
+        {tab === 'scanner' && <section className="grid lg:grid-cols-2 gap-5"><div className="rounded-3xl border border-white/10 bg-white/[0.035] p-5"><h2 className="text-xl font-black">Escaneie uma questão</h2><input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => void handleImage(e.target.files?.[0])} /><button onClick={() => fileRef.current?.click()} className="mt-4 w-full min-h-40 rounded-2xl border border-dashed border-white/15 bg-black/15 overflow-hidden">{imageUrl ? <img src={imageUrl} className="max-h-64 mx-auto object-contain" alt="Questão" /> : <div className="text-ink-500"><Camera className="w-8 h-8 mx-auto mb-2" />Tirar foto ou enviar imagem</div>}</button><textarea value={questionText} onChange={(e) => setQuestionText(e.target.value)} className="mt-4 w-full min-h-32 rounded-2xl border border-white/10 bg-black/20 p-4" placeholder="Cole ou digite o enunciado para classificar a habilidade." /><button onClick={analyzeQuestion} className="mt-3 rounded-xl bg-cyan-300 px-5 py-3 font-black text-[#07111d]">Analisar habilidade</button></div><div className="rounded-3xl border border-white/10 bg-white/[0.035] p-5">{scanResult ? <><span className="rounded-full bg-cyan-300/10 px-3 py-1 text-xs font-bold text-cyan-200">{AREA_LABEL[scanResult.area]}</span><h3 className="mt-4 text-2xl font-black">{scanResult.skill}</h3><p className="mt-2 text-sm text-ink-400">Use esta classificação para buscar prática e vídeo. O próximo passo recomendado é fazer 5 questões do mesmo tipo e repetir em 48 horas.</p><button onClick={() => { setTab('practice'); setQuestionIndex(0); }} className="mt-5 rounded-xl border border-cyan-300/25 px-4 py-3 text-cyan-200 font-bold">Ir para questões</button></> : <div className="h-full min-h-72 flex items-center justify-center text-center text-ink-500"><div><ScanLine className="w-10 h-10 mx-auto mb-3" />O diagnóstico aparece aqui.</div></div>}</div></section>}
       </main>
     </div>
   );
