@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ArrowLeft, BookOpen, CalendarDays, CheckCircle2, ExternalLink, Home, Loader2, Minus, PlayCircle, Plus, Save, Sparkles, Target, Trophy, Video, X, XCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getExamModel, isSupportedInstitutionCourse, type ExamMetric } from '@/lib/exam-models';
 import { buildRoadmap } from '@/lib/admissions-roadmap';
+import { isSupplementalQuestion, mergePracticeQuestions } from '@/lib/supplemental-practice-questions';
 import './admissions-planner-v6.css';
 
 type Tab='hoje'|'plano'|'questoes'|'prova';
@@ -11,7 +12,7 @@ type University={area_university_id:number;area_id:string;university_name:string
 type Question={id:number;exam_id:string;area:string;skill_name:string;difficulty:number;prompt:string;option_a:string|null;option_b:string|null;option_c:string|null;option_d:string|null;option_e:string|null;correct_option:string|null;explanation:string|null};
 type Attempt={exam_id:string;area:string;skill_name:string|null;correct:boolean|null;created_at:string};
 type Priority={metric:ExamMetric;current:number;goal:number;missing:number;score:number;accuracy:number|null};
-type SkillDiagnostic={id:string;exam_id:string;area:string;skill_code:string|null;error_type:string|null;error_detail:string|null;diagnosis:any;created_at:string;evidence_path:string|null};
+type SkillDiagnostic={id:string;exam_id:string;area:string;skill_code:string|null;error_type:string|null;error_detail:string|null;diagnosis:{skill_name?:string}|null;created_at:string;evidence_path:string|null};
 
 const RETAINED=new Set(['UFMG','USP','Faculdade Ciências Médicas de Minas Gerais','Insper','Link School of Business']);
 const normalize=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -108,7 +109,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
     if(!alive)return;
     const cleanUniversities=((u??[]) as University[]).filter(x=>RETAINED.has(x.university_name)&&isSupportedInstitutionCourse(x.university_name,x.course_label));
     const cleanAreas=((a??[]) as AcademicArea[]).filter(ar=>cleanUniversities.some(x=>x.area_id===ar.area_id));
-    setAreas(cleanAreas);setUniversities(cleanUniversities);setQuestions((q??[]) as Question[]);
+    setAreas(cleanAreas);setUniversities(cleanUniversities);setQuestions(mergePracticeQuestions((q??[]) as Question[]) as Question[]);
     const user=userData.user;
     if(user){
       const[{data:pref},{data:at}]=await Promise.all([
@@ -139,11 +140,11 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
 
   useEffect(()=>{(async()=>{
     const defaults=Object.fromEntries(metrics.map(m=>[m.key,m.defaultValue]));
-    let stored:Record<string,number>={};try{stored=JSON.parse(localStorage.getItem(scoreStorageKey)||'{}')}catch{}
+    let stored:Record<string,number>={};try{stored=JSON.parse(localStorage.getItem(scoreStorageKey)||'{}')}catch{stored={}}
     let saved:Record<string,number>={};
     if(supabase){const{data:userData}=await supabase.auth.getUser();if(userData.user){const{data:pref}=await supabase.from('student_exam_preferences').select('current_scores,weekly_hours').eq('user_id',userData.user.id).eq('exam_id',model.examId).maybeSingle();if(pref?.current_scores&&typeof pref.current_scores==='object')saved=pref.current_scores as Record<string,number>;if(pref?.weekly_hours){setWeeklyHours(Number(pref.weekly_hours));setAppliedWeeklyHours(Number(pref.weekly_hours))}await reloadDiagnostics(userData.user.id,model.examId)}}
     const next={...defaults,...stored,...saved};setValues(next);setAppliedValues(next);setDirty(false);setQuestionArea('Todas');setActiveQuestion(null);setSelectedOption('');setPracticeResult(null);localStorage.setItem('conectae:active-exam',model.examId);
-  })()},[scoreStorageKey,model.examId]);
+  })()},[scoreStorageKey,model.examId,metrics]);
 
   useEffect(()=>{const handler=()=>reloadDiagnostics(undefined,model.examId);window.addEventListener('conectae:diagnostic-saved',handler);const timer=window.setInterval(handler,5000);return()=>{window.removeEventListener('conectae:diagnostic-saved',handler);window.clearInterval(timer)}},[model.examId]);
 
@@ -170,8 +171,8 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   const save=async()=>{setSaving(true);setMessage('');try{if(!supabase)throw new Error();const{data}=await supabase.auth.getUser();if(!data.user)throw new Error();const{error}=await supabase.from('student_exam_preferences').upsert({user_id:data.user.id,exam_id:model.examId,weekly_hours:weeklyHours,current_scores:values,selected_area_id:selectedArea,selected_university_id:selectedUniversity?Number(selectedUniversity):null,course_label:course,updated_at:new Date().toISOString()},{onConflict:'user_id,exam_id'});if(error)throw error;localStorage.setItem(scoreStorageKey,JSON.stringify(values));setAppliedValues({...values});setAppliedWeeklyHours(weeklyHours);setDirty(false);setMessage('Notas salvas. O plano foi recalculado com seus novos resultados.');setTab('plano')}catch{setMessage('Não foi possível salvar e recalcular agora. Tente novamente.')}finally{setSaving(false)}};
   const openQuestion=(q?:Question)=>{const next=q??filteredQuestions[Math.floor(Math.random()*Math.max(1,filteredQuestions.length))]??allowedQuestions[0];setActiveQuestion(next??null);setSelectedOption('');setPracticeResult(null);setQuestionStartedAt(Date.now())};
   const openAreaQuestions=(focus:string)=>{const pool=allowedQuestions.filter(q=>matchQuestionArea(q.area,focus));const next=pool[0];if(next){setQuestionArea(next.area);setTab('questoes');openQuestion(next)}else setTab('questoes')};
-  const checkQuestion=async()=>{if(!activeQuestion||!selectedOption)return;const ok=selectedOption===activeQuestion.correct_option;setPracticeResult(ok);try{if(!supabase)return;const{data}=await supabase.auth.getUser();if(!data.user)return;await supabase.from('student_practice_attempts').insert({user_id:data.user.id,exam_id:model.examId,question_id:activeQuestion.id,area:activeQuestion.area,skill_name:activeQuestion.skill_name,selected_option:selectedOption,correct:ok,duration_seconds:questionStartedAt?Math.max(1,Math.round((Date.now()-questionStartedAt)/1000)):null});setAttempts(v=>[{exam_id:model.examId,area:activeQuestion.area,skill_name:activeQuestion.skill_name,correct:ok,created_at:new Date().toISOString()},...v])}catch{}};
-  const tabs:[Tab,string,any][]=[['hoje','Hoje',<Home size={18}/>],['plano','Plano',<CalendarDays size={18}/>],['questoes','Questões',<BookOpen size={18}/>],['prova','Prova',<Trophy size={18}/>]];
+  const checkQuestion=async()=>{if(!activeQuestion||!selectedOption)return;const ok=selectedOption===activeQuestion.correct_option;setPracticeResult(ok);try{if(!supabase)return;const{data}=await supabase.auth.getUser();if(!data.user)return;if(isSupplementalQuestion(activeQuestion.id)){await supabase.from('student_skill_diagnostics').insert({user_id:data.user.id,exam_id:model.examId,skill_code:null,area:activeQuestion.area,question_text:activeQuestion.prompt,correct:ok,confidence:1,error_type:ok?null:'questao_autoral',diagnosis:{source:'conectae_autoral_v2',skill_name:activeQuestion.skill_name,selected_option:selectedOption,correct_option:activeQuestion.correct_option}})}else{await supabase.from('student_practice_attempts').insert({user_id:data.user.id,exam_id:model.examId,question_id:activeQuestion.id,area:activeQuestion.area,skill_name:activeQuestion.skill_name,selected_option:selectedOption,correct:ok,duration_seconds:questionStartedAt?Math.max(1,Math.round((Date.now()-questionStartedAt)/1000)):null})}setAttempts(v=>[{exam_id:model.examId,area:activeQuestion.area,skill_name:activeQuestion.skill_name,correct:ok,created_at:new Date().toISOString()},...v])}catch{setMessage('A resposta foi corrigida, mas não entrou no histórico.')}};
+  const tabs:[Tab,string,ReactNode][]=[['hoje','Hoje',<Home size={18}/>],['plano','Plano',<CalendarDays size={18}/>],['questoes','Questões',<BookOpen size={18}/>],['prova','Prova',<Trophy size={18}/>]];
 
   if(loading)return <div className="plan6" style={{display:'grid',placeItems:'center'}}><Loader2 className="animate-spin"/></div>;
 

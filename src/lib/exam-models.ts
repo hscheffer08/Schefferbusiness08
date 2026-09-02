@@ -125,7 +125,7 @@ export function getExamModel(university: string, course: string): ExamModel {
       return {
         examId,
         title: `Vestibular Ciências Médicas-MG — ${course}`,
-        structure: '40 questões objetivas: 15 de Língua Portuguesa + Literatura, 15 de Biologia e 10 de Conhecimentos Gerais (Geografia, História, Filosofia e Sociologia), valendo 3 pontos cada, mais uma Redação de 80 pontos. Total da prova: 200 pontos. Não há Inglês, Física, Química ou Matemática neste modelo.',
+        structure: '40 questões objetivas: 15 de Língua Portuguesa + Literatura, 15 de Biologia e 10 de Conhecimentos Gerais (Geografia, História, Filosofia e Sociologia), mais uma Redação. Não há Inglês, Física, Química ou Matemática neste modelo.',
         metrics: CMMG_EFFPO_METRICS,
         allowedQuestionAreas: ['Linguagens', 'Língua Portuguesa', 'Literatura', 'Biologia', 'Humanas', 'Conhecimentos Gerais', 'Geografia', 'História', 'Filosofia', 'Sociologia', 'Redação'],
         officialSource: 'https://vestibular.cmmg.edu.br/wp-content/uploads/2026/07/Manual-do-Candidato-EFFPO-1_2027.pdf',
@@ -137,7 +137,7 @@ export function getExamModel(university: string, course: string): ExamModel {
       structure: '56 questões objetivas: Português 8, Literatura 4, Inglês 12, Biologia 14, Física 4, Química 8 e Matemática 10, mais uma redação de 80 pontos.',
       metrics: CMMG_MEDICINA_METRICS,
       allowedQuestionAreas: ['Língua Portuguesa', 'Literatura', 'Inglês', 'Linguagens', 'Biologia', 'Física', 'Química', 'Matemática', 'Redação'],
-      officialSource: 'https://vestibular.cmmg.edu.br/',
+      officialSource: 'https://vestibular.cmmg.edu.br/wp-content/uploads/2026/07/Manual-do-Candidato-Medicina-1_2027.pdf',
     };
   }
 
