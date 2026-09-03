@@ -1,1 +1,1 @@
-2026-09-03-premium-pass-v1
+2026-09-03-premium-pass-v2
