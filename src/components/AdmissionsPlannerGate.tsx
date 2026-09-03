@@ -8,6 +8,7 @@ import EssayPractice from '@/components/EssayPractice';
 import EnemVisualPractice from '@/components/EnemVisualPractice';
 import OfficialExamReviewV2 from '@/components/OfficialExamReviewV2';
 import CourseDataProof from '@/components/CourseDataProof';
+import AIEducationTutor from '@/components/AIEducationTutor';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
 import './admissions-planner-v8.css';
@@ -98,7 +99,7 @@ function Gate({ onBack }: { onBack: () => void }) {
 
     <CourseDataProof compact />
 
-    <div className="fixed bottom-[76px] right-3 z-[85] flex flex-col gap-2 md:bottom-5 md:right-5">
+    <div className="fixed bottom-[76px] left-3 z-[85] flex flex-col gap-2 md:bottom-5 md:left-5 md:right-auto">
       <button type="button" onClick={()=>jump('correcao-simulado')} className="inline-flex items-center gap-2 rounded-xl border border-[#31588e] bg-[#0b2856]/95 px-3 py-3 text-xs font-extrabold text-white shadow-xl backdrop-blur"><ClipboardCheck size={16}/>Corrigir simulado</button>
       <button type="button" onClick={()=>jump('diagnostico-foto')} className="inline-flex items-center gap-2 rounded-xl bg-[#246cff] px-3 py-3 text-xs font-extrabold text-white shadow-xl"><Camera size={16}/>Enviar foto</button>
     </div>
@@ -109,6 +110,7 @@ function Gate({ onBack }: { onBack: () => void }) {
     <section id="curso-laboratorio" className="scroll-mt-16"><PlannerStudyLabV2 /></section>
     <section id="curso-visual" className="scroll-mt-16"><EnemVisualPractice /></section>
     <section id="curso-redacao" className="scroll-mt-16"><EssayPractice /></section>
+    <AIEducationTutor />
   </div>;
 }
 
