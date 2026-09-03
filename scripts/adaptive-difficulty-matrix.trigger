@@ -1,1 +1,1 @@
-2026-09-03 adaptive difficulty matrix v2
+2026-09-03 adaptive difficulty matrix v3
