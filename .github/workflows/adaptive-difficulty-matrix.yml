@@ -1,0 +1,30 @@
+name: Adaptive difficulty matrix
+on:
+  push:
+    paths:
+      - 'scripts/adaptive-difficulty-matrix.trigger'
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Integrate adaptive difficulty matrix
+        run: python scripts/apply-adaptive-difficulty-matrix.py
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate production build
+        run: npm run build
+      - name: Lint changed planner files
+        run: npx eslint src/components/AdmissionsPlannerV11.tsx src/components/DifficultyProfile.tsx src/lib/admissions-roadmap.ts src/lib/exam-skill-catalog.ts
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+      - name: Commit integration
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/components/AdmissionsPlannerV11.tsx src/lib/admissions-roadmap.ts
+          git commit -m 'Integrate exam difficulty adaptation' || exit 0
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin HEAD:"$GITHUB_REF_NAME"
