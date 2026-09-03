@@ -21,7 +21,8 @@ const plannerOpen = params.get('planner') === 'aprovacao';
 const collegeExperienceOpen =
   params.get('experience') === 'faculdades' ||
   params.get('modo') === 'business' ||
-  params.get('questionario') === 'faculdades';
+  params.get('questionario') === 'faculdades' ||
+  params.has('ref');
 
 const closePlanner = () => {
   const url = new URL(window.location.href);
