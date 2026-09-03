@@ -17,6 +17,8 @@
     "validate:adaptive-planner": "node scripts/validate-adaptive-planner.mjs"
   },
   "dependencies": {
+    "@ai-sdk/google": "^3.0.0",
+    "@ai-sdk/gateway": "^3.0.0",
     "@supabase/supabase-js": "^2.57.4",
     "@vercel/analytics": "^2.0.1",
     "ai": "^6.0.34",
