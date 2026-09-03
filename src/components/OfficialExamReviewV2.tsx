@@ -103,10 +103,12 @@ export default function OfficialExamReviewV2() {
   const [exam, setExam] = useState<ExamChoice>(initialExam);
   const [mode, setMode] = useState<ReviewMode>('answers');
   const [editions, setEditions] = useState<Edition[]>([]);
-  const [booklets, setBooklets] = useState<Booklet[]>([]);
+  const [allBooklets, setAllBooklets] = useState<Booklet[]>([]);
   const [year, setYear] = useState(2025);
   const [editionId, setEditionId] = useState('');
   const [bookletId, setBookletId] = useState('');
+  const [bookletKeyCoverage, setBookletKeyCoverage] = useState<number | null>(null);
+  const [checkingKey, setCheckingKey] = useState(false);
   const [language, setLanguage] = useState('ingles');
   const [answerRaw, setAnswerRaw] = useState('');
   const [officialKeyRaw, setOfficialKeyRaw] = useState('');
@@ -122,22 +124,30 @@ export default function OfficialExamReviewV2() {
   const isEnem = exam === 'enem';
   const availableYears = useMemo(() => [...new Set(editions.map((edition) => edition.year))].sort((a, b) => b - a), [editions]);
   const availableEditions = useMemo(() => editions.filter((edition) => edition.year === year), [editions, year]);
+  const booklets = useMemo(() => allBooklets.filter((item) => item.edition_id === editionId), [allBooklets, editionId]);
   const booklet = booklets.find((item) => item.id === bookletId) ?? null;
   const start = isEnem ? booklet?.question_start ?? 1 : config.start;
   const end = isEnem ? booklet?.question_end ?? 180 : config.end;
   const recognizedAnswers = useMemo(() => parseAnswerSheet(answerRaw, start, end).size, [answerRaw, start, end]);
   const recognizedKey = useMemo(() => parseAnswerSheet(officialKeyRaw, start, end).size, [officialKeyRaw, start, end]);
   const wrongNumbers = useMemo(() => parseNumberList(wrongRaw, start, end), [wrongRaw, start, end]);
+  const needsManualKey = !isEnem || bookletKeyCoverage === 0;
 
   useEffect(() => {
     let active = true;
     (async () => {
       if (!supabase) return;
-      const { data } = await supabase.from('official_exam_editions').select('id,year,application,application_label').eq('series_id', 'enem').order('year', { ascending: false });
+      const [{ data: editionData }, { data: bookletData }] = await Promise.all([
+        supabase.from('official_exam_editions').select('id,year,application,application_label').eq('series_id', 'enem').order('year', { ascending: false }),
+        supabase.from('official_exam_booklets').select('id,edition_id,day,booklet_code,color,question_start,question_end,source_pdf_url,answer_key_url').order('day').order('booklet_code'),
+      ]);
       if (!active) return;
-      const rows = (data ?? []) as Edition[];
+      const bookletRows = (bookletData ?? []) as Booklet[];
+      const usableEditionIds = new Set(bookletRows.map((item) => item.edition_id));
+      const rows = ((editionData ?? []) as Edition[]).filter((edition) => usableEditionIds.has(edition.id));
+      setAllBooklets(bookletRows);
       setEditions(rows);
-      const first = rows.find((edition) => edition.year === 2025) ?? rows[0];
+      const first = rows[0];
       if (first) { setYear(first.year); setEditionId(first.id); }
     })();
     return () => { active = false; };
@@ -150,17 +160,28 @@ export default function OfficialExamReviewV2() {
   }, [editionId, editions, isEnem, year]);
 
   useEffect(() => {
+    if (!isEnem || !editionId) { setBookletId(''); return; }
+    setBookletId(booklets[0]?.id ?? '');
+  }, [booklets, editionId, isEnem]);
+
+  useEffect(() => {
     let active = true;
     (async () => {
-      if (!supabase || !isEnem || !editionId) { setBooklets([]); setBookletId(''); return; }
-      const { data } = await supabase.from('official_exam_booklets').select('id,edition_id,day,booklet_code,color,question_start,question_end,source_pdf_url,answer_key_url').eq('edition_id', editionId).order('day').order('booklet_code');
+      if (!supabase || !isEnem || !bookletId) { setBookletKeyCoverage(null); setCheckingKey(false); return; }
+      setCheckingKey(true);
+      const { count, error } = await supabase.from('official_exam_item_booklet_map')
+        .select('id', { count: 'exact', head: true }).eq('booklet_id', bookletId);
       if (!active) return;
-      const rows = (data ?? []) as Booklet[];
-      setBooklets(rows);
-      setBookletId(rows[0]?.id ?? '');
+      setBookletKeyCoverage(error ? 0 : count ?? 0);
+      setCheckingKey(false);
     })();
     return () => { active = false; };
-  }, [editionId, isEnem]);
+  }, [bookletId, isEnem]);
+
+  useEffect(() => {
+    if (!isEnem) return;
+    setAnalysis(null); setMessage(''); setAnswerRaw(''); setOfficialKeyRaw(''); setWrongRaw(''); setReasons({});
+  }, [bookletId, isEnem]);
 
   useEffect(() => {
     let active = true;
@@ -177,16 +198,15 @@ export default function OfficialExamReviewV2() {
 
   async function loadMappings() {
     if (!supabase) return [] as Mapping[];
-    if (!isEnem) {
-      const key = parseAnswerSheet(officialKeyRaw, start, end);
-      return [...key.entries()].map(([number, answer]) => ({
+    const manualKey = parseAnswerSheet(officialKeyRaw, start, end);
+    const manualMappings = [...manualKey.entries()].map(([number, answer]) => ({
         id: `manual-${number}`, question_number: number,
         correct_option: answer === '-' ? null : answer,
         answer_status: answer === '-' ? 'annulled' : 'official_manual',
         foreign_language: null, official_exam_items: null,
-      }));
-    }
-    if (!bookletId) return [];
+      })) as Mapping[];
+    if (!isEnem) return manualMappings;
+    if (!bookletId) return manualMappings;
     const { data, error } = await supabase.from('official_exam_item_booklet_map')
       .select('id,question_number,correct_option,answer_status,foreign_language,official_exam_items(id,area,subject,skill_code,skill_name,prompt_text,explanation)')
       .eq('booklet_id', bookletId).order('question_number');
@@ -200,6 +220,10 @@ export default function OfficialExamReviewV2() {
         : ['espanhol', 'spanish', 'es'].includes(languageName);
       if (row.foreign_language && !acceptedLanguage) return;
       selected.set(row.question_number, row);
+    });
+    manualMappings.forEach((row) => {
+      const existing = selected.get(row.question_number);
+      if (!existing?.correct_option) selected.set(row.question_number, existing ? { ...existing, correct_option: row.correct_option, answer_status: row.answer_status } : row);
     });
     return [...selected.values()].sort((a, b) => a.question_number - b.question_number);
   }
@@ -288,8 +312,9 @@ export default function OfficialExamReviewV2() {
         })));
         if (error) throw error;
       }
-      if (analysis.areaScores.length) {
-        const { error } = await supabase.from('student_exam_attempts').insert(analysis.areaScores.map((score) => ({
+      const scoresToSave = mode === 'answers' ? analysis.areaScores : [];
+      if (scoresToSave.length) {
+        const { error } = await supabase.from('student_exam_attempts').insert(scoresToSave.map((score) => ({
           user_id: data.user!.id, exam_id: config.examId, exam_year: year, area: score.area,
           correct: score.correct, total: score.total, score: null, occurred_at: new Date().toISOString().slice(0, 10),
           metadata: { source: 'exam_review_v3', exam_model: exam, raw_accuracy: Math.round(score.correct / Math.max(1, score.total) * 100) },
@@ -305,7 +330,9 @@ export default function OfficialExamReviewV2() {
         if (reports.length) await supabase.from('official_exam_error_reports').upsert(reports, { onConflict: 'user_id,booklet_id,question_number' });
       }
       window.dispatchEvent(new CustomEvent('conectae:diagnostic-saved'));
-      setMessage(`Diagnóstico salvo: ${mistakes.length} erro(s) e ${analysis.areaScores.length} resultado(s) por área enviados ao seu Plano.`);
+      setMessage(mode === 'answers'
+        ? `Resultado salvo: ${mistakes.length} erro(s) e ${scoresToSave.length} desempenho(s) por área enviados ao seu Plano.`
+        : `Diagnóstico salvo: ${mistakes.length} erro(s) enviados ao seu Plano. Suas notas não foram alteradas porque você informou somente as questões erradas.`);
     } catch { setMessage('Não foi possível salvar o diagnóstico agora. Tente novamente.'); }
     finally { setSaving(false); }
   };
@@ -327,23 +354,31 @@ export default function OfficialExamReviewV2() {
       </div>
       {isEnem && <div className="mt-3 grid gap-3 md:grid-cols-2"><label className="text-xs font-bold text-[#b8cae4]">Dia e caderno<select value={bookletId} onChange={(event) => setBookletId(event.target.value)} className="mt-1 w-full rounded-xl border border-[#234576] bg-[#081a38] p-3 text-white">{booklets.length ? booklets.map((item) => <option key={item.id} value={item.id}>Dia {item.day} · {item.color} · caderno {item.booklet_code}</option>) : <option value="">Caderno ainda não indexado</option>}</select></label><label className="text-xs font-bold text-[#b8cae4]">Língua estrangeira<select value={language} onChange={(event) => setLanguage(event.target.value)} className="mt-1 w-full rounded-xl border border-[#234576] bg-[#081a38] p-3 text-white"><option value="ingles">Inglês</option><option value="espanhol">Espanhol</option></select></label></div>}
 
+      {isEnem && bookletId && <div className={`mt-3 rounded-xl border p-3 text-sm ${bookletKeyCoverage ? 'border-emerald-300/25 bg-emerald-300/[.06] text-emerald-100' : 'border-amber-300/25 bg-amber-300/[.06] text-amber-100'}`}>
+        {checkingKey ? 'Verificando o gabarito deste caderno…' : bookletKeyCoverage
+          ? `Gabarito automático disponível para ${bookletKeyCoverage} questão(ões).`
+          : 'Este caderno ainda não tem gabarito automático. Abra a fonte oficial abaixo e cole o gabarito para fazer a correção completa agora.'}
+      </div>}
+
       <div className="mt-6 flex flex-wrap gap-2">{([['answers', 'Tenho minhas respostas'], ['errors', 'Só sei quais errei']] as [ReviewMode, string][]).map(([value, label]) => <button key={value} onClick={() => setMode(value)} className={`rounded-xl border px-4 py-2.5 text-sm font-extrabold ${mode === value ? 'border-[#72a5ff] bg-[#246cff] text-white' : 'border-[#234576] bg-[#081a38] text-[#b8cae4]'}`}>{label}</button>)}</div>
 
-      {mode === 'answers' ? <div className={`mt-4 grid gap-4 ${isEnem ? '' : 'lg:grid-cols-2'}`}>
-        {!isEnem && <label className="text-xs font-bold text-[#b8cae4]">Gabarito oficial<textarea value={officialKeyRaw} onChange={(event) => setOfficialKeyRaw(event.target.value)} className="mt-2 min-h-[128px] w-full rounded-xl border border-[#234576] bg-[#081a38] p-3 text-white" placeholder="Cole a sequência oficial: ABCDE... ou 1-A, 2-C, 3-B..."/><span className="mt-1 block font-normal text-[#839ab9]">{recognizedKey}/{end - start + 1} respostas do gabarito reconhecidas</span></label>}
+      {mode === 'answers' ? <div className={`mt-4 grid gap-4 ${needsManualKey ? 'lg:grid-cols-2' : ''}`}>
+        {needsManualKey && <label className="text-xs font-bold text-[#b8cae4]">Gabarito oficial<textarea value={officialKeyRaw} onChange={(event) => setOfficialKeyRaw(event.target.value)} className="mt-2 min-h-[128px] w-full rounded-xl border border-[#234576] bg-[#081a38] p-3 text-white" placeholder="Cole a sequência oficial: ABCDE... ou 1-A, 2-C, 3-B... Use - para anulada."/><span className="mt-1 block font-normal text-[#839ab9]">{recognizedKey}/{end - start + 1} respostas do gabarito reconhecidas</span></label>}
         <label className="text-xs font-bold text-[#b8cae4]">Suas respostas<textarea value={answerRaw} onChange={(event) => setAnswerRaw(event.target.value)} className="mt-2 min-h-[128px] w-full rounded-xl border border-[#234576] bg-[#081a38] p-3 text-white" placeholder="Cole a sequência: ABCDE... ou 1-A, 2-C, 3-B... Use - para branco."/><span className="mt-1 block font-normal text-[#839ab9]">{recognizedAnswers}/{end - start + 1} respostas reconhecidas · questões {start}–{end}</span></label>
       </div> : <label className="mt-4 block text-xs font-bold text-[#b8cae4]">Questões erradas<textarea value={wrongRaw} onChange={(event) => setWrongRaw(event.target.value)} className="mt-2 min-h-[100px] w-full rounded-xl border border-[#234576] bg-[#081a38] p-3 text-white" placeholder="Ex.: 12, 37, 84, 102 ou 90-95"/><span className="mt-1 block font-normal text-[#839ab9]">{wrongNumbers.length} número(s) reconhecido(s)</span></label>}
 
-      <div className="mt-4 flex flex-wrap gap-2"><button onClick={runAnalysis} disabled={busy || (isEnem && !bookletId)} className="inline-flex items-center gap-2 rounded-xl bg-[#246cff] px-5 py-3 text-sm font-extrabold disabled:opacity-40">{busy ? <Loader2 size={16} className="animate-spin"/> : <ClipboardCheck size={16}/>}Corrigir agora</button>{officialSource && <a href={officialSource} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-[#234576] px-4 py-3 text-sm font-bold">Abrir prova/manual oficial <ExternalLink size={15}/></a>}{officialKeySource && <a href={officialKeySource} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-[#234576] px-4 py-3 text-sm font-bold">Conferir fonte do gabarito <ExternalLink size={15}/></a>}</div>
+      <div className="mt-4 flex flex-wrap gap-2"><button onClick={runAnalysis} disabled={busy || checkingKey || (isEnem && !bookletId) || (mode === 'answers' && (!recognizedAnswers || (needsManualKey && !recognizedKey)))} className="inline-flex items-center gap-2 rounded-xl bg-[#246cff] px-5 py-3 text-sm font-extrabold disabled:opacity-40">{busy ? <Loader2 size={16} className="animate-spin"/> : <ClipboardCheck size={16}/>}Corrigir agora</button>{officialSource && <a href={officialSource} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-[#234576] px-4 py-3 text-sm font-bold">Abrir prova/manual oficial <ExternalLink size={15}/></a>}{officialKeySource && <a href={officialKeySource} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-[#234576] px-4 py-3 text-sm font-bold">Conferir fonte do gabarito <ExternalLink size={15}/></a>}</div>
       {message && <div className="mt-4 flex gap-2 rounded-xl border border-[#234576] bg-[#081a38] p-3 text-sm text-[#b8cae4]"><AlertCircle size={17} className="shrink-0 text-[#72a5ff]"/>{message}</div>}
 
       {analysis && <div className="mt-7 border-t border-[#173765] pt-6">
         <div className="grid grid-cols-2 gap-3 md:grid-cols-5"><div className="col-span-2 rounded-2xl border border-[#31588e] bg-[#0b2856] p-4 md:col-span-1"><BarChart3 className="text-[#72a5ff]" size={20}/><div className="mt-2 text-3xl font-extrabold">{mode === 'answers' ? `${accuracy}%` : '—'}</div><div className="text-xs text-[#9fb5d4]">{isEnem ? 'ACERTO BRUTO, SEM TRI' : 'ACERTO OBJETIVO'}</div></div>{[[CheckCircle2, analysis.correct, 'Acertos', 'text-emerald-300'], [XCircle, analysis.wrong, 'Erros', 'text-red-300'], [FileCheck2, analysis.blank, 'Em branco', 'text-amber-200'], [Target, analysis.annulled, 'Anuladas', 'text-violet-200']].map(([Icon, value, label, color]) => { const I = Icon as typeof CheckCircle2; return <div key={String(label)} className="rounded-2xl border border-[#234576] bg-[#081a38] p-4"><I size={18} className={String(color)}/><div className="mt-2 text-2xl font-extrabold">{String(value)}</div><div className="text-xs text-[#9fb5d4]">{String(label)}</div></div>; })}</div>
         {isEnem && mode === 'answers' && <p className="mt-3 text-xs leading-relaxed text-[#839ab9]">A quantidade de acertos é exata para o gabarito selecionado. A nota TRI não é estimada: ela depende dos parâmetros dos itens e da coerência do padrão de respostas, não apenas do total de acertos.</p>}
 
+        {(analysis.areaScores.length > 0 || analysis.groups.length > 0) && <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/[.05] p-4"><p className="text-sm text-emerald-50">{mode === 'answers' ? 'Salve o resultado e envie os erros para o plano adaptativo.' : 'Salve os erros sem alterar suas notas ou percentuais do simulado.'}</p><button onClick={saveDiagnosis} disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-emerald-300 px-4 py-3 text-sm font-extrabold text-[#06152f] disabled:opacity-50">{saving ? <Loader2 size={16} className="animate-spin"/> : <Save size={16}/>}Salvar no Plano</button></div>}
+
         {analysis.areaScores.length > 0 && <div className="mt-6"><h3 className="text-lg font-extrabold">Desempenho por matéria</h3><div className="mt-3 grid gap-3 md:grid-cols-2">{analysis.areaScores.map((score) => { const percent = Math.round(score.correct / Math.max(1, score.total) * 100); return <div key={score.area} className="rounded-2xl border border-[#234576] bg-[#081a38] p-4"><div className="flex justify-between gap-3"><strong>{score.area}</strong><span className={percent < 60 ? 'text-amber-200' : 'text-emerald-300'}>{score.correct}/{score.total} · {percent}%</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-[#06152f]"><span className="block h-full rounded-full bg-[#246cff]" style={{ width: `${percent}%` }}/></div></div>; })}</div></div>}
 
-        {analysis.groups.length > 0 && <div className="mt-7"><div className="flex flex-wrap items-end justify-between gap-3"><div><h3 className="text-xl font-extrabold">Mapa dos erros</h3><p className="mt-1 text-sm text-[#9fb5d4]">Os pontos mais repetidos aparecem primeiro. A habilidade só é afirmada quando a questão está indexada; caso contrário, usamos apenas a matéria.</p></div><button onClick={saveDiagnosis} disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-emerald-300 px-4 py-3 text-sm font-extrabold text-[#06152f] disabled:opacity-50">{saving ? <Loader2 size={16} className="animate-spin"/> : <Save size={16}/>}Salvar diagnóstico no Plano</button></div>
+        {analysis.groups.length > 0 && <div className="mt-7"><div><h3 className="text-xl font-extrabold">Mapa dos erros</h3><p className="mt-1 text-sm text-[#9fb5d4]">Os pontos mais repetidos aparecem primeiro. A habilidade só é afirmada quando a questão está indexada; caso contrário, usamos apenas a matéria.</p></div>
           <div className="mt-4 grid gap-3">{analysis.groups.map((group, index) => <article key={group.key} className="rounded-2xl border border-[#234576] bg-[#081a38] p-4 md:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-xs font-extrabold text-[#72a5ff]">PRIORIDADE {index + 1} · {group.numbers.length} ERRO(S)</div><h4 className="mt-1 text-lg font-extrabold">{group.area} · {group.skill}</h4><p className="mt-1 text-xs text-[#9fb5d4]">Questões {group.numbers.join(', ')}</p></div><div className="rounded-xl border border-[#31588e] bg-[#0b2856] px-3 py-2 text-xs font-bold">{group.practice.length} semelhantes no banco</div></div><div className="mt-4 grid gap-2 md:grid-cols-3"><div className="rounded-xl border border-[#234576] p-3 text-xs"><b className="text-white">Hoje:</b> refaça as questões sem olhar o gabarito.</div><div className="rounded-xl border border-[#234576] p-3 text-xs"><b className="text-white">Em 7 dias:</b> resolva {Math.max(10, group.numbers.length * 5)} semelhantes.</div><div className="rounded-xl border border-[#234576] p-3 text-xs"><b className="text-white">Em 30 dias:</b> faça novo bloco cronometrado.</div></div></article>)}</div>
         </div>}
 
