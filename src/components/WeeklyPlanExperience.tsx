@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpen, Check, CheckCircle2, Clock3, ExternalLink, Loader2, PlayCircle, ShieldCheck, Target, Video, X } from 'lucide-react';
+import { BookOpen, Check, CheckCircle2, Clock3, ExternalLink, ListChecks, Loader2, PlayCircle, ShieldCheck, Target, Video, X } from 'lucide-react';
 import type { RoadmapWeek } from '@/lib/admissions-roadmap';
 import type { ExamId } from '@/lib/exam-models';
 import { supabase } from '@/lib/supabase';
@@ -73,7 +73,7 @@ export default function WeeklyPlanExperience({week:w,examId,formatDate,onOpenQue
       <div>
         <div className="plan6-sectionlabel">Semana {w.week} · {formatDate(w.start)}–{formatDate(w.end)}</div>
         <h2 style={{marginBottom:5}}>Missão: {w.focusLabel}</h2>
-        <p style={{marginBottom:0}}>{w.phase} · {w.topic}</p>
+        <p style={{marginBottom:0}}>{w.phase} · <b>{w.topic}</b></p>
       </div>
       <div style={{display:'grid',gap:5,justifyItems:'end'}}><div className="plan6-statvalue">{w.hours}h exatas</div><div style={{fontSize:12,fontWeight:800,color:pct===100?'#9ee6b5':'#72a5ff'}}>{progressLoading?'Carregando progresso…':`${doneCount}/${sessionKeys.length} blocos concluídos`}</div></div>
     </div>
@@ -82,13 +82,24 @@ export default function WeeklyPlanExperience({week:w,examId,formatDate,onOpenQue
     <div style={{height:7,borderRadius:999,background:'#0b2349',overflow:'hidden',marginTop:14}} aria-label={`${pct}% da missão semanal concluída`}><div style={{height:'100%',width:`${pct}%`,background:pct===100?'#6ee7a0':'#72a5ff',transition:'width .25s ease'}}/></div>
     {pct===100&&<div className="plan6-message" style={{marginTop:10}}><b>Semana concluída.</b> Seu próximo resultado e seus erros vão recalibrar as prioridades seguintes.</div>}
 
-    <div className="plan6-callout blue" style={{marginTop:18}}>
+    <div className="plan6-grid" style={{marginTop:18}}>
+      <div className="plan6-callout blue span7" style={{margin:0}}>
+        <strong><ListChecks size={15} style={{display:'inline',marginRight:7}}/>O que estudar nesta semana</strong>
+        <div style={{display:'grid',gap:9,marginTop:12}}>{w.studyChecklist.map((item,index)=><div key={`${w.week}-study-${index}`} style={{display:'flex',gap:9,alignItems:'flex-start',fontSize:13,lineHeight:1.5,color:'#d5e3f7'}}><span style={{display:'grid',placeItems:'center',flex:'0 0 auto',width:22,height:22,borderRadius:999,background:'#173765',color:'#9fc0ff',fontWeight:900,fontSize:11}}>{index+1}</span><span>{item}</span></div>)}</div>
+      </div>
+      <div className="plan6-callout span5" style={{margin:0}}>
+        <strong><Target size={15} style={{display:'inline',marginRight:7}}/>Competências para treinar</strong>
+        {w.questionSkills.length?<div style={{display:'flex',flexWrap:'wrap',gap:7,marginTop:12}}>{w.questionSkills.map(skill=><span key={skill} className="plan6-chip active">{skill}</span>)}</div>:<p style={{marginTop:10}}>O banco ainda não tem uma habilidade nomeada específica para este foco; use as questões da área e classifique cada erro após corrigir.</p>}
+      </div>
+    </div>
+
+    <div className="plan6-callout blue" style={{marginTop:14}}>
       <strong><ShieldCheck size={15} style={{display:'inline',marginRight:7}}/>Por que esta semana existe</strong>
       <p>{w.rationale}</p>
       <small style={{opacity:.72}}>{w.evidenceLabel}. O plano nunca adiciona tarefas fora do tempo semanal salvo.</small>
     </div>
 
-    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(210px,1fr))',gap:12,marginTop:14}}>
+    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:12,marginTop:14}}>
       {w.sessionPlan.map((s,i)=>{const isDone=completed.includes(s.label);return <div key={`${w.week}-${s.label}`} className="plan6-callout" style={{margin:0,opacity:isDone?.78:1,borderColor:isDone?'rgba(110,231,160,.45)':undefined}}>
         <strong style={{display:'flex',alignItems:'center',gap:7}}><span style={{display:'grid',placeItems:'center',width:24,height:24,borderRadius:999,background:isDone?'#175c39':'#173765'}}>{isDone?<Check size={14}/>:i+1}</span>{s.label}</strong>
         <p style={{marginBottom:7}}>{s.task}</p>
@@ -109,7 +120,7 @@ export default function WeeklyPlanExperience({week:w,examId,formatDate,onOpenQue
       </div>
       <div className="plan6-callout span4">
         <strong><BookOpen size={15} style={{display:'inline',marginRight:7}}/>Questões com propósito</strong>
-        <p><b>{w.questionTarget}</b> questões para aplicar o tema, com correção obrigatória e registro do tipo de erro.</p>
+        <p><b>{w.questionTarget}</b> questões para aplicar <b>{w.topic}</b>, com correção obrigatória e registro do tipo de erro.</p>
         <button className="plan6-btn primary" onClick={()=>onOpenQuestions(w.focusKey)}><BookOpen size={14}/>Começar questões</button>
       </div>
       <div className="plan6-callout span3">
@@ -118,7 +129,7 @@ export default function WeeklyPlanExperience({week:w,examId,formatDate,onOpenQue
       </div>
     </div>
 
-    <details style={{marginTop:14,border:'1px solid #173765',borderRadius:16,padding:'12px 14px',background:'#06152f'}}>
+    <details style={{marginTop:14,border:'1px solid #173765',borderRadius:16,padding:'12px 14px',background:'#06152f'}} open={w.week===1}>
       <summary style={{cursor:'pointer',fontWeight:800}}>O que precisa estar pronto até domingo</summary>
       <div style={{display:'grid',gap:8,marginTop:12}}>{w.successCriteria.map(c=><div key={c} style={{display:'flex',gap:8,alignItems:'flex-start',fontSize:13,color:'#b8cae4'}}><CheckCircle2 size={16} style={{marginTop:1,flex:'0 0 auto',color:'#72a5ff'}}/>{c}</div>)}</div>
     </details>
