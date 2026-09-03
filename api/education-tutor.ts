@@ -4,6 +4,22 @@ type TutorMessage={role:'user'|'assistant';content:string};
 type LegacySkill={area:string;skill_code:string;skill_name:string;diagnostic_tags?:string[]};
 type ReferenceSkill={area:string;skill_code:string;skill_name:string;scope:string;diagnostic_tags?:string[];parent_skill_code?:string|null;official_reference?:boolean;source_version?:string|null};
 
+const FALLBACK_SUPABASE_URL='https://kmognvgnfisdchzffkgh.supabase.co';
+const FALLBACK_SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
+
+function cleanEnv(value:unknown){return String(value??'').trim().replace(/^["']|["']$/g,'')}
+function validSupabaseUrl(value:string){
+  if(!value||/x{4,}|seu-projeto|your-project/i.test(value))return false;
+  try{const parsed=new URL(value.startsWith('http')?value:`https://${value}`);return parsed.protocol==='https:'&&/\.supabase\.co$/i.test(parsed.hostname)}catch{return false}
+}
+function resolveSupabaseConfig(){
+  const rawUrl=cleanEnv(process.env.SUPABASE_URL||process.env.VITE_SUPABASE_URL);
+  const rawKey=cleanEnv(process.env.SUPABASE_ANON_KEY||process.env.VITE_SUPABASE_ANON_KEY||process.env.VITE_SUPABASE_PUBLISHABLE_KEY);
+  const url=validSupabaseUrl(rawUrl)?new URL(rawUrl.startsWith('http')?rawUrl:`https://${rawUrl}`).origin:FALLBACK_SUPABASE_URL;
+  const key=!rawKey||/x{4,}|sua-chave|your-key/i.test(rawKey)?FALLBACK_SUPABASE_ANON_KEY:rawKey;
+  return{url,key};
+}
+
 function cleanJson(raw:string){
   const trimmed=raw.trim().replace(/^```json\s*/i,'').replace(/```$/,'').trim();
   try{return JSON.parse(trimmed)}catch{}
@@ -17,11 +33,11 @@ export default async function handler(req:any,res:any){
   try{
     const auth=String(req.headers.authorization||'');
     if(!auth.startsWith('Bearer '))return json(res,401,{error:'Faça login para conversar com a IA Conectaê.'});
-    const supabaseUrl=process.env.VITE_SUPABASE_URL||process.env.SUPABASE_URL;
-    const supabaseKey=process.env.VITE_SUPABASE_ANON_KEY||process.env.SUPABASE_ANON_KEY;
-    if(!supabaseUrl||!supabaseKey)return json(res,500,{error:'Configuração de autenticação indisponível.'});
+    const{supabaseUrl,supabaseKey}={supabaseUrl:resolveSupabaseConfig().url,supabaseKey:resolveSupabaseConfig().key};
     const baseHeaders={apikey:supabaseKey,Authorization:auth};
-    const userCheck=await fetch(`${supabaseUrl}/auth/v1/user`,{headers:baseHeaders});
+    let userCheck:Response;
+    try{userCheck=await fetch(`${supabaseUrl}/auth/v1/user`,{headers:baseHeaders,signal:AbortSignal.timeout(10000)})}
+    catch(error){console.error('education-tutor auth connection failed',error);return json(res,503,{error:'A IA não conseguiu validar sua sessão agora. Tente novamente em alguns segundos.'})}
     if(!userCheck.ok)return json(res,401,{error:'Sua sessão expirou. Entre novamente.'});
     const user=await userCheck.json();
 
@@ -30,7 +46,7 @@ export default async function handler(req:any,res:any){
     const safeMessages=messages.slice(-14).map((m:any):TutorMessage=>({role:m?.role==='assistant'?'assistant':'user',content:trim(m?.content,5000)})).filter((m:TutorMessage)=>m.content.trim());
     if(!safeMessages.length)return json(res,400,{error:'Escreva sua dúvida.'});
     if(imageDataUrl!=null&&(typeof imageDataUrl!=='string'||!imageDataUrl.startsWith('data:image/')))return json(res,400,{error:'Imagem inválida.'});
-    if(typeof imageDataUrl==='string'&&imageDataUrl.length>6_000_000)return json(res,413,{error:'A imagem está grande demais. Recorte apenas a questão ou a parte importante.'});
+    if(typeof imageDataUrl==='string'&&imageDataUrl.length>4_200_000)return json(res,413,{error:'A foto ficou grande demais para análise. Tente novamente: o Conectaê vai compactá-la automaticamente.'});
 
     const c=context&&typeof context==='object'?context:{};
     const exam=trim(c.exam||'enem',80).toLowerCase();
@@ -38,15 +54,15 @@ export default async function handler(req:any,res:any){
 
     let reference:ReferenceSkill[]=[];
     try{
-      const ref=await fetch(`${supabaseUrl}/rest/v1/exam_ai_skill_reference?select=area,skill_code,skill_name,scope,diagnostic_tags,parent_skill_code,official_reference,source_version&exam_id=eq.${encodeURIComponent(exam)}&order=area.asc,skill_code.asc`,{headers:{...baseHeaders,Accept:'application/json'}});
+      const ref=await fetch(`${supabaseUrl}/rest/v1/exam_ai_skill_reference?select=area,skill_code,skill_name,scope,diagnostic_tags,parent_skill_code,official_reference,source_version&exam_id=eq.${encodeURIComponent(exam)}&order=area.asc,skill_code.asc`,{headers:{...baseHeaders,Accept:'application/json'},signal:AbortSignal.timeout(10000)});
       if(ref.ok)reference=(await ref.json()) as ReferenceSkill[];
-    }catch{}
+    }catch(error){console.warn('education-tutor reference fetch failed',error)}
 
     let legacy:LegacySkill[]=[];
     try{
-      const tax=await fetch(`${supabaseUrl}/rest/v1/exam_skill_taxonomy?select=area,skill_code,skill_name,diagnostic_tags&exam_id=eq.${encodeURIComponent(exam)}`,{headers:{...baseHeaders,Accept:'application/json'}});
+      const tax=await fetch(`${supabaseUrl}/rest/v1/exam_skill_taxonomy?select=area,skill_code,skill_name,diagnostic_tags&exam_id=eq.${encodeURIComponent(exam)}`,{headers:{...baseHeaders,Accept:'application/json'},signal:AbortSignal.timeout(10000)});
       if(tax.ok)legacy=(await tax.json()) as LegacySkill[];
-    }catch{}
+    }catch(error){console.warn('education-tutor taxonomy fetch failed',error)}
 
     const allowedReference=reference.slice(0,350).map(s=>({area:trim(s.area,100),skill_code:trim(s.skill_code,100),skill_name:trim(s.skill_name,220),scope:trim(s.scope,500),diagnostic_tags:Array.isArray(s.diagnostic_tags)?s.diagnostic_tags.slice(0,8):[],parent_skill_code:s.parent_skill_code?trim(s.parent_skill_code,100):null,official_reference:Boolean(s.official_reference),source_version:trim(s.source_version,40)}));
     const legacyAllowed=legacy.slice(0,300).map(s=>({area:trim(s.area,100),skill_code:trim(s.skill_code,100),skill_name:trim(s.skill_name,180),diagnostic_tags:Array.isArray(s.diagnostic_tags)?s.diagnostic_tags.slice(0,8):[]}));
@@ -103,9 +119,13 @@ Para conversa não acadêmica ou foco inseguro: learning_focus=null e offer_plan
     if(!gatewayToken)return json(res,503,{error:'A IA educacional ainda não está habilitada no servidor.'});
     const headers={Authorization:`Bearer ${gatewayToken}`,'Content-Type':'application/json','x-vercel-ai-gateway-user-id':String(user.id||'anonymous')};
     const makePayload=(model:string,structured=true)=>({model,messages:apiMessages,max_tokens:3800,...(structured?{response_format:{type:'json_object'}}:{})});
-    let ai=await fetch('https://ai-gateway.vercel.sh/v1/chat/completions',{method:'POST',headers,body:JSON.stringify(makePayload('openai/gpt-5.6-sol'))});
-    if(!ai.ok)ai=await fetch('https://ai-gateway.vercel.sh/v1/chat/completions',{method:'POST',headers,body:JSON.stringify(makePayload('openai/gpt-5.5'))});
-    if(!ai.ok)ai=await fetch('https://ai-gateway.vercel.sh/v1/chat/completions',{method:'POST',headers,body:JSON.stringify(makePayload('openai/gpt-5.5',false))});
+    const callGateway=async(model:string,structured=true)=>fetch('https://ai-gateway.vercel.sh/v1/chat/completions',{method:'POST',headers,body:JSON.stringify(makePayload(model,structured)),signal:AbortSignal.timeout(55000)});
+    let ai:Response;
+    try{
+      ai=await callGateway('openai/gpt-5.6-sol');
+      if(!ai.ok)ai=await callGateway('openai/gpt-5.5');
+      if(!ai.ok)ai=await callGateway('openai/gpt-5.5',false);
+    }catch(error){console.error('education-tutor gateway connection failed',error);return json(res,504,{error:'A análise demorou mais que o esperado. Tente enviar novamente; sua conversa foi preservada.'})}
     if(!ai.ok){const detail=await ai.text();console.error('education-tutor gateway error',ai.status,detail.slice(0,1200));return json(res,502,{error:'A IA não conseguiu responder agora. Tente novamente.'});}
 
     const data=await ai.json();
@@ -128,6 +148,9 @@ Para conversa não acadêmica ou foco inseguro: learning_focus=null e offer_plan
     return json(res,200,{answer,educational:Boolean(parsed.educational),resolvedDoubt:Boolean(parsed.resolved_doubt),learningFocus:focus,offerPlan,needsBetterImage:Boolean(parsed.needs_better_image),referenceCoverage:allowedReference.length});
   }catch(error:any){
     console.error('education-tutor failed',error);
-    return json(res,500,{error:error?.message||'Falha ao conversar com a IA educacional.'});
+    const code=String(error?.code||'');
+    const message=String(error?.message||'');
+    if(code==='ENOTFOUND'||/fetch failed|network|socket/i.test(message))return json(res,503,{error:'A conexão da IA falhou por alguns segundos. Tente novamente; sua conversa foi preservada.'});
+    return json(res,500,{error:'Não foi possível concluir a análise agora. Tente novamente.'});
   }
 }
