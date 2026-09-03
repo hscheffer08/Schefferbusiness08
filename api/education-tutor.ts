@@ -1,5 +1,4 @@
 import { generateText } from 'ai';
-import { gateway } from '@ai-sdk/gateway';
 import { google } from '@ai-sdk/google';
 import { createClient } from '@supabase/supabase-js';
 
@@ -10,23 +9,39 @@ type RefSkill={area:string;skill_code:string;skill_name:string;scope:string;diag
 type PlanSkill={area:string;skill_code:string;skill_name:string;diagnostic_tags?:string[]};
 
 const MODEL='openai/gpt-5.4-mini';
+const FALLBACK_MODELS=['openai/gpt-5.4-nano','google/gemini-3.6-flash'];
 const SEARCH_MODEL='google/gemini-2.5-flash-lite';
 const DAILY_QUESTION_LIMIT=20;
 const FALLBACK_SUPABASE_URL='https://kmognvgnfisdchzffkgh.supabase.co';
 const FALLBACK_SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
 
 function cleanEnv(v:unknown){return String(v??'').trim().replace(/^["']|["']$/g,'')}
-function validUrl(v:string){try{return Boolean(v)&&/\.supabase\.co$/i.test(new URL(v.startsWith('http')?v:`https://${v}`).hostname)}catch{return false}}
+function normalizeSupabaseUrl(v:string){
+  try{
+    if(!v)return'';
+    const u=new URL(v.startsWith('http')?v:`https://${v}`);
+    const host=u.hostname.toLowerCase();
+    if(!/^[a-z0-9-]+\.supabase\.co$/i.test(host))return'';
+    if(/(^|\.)x{6,}\.supabase\.co$/i.test(host)||host.includes('your-project')||host.includes('project-id'))return'';
+    return u.origin;
+  }catch{return''}
+}
 function config(){
   const rawUrl=cleanEnv(process.env.SUPABASE_URL||process.env.VITE_SUPABASE_URL);
   const rawKey=cleanEnv(process.env.SUPABASE_ANON_KEY||process.env.VITE_SUPABASE_ANON_KEY||process.env.VITE_SUPABASE_PUBLISHABLE_KEY);
-  return{url:validUrl(rawUrl)?new URL(rawUrl.startsWith('http')?rawUrl:`https://${rawUrl}`).origin:FALLBACK_SUPABASE_URL,key:rawKey||FALLBACK_SUPABASE_ANON_KEY};
+  const url=normalizeSupabaseUrl(rawUrl);
+  if(url&&rawKey)return{url,key:rawKey,source:'env'};
+  return{url:FALLBACK_SUPABASE_URL,key:FALLBACK_SUPABASE_ANON_KEY,source:'fallback'};
 }
 function repairJson(s:string){return s.replace(/\\(?!["\\/bfnrtu])/g,'\\\\')}
 function parseJson(raw:string){
   const v=raw.trim().replace(/^```json\s*/i,'').replace(/^```\s*/,'').replace(/```$/,'').trim();
   const a=v.indexOf('{'),b=v.lastIndexOf('}');
-  for(const x of [v,a>=0&&b>a?v.slice(a,b+1):'']){if(!x)continue;try{return JSON.parse(x)}catch{}try{return JSON.parse(repairJson(x))}catch{}}
+  for(const x of [v,a>=0&&b>a?v.slice(a,b+1):'']){
+    if(!x)continue;
+    try{return JSON.parse(x)}catch{}
+    try{return JSON.parse(repairJson(x))}catch{}
+  }
   throw new Error('Resposta estruturada inválida');
 }
 function tokens(s:string){return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').split(/[^a-z0-9]+/).filter(x=>x.length>2)}
@@ -57,12 +72,18 @@ async function verifyAccessToken(url:string,key:string,token:string){
 }
 
 export default async function handler(req:any,res:any){
-  if(req.method==='GET')return json(res,200,{ok:true,service:'IA Conectaê',model:MODEL,searchModel:SEARCH_MODEL,costMode:'confidence-based-escalation',dailyQuestionLimit:DAILY_QUESTION_LIMIT,authMode:'supabase-getClaims'});
+  if(req.method==='GET'){
+    const cfg=config();
+    return json(res,200,{ok:true,service:'IA Conectaê',model:MODEL,fallbackModels:FALLBACK_MODELS,searchModel:SEARCH_MODEL,costMode:'confidence-based-escalation',dailyQuestionLimit:DAILY_QUESTION_LIMIT,authMode:'supabase-getClaims',supabaseConfig:cfg.source});
+  }
   if(req.method!=='POST')return json(res,405,{error:'Método não permitido.'});
   try{
-    const auth=String(req.headers.authorization||'');if(!auth.startsWith('Bearer '))return json(res,401,{error:'Faça login para conversar com a IA Conectaê.'});
-    const token=auth.slice(7).trim();if(!token)return json(res,401,{error:'Sua sessão expirou. Entre novamente.'});
-    const cfg=config();if(!cfg.key)return json(res,503,{error:'A configuração educacional está temporariamente indisponível.'});
+    const auth=String(req.headers.authorization||'');
+    if(!auth.startsWith('Bearer '))return json(res,401,{error:'Faça login para conversar com a IA Conectaê.'});
+    const token=auth.slice(7).trim();
+    if(!token)return json(res,401,{error:'Sua sessão expirou. Entre novamente.'});
+
+    const cfg=config();
     const verified=await verifyAccessToken(cfg.url,cfg.key,token);
     if(!verified.userId){
       if(verified.mode==='unavailable')return json(res,503,{error:'Não foi possível validar sua sessão agora. Tente novamente em alguns segundos.'});
@@ -71,13 +92,15 @@ export default async function handler(req:any,res:any){
     const userId=verified.userId;
     const baseHeaders={apikey:cfg.key,Authorization:`Bearer ${token}`};
 
-    const {messages,context,imageDataUrl}=req.body||{};if(!Array.isArray(messages)||!messages.length)return json(res,400,{error:'Escreva sua dúvida.'});
+    const {messages,context,imageDataUrl}=req.body||{};
+    if(!Array.isArray(messages)||!messages.length)return json(res,400,{error:'Escreva sua dúvida.'});
     const safe:TutorMessage[]=messages.slice(-6).map((m:any):TutorMessage=>({role:m?.role==='assistant'?'assistant':'user',content:trim(m?.content,1800)})).filter((m:TutorMessage)=>m.content.trim());
     if(!safe.length)return json(res,400,{error:'Escreva sua dúvida.'});
     if(imageDataUrl!=null&&(typeof imageDataUrl!=='string'||!/^data:image\/(jpeg|png|webp);base64,/i.test(imageDataUrl)))return json(res,400,{error:'Formato de imagem inválido.'});
     if(typeof imageDataUrl==='string'&&imageDataUrl.length>3_600_000)return json(res,413,{error:'A foto ficou grande demais. Recorte a questão e tente novamente.'});
 
-    const c=context&&typeof context==='object'?context:{};const exam=trim(c.exam||'enem',40).toLowerCase();
+    const c=context&&typeof context==='object'?context:{};
+    const exam=trim(c.exam||'enem',40).toLowerCase();
     let usedToday=0;
     try{
       const minute=new Date(Date.now()-60000).toISOString(),day=new Date(Date.now()-86400000).toISOString();
@@ -91,34 +114,31 @@ export default async function handler(req:any,res:any){
     }catch(error){console.warn('tutor usage check unavailable',error)}
 
     let refs:RefSkill[]=[];let plans:PlanSkill[]=[];
-    try{const r=await sb(`${cfg.url}/rest/v1/exam_ai_skill_reference?select=area,skill_code,skill_name,scope,diagnostic_tags,parent_skill_code,official_reference&exam_id=eq.${encodeURIComponent(exam)}`,{...baseHeaders,Accept:'application/json'});if(r.ok)refs=await r.json()}catch{}
-    try{const r=await sb(`${cfg.url}/rest/v1/exam_skill_taxonomy?select=area,skill_code,skill_name,diagnostic_tags&exam_id=eq.${encodeURIComponent(exam)}`,{...baseHeaders,Accept:'application/json'});if(r.ok)plans=await r.json()}catch{}
+    try{const r=await sb(`${cfg.url}/rest/v1/exam_ai_skill_reference?select=area,skill_code,skill_name,scope,diagnostic_tags,parent_skill_code,official_reference&exam_id=eq.${encodeURIComponent(exam)}`,{...baseHeaders,Accept:'application/json'});if(r.ok)refs=await r.json()}catch(error){console.warn('tutor reference lookup unavailable',error)}
+    try{const r=await sb(`${cfg.url}/rest/v1/exam_skill_taxonomy?select=area,skill_code,skill_name,diagnostic_tags&exam_id=eq.${encodeURIComponent(exam)}`,{...baseHeaders,Accept:'application/json'});if(r.ok)plans=await r.json()}catch(error){console.warn('tutor taxonomy lookup unavailable',error)}
 
-    const latest=safe[safe.length-1]?.content||'';const contextQuestion=trim(c.currentQuestion,1500);const areaHint=trim(c.currentArea,80);const candidates=rankSkills(refs,`${latest} ${contextQuestion} ${trim(c.currentSkill,120)}`,areaHint);
+    const latest=safe[safe.length-1]?.content||'';
+    const contextQuestion=trim(c.currentQuestion,1500);const areaHint=trim(c.currentArea,80);
+    const candidates=rankSkills(refs,`${latest} ${contextQuestion} ${trim(c.currentSkill,120)}`,areaHint);
     const student={exam,weeklyHours:trim(c.weeklyHours,12),recentDifficulties:Array.isArray(c.recentDifficulties)?c.recentDifficulties.slice(0,4).map((x:any)=>trim(x,120)):[],recentPerformance:Array.isArray(c.recentPerformance)?c.recentPerformance.slice(0,4).map((x:any)=>trim(x,120)):[],currentQuestion:contextQuestion,currentSkill:trim(c.currentSkill,120),currentArea:areaHint};
     const image=typeof imageDataUrl==='string';
     const explicitLookup=/\b(gabarito|fonte|banca|prova|vestibular|enem|fuvest|cmmg|unicamp|unesp|famerp|famema|ita|ime|quest[aã]o\s*\d+|20\d{2})\b/i.test(latest)||Boolean(contextQuestion);
 
-    const system=`Você é a IA Conectaê, tutor educacional rigoroso e conciso. Responda em português do Brasil.
-
-QUALIDADE INTERNA: desconfie da primeira conclusão. Releia o comando, tente refutar sua resposta, confira sinais, unidades, condicionais, EXCETO/incorreta/respectivamente, dados de gráficos/tabelas, probabilidade condicionada, causalidade e a alternativa escolhida. Faça essa auditoria internamente; não exponha checklist nem cadeia de raciocínio.
-
-SAÍDA PARA O ALUNO: resposta comentada curta. Em objetiva: “Resposta: X) ...” + 2 a 5 frases com o raciocínio decisivo. Mostre contas apenas quando necessárias. Para dúvida conceitual: resposta direta + explicação breve. Só alongue se solicitado.
-
-REGRAS ESSENCIAIS: matemática/física/química devem conferir unidade, sinais e ordem de grandeza; genética deve separar sexo, herança, penetrância e probabilidade conjunta; linguagens devem se apoiar no texto; humanas devem evitar anacronismo e separar causa de consequência. Se faltar dado legível, peça imagem melhor em vez de chutar.
-
-CUSTO E BUSCA: primeiro resolva por conta própria. Defina needs_external_check=true SOMENTE se uma busca externa provavelmente aumentar a confiabilidade: baixa confiança (<0.88), questão identificável por banca/ano/gabarito, fato externo específico, imagem ambígua, ou conflito entre duas interpretações plausíveis. Não peça busca para dúvidas conceituais estáveis nem questões autocontidas resolvidas com alta confiança.
-
-CONTEXTO: ${JSON.stringify(student)}
-HABILIDADES CANDIDATAS: ${JSON.stringify(candidates.map(s=>({area:s.area,skill_code:s.skill_code,skill_name:s.skill_name,parent_skill_code:s.parent_skill_code||null})))}
-Escolha learning_focus apenas se coincidir exatamente com uma candidata. Não altere o plano; apenas ofereça inclusão após dúvida resolvida.
-Retorne APENAS JSON válido: {"answer":"resposta curta","confidence":0.0,"self_check_passed":true,"needs_external_check":false,"resolved_doubt":true,"needs_better_image":false,"learning_focus":{"area":"","skill_code":"","skill_name":"","plan_skill_code":null,"confidence":0.0,"reason":""},"offer_plan":false}`;
+    const system=`Você é a IA Conectaê, tutor educacional rigoroso e conciso. Responda em português do Brasil.\n\nQUALIDADE INTERNA: desconfie da primeira conclusão. Releia o comando, tente refutar sua resposta, confira sinais, unidades, condicionais, EXCETO/incorreta/respectivamente, dados de gráficos/tabelas, probabilidade condicionada, causalidade e a alternativa escolhida. Faça essa auditoria internamente; não exponha checklist nem cadeia de raciocínio.\n\nSAÍDA PARA O ALUNO: resposta comentada curta. Em objetiva: “Resposta: X) ...” + 2 a 5 frases com o raciocínio decisivo. Mostre contas apenas quando necessárias. Para dúvida conceitual: resposta direta + explicação breve. Só alongue se solicitado.\n\nREGRAS ESSENCIAIS: matemática/física/química devem conferir unidade, sinais e ordem de grandeza; genética deve separar sexo, herança, penetrância e probabilidade conjunta; linguagens devem se apoiar no texto; humanas devem evitar anacronismo e separar causa de consequência. Se faltar dado legível, peça imagem melhor em vez de chutar.\n\nCUSTO E BUSCA: primeiro resolva por conta própria. Defina needs_external_check=true SOMENTE se uma busca externa provavelmente aumentar a confiabilidade: baixa confiança (<0.88), questão identificável por banca/ano/gabarito, fato externo específico, imagem ambígua, ou conflito entre duas interpretações plausíveis. Não peça busca para dúvidas conceituais estáveis nem questões autocontidas resolvidas com alta confiança.\n\nCONTEXTO: ${JSON.stringify(student)}\nHABILIDADES CANDIDATAS: ${JSON.stringify(candidates.map(s=>({area:s.area,skill_code:s.skill_code,skill_name:s.skill_name,parent_skill_code:s.parent_skill_code||null})))}\nEscolha learning_focus apenas se coincidir exatamente com uma candidata. Não altere o plano; apenas ofereça inclusão após dúvida resolvida.\nRetorne APENAS JSON válido: {"answer":"resposta curta","confidence":0.0,"self_check_passed":true,"needs_external_check":false,"resolved_doubt":true,"needs_better_image":false,"learning_focus":{"area":"","skill_code":"","skill_name":"","plan_skill_code":null,"confidence":0.0,"reason":""},"offer_plan":false}`;
 
     const modelMessages:any[]=safe.map((m,i)=>i===safe.length-1&&m.role==='user'&&image?{role:'user',content:[{type:'text',text:m.content},{type:'image',image:imageDataUrl}]}:{role:m.role,content:m.content});
     let firstRaw='';let firstError:any=null;
-    try{const r=await generateText({model:MODEL,system,messages:modelMessages,maxOutputTokens:1500,abortSignal:AbortSignal.timeout(45000),providerOptions:{gateway:{user:userId,tags:['feature:education-tutor',`exam:${exam}`,'cost-optimized-first-pass']}}} as any);firstRaw=String(r.text||'').trim()}catch(e:any){firstError=e}
-    if(!firstRaw){const status=Number(firstError?.statusCode||0);if(status===429)return json(res,429,{error:'A IA atingiu o limite momentâneo. Aguarde alguns segundos e tente novamente.'});return json(res,502,{error:'Não foi possível gerar a resposta agora. Tente novamente.'})}
-    let first:any;try{first=parseJson(firstRaw)}catch{return json(res,502,{error:'A resposta ficou incompleta. Tente novamente.'})}
+    try{
+      const r=await generateText({model:MODEL,system,messages:modelMessages,maxOutputTokens:1500,abortSignal:AbortSignal.timeout(45000),providerOptions:{gateway:{models:FALLBACK_MODELS,user:userId,tags:['feature:education-tutor',`exam:${exam}`,'production-failover']}}} as any);
+      firstRaw=String(r.text||'').trim();
+    }catch(e:any){firstError=e}
+    if(!firstRaw){
+      const status=Number(firstError?.statusCode||firstError?.status||0);
+      console.error('tutor primary generation failed',status,firstError?.message||firstError);
+      if(status===429)return json(res,429,{error:'A IA atingiu o limite momentâneo. Tente novamente em alguns segundos.'});
+      return json(res,502,{error:'A IA ficou temporariamente indisponível. Tente novamente em alguns segundos.'});
+    }
+    let first:any;try{first=parseJson(firstRaw)}catch(error){console.error('tutor parse failed',String(firstRaw).slice(0,500),error);return json(res,502,{error:'A resposta ficou incompleta. Tente novamente.'})}
 
     let final=first,searchMode='none',sources:any[]=[];
     const conf=Math.max(0,Math.min(1,Number(first.confidence)||0));
@@ -135,7 +155,14 @@ Retorne APENAS JSON válido: {"answer":"resposta curta","confidence":0.0,"self_c
 
     const answer=trim(final.answer,5000).trim();if(!answer)return json(res,502,{error:'A resposta ficou incompleta. Tente novamente.'});
     let focus=final.learning_focus&&typeof final.learning_focus==='object'?final.learning_focus:first.learning_focus;
-    if(focus){const match=candidates.find(s=>s.skill_code===String(focus.skill_code||'')&&s.skill_name===String(focus.skill_name||''));if(!match)focus=null;else{const planCode=String(focus.plan_skill_code||match.parent_skill_code||''),plan=plans.find(s=>s.skill_code===planCode);focus={area:match.area,skill_code:match.skill_code,skill_name:match.skill_name,plan_skill_code:plan?.skill_code||null,plan_skill_name:plan?.skill_name||null,confidence:Math.max(0,Math.min(1,Number(focus.confidence)||conf)),reason:trim(focus.reason,300),official_reference:Boolean(match.official_reference)}}}
+    if(focus){
+      const match=candidates.find(s=>s.skill_code===String(focus.skill_code||'')&&s.skill_name===String(focus.skill_name||''));
+      if(!match)focus=null;
+      else{
+        const planCode=String(focus.plan_skill_code||match.parent_skill_code||''),plan=plans.find(s=>s.skill_code===planCode);
+        focus={area:match.area,skill_code:match.skill_code,skill_name:match.skill_name,plan_skill_code:plan?.skill_code||null,plan_skill_name:plan?.skill_name||null,confidence:Math.max(0,Math.min(1,Number(focus.confidence)||conf)),reason:trim(focus.reason,300),official_reference:Boolean(match.official_reference)};
+      }
+    }
     const offerPlan=Boolean(final.offer_plan??first.offer_plan)&&Boolean(focus)&&focus.confidence>=0.68&&Boolean(final.resolved_doubt??first.resolved_doubt);
     fetch(`${cfg.url}/rest/v1/ai_tutor_usage`,{method:'POST',headers:{...baseHeaders,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({user_id:userId,exam_id:exam,has_image:image})}).catch(()=>{});
     return json(res,200,{answer,educational:true,resolvedDoubt:Boolean(final.resolved_doubt??first.resolved_doubt),learningFocus:focus,offerPlan,needsBetterImage:Boolean(final.needs_better_image??first.needs_better_image),model:searchMode==='none'?MODEL:SEARCH_MODEL,searchMode,webVerified:searchMode==='google'&&sources.length>0,sources,costOptimized:true,dailyQuestionLimit:DAILY_QUESTION_LIMIT,remainingQuestions:Math.max(0,DAILY_QUESTION_LIMIT-usedToday-1)});
