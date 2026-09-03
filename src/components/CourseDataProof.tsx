@@ -8,7 +8,6 @@ type ProofStats = {
   booklets: number;
   mappings: number;
   areas: number;
-  universityRows: number;
 };
 
 const AUDITED_FALLBACK: ProofStats = {
@@ -17,7 +16,6 @@ const AUDITED_FALLBACK: ProofStats = {
   booklets: 16,
   mappings: 1480,
   areas: 50,
-  universityRows: 1000,
 };
 
 const fmt = (value: number) => new Intl.NumberFormat('pt-BR').format(value);
@@ -31,15 +29,14 @@ export default function CourseDataProof({ compact = false }: { compact?: boolean
     (async () => {
       if (!supabase) return;
       try {
-        const [cutoffs, practice, booklets, mappings, areas, universityRows] = await Promise.all([
+        const [cutoffs, practice, booklets, mappings, areas] = await Promise.all([
           supabase.from('admission_cutoff_references').select('*', { count: 'exact', head: true }),
           supabase.from('exam_practice_questions').select('*', { count: 'exact', head: true }).eq('active', true),
           supabase.from('official_exam_booklets').select('*', { count: 'exact', head: true }),
           supabase.from('official_exam_item_booklet_map').select('*', { count: 'exact', head: true }),
           supabase.from('academic_areas').select('*', { count: 'exact', head: true }),
-          supabase.from('area_universities').select('*', { count: 'exact', head: true }),
         ]);
-        const values = [cutoffs, practice, booklets, mappings, areas, universityRows];
+        const values = [cutoffs, practice, booklets, mappings, areas];
         if (values.some((result) => result.error || typeof result.count !== 'number')) return;
         if (!active) return;
         setStats({
@@ -48,7 +45,6 @@ export default function CourseDataProof({ compact = false }: { compact?: boolean
           booklets: booklets.count ?? AUDITED_FALLBACK.booklets,
           mappings: mappings.count ?? AUDITED_FALLBACK.mappings,
           areas: areas.count ?? AUDITED_FALLBACK.areas,
-          universityRows: universityRows.count ?? AUDITED_FALLBACK.universityRows,
         });
         setLive(true);
       } catch {
@@ -62,7 +58,7 @@ export default function CourseDataProof({ compact = false }: { compact?: boolean
     { icon: Landmark, value: fmt(stats.cutoffs), label: 'referências oficiais de corte', detail: 'Metas ancoradas em fontes institucionais, não em números genéricos.' },
     { icon: BookOpenCheck, value: fmt(stats.practice), label: 'questões ativas no treino', detail: 'Banco usado para prática, diagnóstico e recuperação por área.' },
     { icon: Database, value: fmt(stats.mappings), label: 'respostas oficiais mapeadas', detail: `${fmt(stats.booklets)} cadernos oficiais do ENEM 2024/2025 com correção automática.` },
-    { icon: Sparkles, value: fmt(stats.universityRows), label: 'combinações curso–faculdade', detail: `${fmt(stats.areas)} áreas/cursos estruturados no catálogo acadêmico.` },
+    { icon: Sparkles, value: fmt(stats.areas), label: 'áreas e cursos catalogados', detail: 'As ofertas usadas pelo Curso são filtradas por compatibilidade institucional verificada.' },
   ];
 
   if (compact) {
@@ -86,7 +82,7 @@ export default function CourseDataProof({ compact = false }: { compact?: boolean
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/[.07] px-3 py-1.5 text-xs font-extrabold text-emerald-200"><ShieldCheck className="h-4 w-4"/>BASE AUDITADA</div>
             <h2 className="mt-5 text-3xl font-black tracking-[-.045em] md:text-5xl">Profundidade que aparece nos dados, não só no design.</h2>
-            <p className="mt-4 max-w-xl text-sm leading-7 text-[#9fb5d4] md:text-base">O Curso cruza estrutura de prova, referências oficiais, desempenho do aluno, banco de questões e histórico de erros. Quando um dado não é confiável, o produto deve mostrar incerteza em vez de inventar precisão.</p>
+            <p className="mt-4 max-w-xl text-sm leading-7 text-[#9fb5d4] md:text-base">O Curso cruza estrutura de prova, referências oficiais, desempenho do aluno, banco de questões e histórico de erros. Quando um dado não é confiável, o produto mostra incerteza em vez de inventar precisão.</p>
             <div className="mt-5 inline-flex items-center gap-2 text-xs font-bold text-[#6f89ad]"><Database className="h-4 w-4"/>{live ? 'Contagens carregadas da base em tempo real.' : 'Exibindo o último snapshot técnico auditado.'}</div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
