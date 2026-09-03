@@ -2,6 +2,7 @@ import { StrictMode, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Analytics } from '@vercel/analytics/react';
 import CourseHome from './components/CourseHome.tsx';
+import AlphabeticalSelectOrder from './lib/alphabetical-select-order.tsx';
 import './index.css';
 import './lib/balanced-area-results.css';
 
@@ -98,6 +99,7 @@ createRoot(document.getElementById('root')!).render(
         <CourseHome />
       )}
     </Suspense>
+    <AlphabeticalSelectOrder />
     <Analytics />
   </StrictMode>
 );
