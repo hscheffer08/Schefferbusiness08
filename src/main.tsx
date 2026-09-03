@@ -16,18 +16,38 @@ const ExpandedHomeMount = lazy(() => import('./lib/expanded-home-mount.tsx'));
 const AccountControlsMount = lazy(() => import('./lib/account-controls-mount.tsx'));
 const BalancedAreaResultsMount = lazy(() => import('./lib/balanced-area-results-mount.tsx'));
 const PremiumDemoMount = lazy(() => import('./lib/premium-demo-mount.tsx'));
+const DiscoveryHub = lazy(() => import('./components/DiscoveryHub.tsx'));
+const AreaMatchPortal = lazy(() => import('./components/AreaMatchPortal.tsx'));
+const VocationalDemoPremium = lazy(() => import('./components/VocationalDemoPremium.tsx'));
 
 const params = new URLSearchParams(window.location.search);
 const plannerOpen = params.get('planner') === 'aprovacao';
-const collegeExperienceOpen =
-  params.get('experience') === 'faculdades' ||
+const experienceMode = params.get('experience');
+const legacyCollegeExperienceOpen =
   params.get('modo') === 'business' ||
   params.get('questionario') === 'faculdades' ||
   params.has('ref');
 
+function navigateExperience(experience: string | null) {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('planner');
+  url.searchParams.delete('modo');
+  url.searchParams.delete('questionario');
+  if (experience) url.searchParams.set('experience', experience);
+  else url.searchParams.delete('experience');
+  window.location.assign(`${url.pathname}${url.search}${url.hash}`);
+}
+
 const closePlanner = () => {
   const url = new URL(window.location.href);
   url.searchParams.delete('planner');
+  url.searchParams.delete('experience');
+  window.location.assign(`${url.pathname}${url.search}${url.hash}`);
+};
+
+const openPlanner = () => {
+  const url = new URL(window.location.href);
+  url.searchParams.set('planner', 'aprovacao');
   url.searchParams.delete('experience');
   window.location.assign(`${url.pathname}${url.search}${url.hash}`);
 };
@@ -46,7 +66,18 @@ createRoot(document.getElementById('root')!).render(
     <Suspense fallback={loadingFallback}>
       {plannerOpen ? (
         <AdmissionsPlannerGate onBack={closePlanner} />
-      ) : collegeExperienceOpen ? (
+      ) : experienceMode === 'faculdades' || experienceMode === 'descoberta' ? (
+        <DiscoveryHub
+          onBack={() => navigateExperience(null)}
+          onOpenVocational={() => navigateExperience('vocacional')}
+          onOpenColleges={() => navigateExperience('match-faculdades')}
+          onOpenPlanner={openPlanner}
+        />
+      ) : experienceMode === 'vocacional' ? (
+        <VocationalDemoPremium onBack={() => navigateExperience('faculdades')} />
+      ) : experienceMode === 'match-faculdades' ? (
+        <AreaMatchPortal onClose={() => navigateExperience('faculdades')} />
+      ) : legacyCollegeExperienceOpen ? (
         <>
           <App />
           <UsCountryMarker />
