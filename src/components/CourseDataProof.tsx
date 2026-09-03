@@ -11,7 +11,7 @@ type ProofStats = {
 };
 
 const AUDITED_FALLBACK: ProofStats = {
-  cutoffs: 35,
+  cutoffs: 54,
   practice: 559,
   booklets: 16,
   mappings: 1480,
