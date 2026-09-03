@@ -13,6 +13,7 @@ type Question={id:number;exam_id:string;area:string;skill_name:string;difficulty
 type Attempt={exam_id:string;area:string;skill_name:string|null;correct:boolean|null;created_at:string};
 type Priority={metric:ExamMetric;current:number;goal:number;missing:number;score:number;accuracy:number|null};
 type SkillDiagnostic={id:string;exam_id:string;area:string;skill_code:string|null;error_type:string|null;error_detail:string|null;diagnosis:{skill_name?:string}|null;created_at:string;evidence_path:string|null};
+type AdmissionCutoff={institution:string;exam_id:string;course_label:string;variant:string;year:number;modality:string;target_kind:string;target_value:number;max_value:number|null;confidence:string;source_url:string;notes:string|null};
 
 const RETAINED=new Set(['UFMG','USP','Faculdade Ciências Médicas de Minas Gerais','Insper','Link School of Business']);
 const normalize=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -33,8 +34,12 @@ function matchQuestionArea(area:string,key:string){
   return false;
 }
 
-function goalFor(metric:ExamMetric,examId:string){
-  if(examId==='enem')return metric.key==='Redação'?820:32;
+function goalFor(metric:ExamMetric,examId:string,dataGoal?:number){
+  if(Number.isFinite(dataGoal))return clamp(Math.round(dataGoal!),0,metric.max);
+  if(examId==='enem'){
+    const fallback:Record<string,number>={Linguagens:36,Humanas:37,Natureza:35,'Matemática':37,'Redação':900};
+    return fallback[metric.key]??Math.round(metric.max*.8);
+  }
   if(examId==='cmmg'){
     if(metric.key==='Redação')return Math.round(metric.max*.8);
     const pct:Record<string,number>={'Língua Portuguesa':.78,'Literatura':.75,'Inglês':.78,'Biologia':.82,'Física':.75,'Química':.8,'Matemática':.8,'Linguagens':.8,'Conhecimentos Gerais':.75,'Humanas':.75};
@@ -42,12 +47,25 @@ function goalFor(metric:ExamMetric,examId:string){
   }
   if(examId==='insper')return metric.key==='Redação'?75:12;
   if(examId==='fuvest'){
-    if(metric.key==='1ª fase')return 64;
+    if(metric.key==='1ª fase')return Math.round(metric.max*.8);
     if(metric.key==='Português'||metric.key==='Redação')return 36;
     return 72;
   }
   const link:Record<string,number>={'Matemática':75,'Business Case':82,'Escrita':80,'Oral':80,'Portfólio':78,'Entrevista':80};
   return link[metric.key]??78;
+}
+
+function enemGoalsFromCutoff(cutoff:number){
+  // Faixas de planejamento ancoradas na nota de corte oficial do curso.
+  // Para Medicina em ~818 pontos, a meta fica em ~160 acertos totais + redação forte,
+  // coerente com resultados reais de aprovados. Não é uma conversão determinística da TRI.
+  if(cutoff>=810)return {Linguagens:39,Humanas:40,Natureza:40,'Matemática':41,'Redação':940}; // 160/180
+  if(cutoff>=795)return {Linguagens:38,Humanas:39,Natureza:39,'Matemática':40,'Redação':920}; // 156/180
+  if(cutoff>=780)return {Linguagens:37,Humanas:38,Natureza:37,'Matemática':39,'Redação':910}; // 151/180
+  if(cutoff>=765)return {Linguagens:36,Humanas:37,Natureza:35,'Matemática':38,'Redação':900}; // 146/180
+  if(cutoff>=750)return {Linguagens:35,Humanas:36,Natureza:34,'Matemática':37,'Redação':880}; // 142/180
+  if(cutoff>=735)return {Linguagens:34,Humanas:35,Natureza:32,'Matemática':36,'Redação':860}; // 137/180
+  return {Linguagens:32,Humanas:34,Natureza:30,'Matemática':34,'Redação':840}; // 130/180
 }
 
 function recoveryAction(type:string|null,area:string,skill:string){
@@ -86,6 +104,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   const[selectedOption,setSelectedOption]=useState('');
   const[practiceResult,setPracticeResult]=useState<boolean|null>(null);
   const[questionStartedAt,setQuestionStartedAt]=useState<number|null>(null);
+  const[cutoffs,setCutoffs]=useState<AdmissionCutoff[]>([]);
 
   const reloadDiagnostics=async(userId?:string,examId?:string)=>{
     if(!supabase)return;
@@ -100,16 +119,17 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
 
   useEffect(()=>{let alive=true;(async()=>{
     if(!supabase){setLoading(false);return}
-    const[{data:a},{data:u},{data:q},{data:userData}]=await Promise.all([
+    const[{data:a},{data:u},{data:q},{data:userData},{data:cutoffRows}]=await Promise.all([
       supabase.from('academic_areas').select('area_id,name,courses').order('name'),
       supabase.from('area_universities').select('area_university_id,area_id,university_name,course_label').order('university_name'),
       supabase.from('exam_practice_questions').select('*').eq('active',true),
       supabase.auth.getUser(),
+      supabase.from('admission_cutoff_references').select('institution,exam_id,course_label,variant,year,modality,target_kind,target_value,max_value,confidence,source_url,notes').order('year',{ascending:false}),
     ]);
     if(!alive)return;
     const cleanUniversities=((u??[]) as University[]).filter(x=>RETAINED.has(x.university_name)&&isSupportedInstitutionCourse(x.university_name,x.course_label));
     const cleanAreas=((a??[]) as AcademicArea[]).filter(ar=>cleanUniversities.some(x=>x.area_id===ar.area_id));
-    setAreas(cleanAreas);setUniversities(cleanUniversities);setQuestions(mergePracticeQuestions((q??[]) as Question[]) as Question[]);
+    setAreas(cleanAreas);setUniversities(cleanUniversities);setQuestions(mergePracticeQuestions((q??[]) as Question[]) as Question[]);setCutoffs((cutoffRows??[]) as AdmissionCutoff[]);
     const user=userData.user;
     if(user){
       const[{data:pref},{data:at}]=await Promise.all([
@@ -152,15 +172,34 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   const examAreas=['Todas',...Array.from(new Set(allowedQuestions.map(q=>q.area)))];
   const filteredQuestions=questionArea==='Todas'?allowedQuestions:allowedQuestions.filter(q=>q.area===questionArea);
 
+  const activeCutoff=useMemo(()=>{
+    if(!university)return null;
+    return cutoffs
+      .filter(c=>normalize(c.institution)===normalize(university.university_name)&&normalize(c.exam_id)===normalize(model.examId)&&normalize(c.course_label)===normalize(course))
+      .sort((a,b)=>b.year-a.year||Number(b.target_value)-Number(a.target_value))[0]??null;
+  },[cutoffs,university,model.examId,course]);
+  const dataGoals=useMemo<Record<string,number>>(()=>{
+    const goals:Record<string,number>={};
+    if(!activeCutoff)return goals;
+    if(model.examId==='enem')return {...goals,...enemGoalsFromCutoff(Number(activeCutoff.target_value))};
+    if(model.examId==='fuvest'){
+      const first=metrics.find(m=>m.key==='1ª fase');
+      if(!first)return goals;
+      const historicalMax=Number(activeCutoff.max_value||90);
+      goals['1ª fase']=Math.ceil(Number(activeCutoff.target_value)/Math.max(1,historicalMax)*first.max);
+    }
+    return goals;
+  },[activeCutoff,model.examId,metrics]);
+
   const diagnosis:Priority[]=useMemo(()=>metrics.map(metric=>{
     const current=appliedValues[metric.key]??metric.defaultValue;
-    const goal=goalFor(metric,model.examId);
+    const goal=goalFor(metric,model.examId,dataGoals[metric.key]);
     const relevant=attempts.filter(a=>a.exam_id===model.examId&&matchQuestionArea(a.area,metric.key)&&a.correct!==null).slice(0,40);
     const accuracy=relevant.length?relevant.filter(x=>x.correct).length/relevant.length:null;
     const missing=Math.max(0,goal-current);
     const score=(missing/Math.max(1,metric.max))*(accuracy==null?1:accuracy<.6?1.25:accuracy>.85?.8:1);
     return{metric,current,goal,missing,score,accuracy};
-  }),[metrics,appliedValues,attempts,model.examId]);
+  }),[metrics,appliedValues,attempts,model.examId,dataGoals]);
   const priorities=useMemo(()=>[...diagnosis].sort((a,b)=>b.score-a.score),[diagnosis]);
   const readiness=Math.round(diagnosis.reduce((s,p)=>s+Math.min(1,p.current/Math.max(1,p.goal)),0)/Math.max(1,diagnosis.length)*100);
   const top=priorities[0];
@@ -188,7 +227,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
       {tab==='hoje'&&<div className="plan6-grid">
         <section className="plan6-card span7"><div className="plan6-sectionlabel">Prioridade do plano salvo</div><h2>{top?.metric.label??'Diagnóstico'}</h2><p>{top?.missing?`Faltam ${top.missing} ${top.metric.unit==='acertos'?'acertos':'pontos'} para a meta atual.`:'Meta atual atingida. O plano transfere mais tempo para a próxima prioridade.'}</p><div className="plan6-callout"><strong>Próxima semana</strong><p>{roadmap.weeks[0]?`${roadmap.weeks[0].focusLabel}: ${roadmap.weeks[0].topic}.`:'Cronograma encerrado para este ciclo.'}</p></div></section>
         <section className="plan6-card span5"><div className="plan6-sectionlabel">Seu ritmo</div><h2>{weeklyHours} horas por semana</h2><p>Altere o tempo e salve para recalcular o volume semanal.</p><input className="plan6-slider" type="range" min="3" max="30" step="1" value={weeklyHours} onChange={e=>{setWeeklyHours(Number(e.target.value));setDirty(true)}}/><div className="plan6-hour-scale"><span>3h</span><strong>{weeklyHours}h</strong><span>30h</span></div></section>
-        <section className="plan6-card span12"><div className="plan6-sectionlabel">Suas notas</div><h2>{course} · {university?.university_name}</h2><p>Preencha tudo primeiro. O cronograma só muda depois de salvar.</p>{metrics.map(m=>{const current=values[m.key]??m.defaultValue;const step=m.max>100?10:1;const goal=goalFor(m,model.examId);return <div className="plan6-statline" key={m.key}><div><div className="plan6-statname">{m.label}</div><div className="plan6-statmeta">Agora <b>{current}</b> de {m.max} • meta {goal}</div><div className="plan6-score-control"><button type="button" onClick={()=>updateScore(m,current-step)}><Minus size={16}/></button><input className="plan6-slider" type="range" min="0" max={m.max} step={step} value={current} onChange={e=>updateScore(m,Number(e.target.value))}/><input className="plan6-score-number" type="number" min="0" max={m.max} step={step} value={current} onChange={e=>updateScore(m,Number(e.target.value||0))}/><button type="button" onClick={()=>updateScore(m,current+step)}><Plus size={16}/></button></div></div><div className="plan6-statvalue">{Math.max(0,goal-current)} faltam</div></div>})}<div className="plan6-actions" style={{marginTop:18}}><button className="plan6-btn primary" disabled={saving} onClick={save}><Save size={15}/>Salvar notas e atualizar meu plano</button></div></section>
+        <section className="plan6-card span12"><div className="plan6-sectionlabel">Suas notas</div><h2>{course} · {university?.university_name}</h2><p>Preencha tudo primeiro. O cronograma só muda depois de salvar.</p>{activeCutoff&&<div className="plan6-callout blue" style={{marginBottom:18}}><strong>Meta calibrada com dados reais</strong><p>Referência {activeCutoff.year} · {activeCutoff.modality}: <b>{Number(activeCutoff.target_value).toLocaleString('pt-BR',{maximumFractionDigits:2})}{model.examId==='enem'?' pontos':' acertos'}</b>. {model.examId==='enem'?'Os acertos abaixo são uma meta de planejamento compatível com essa faixa; a TRI pode mudar a nota mesmo com o mesmo número de acertos.':'A meta da 1ª fase é normalizada para o formato atual da prova.'}</p></div>}{metrics.map(m=>{const current=values[m.key]??m.defaultValue;const step=m.max>100?10:1;const goal=goalFor(m,model.examId,dataGoals[m.key]);return <div className="plan6-statline" key={m.key}><div><div className="plan6-statname">{m.label}</div><div className="plan6-statmeta">Agora <b>{current}</b> de {m.max} • meta {goal}</div><div className="plan6-score-control"><button type="button" onClick={()=>updateScore(m,current-step)}><Minus size={16}/></button><input className="plan6-slider" type="range" min="0" max={m.max} step={step} value={current} onChange={e=>updateScore(m,Number(e.target.value))}/><input className="plan6-score-number" type="number" min="0" max={m.max} step={step} value={current} onChange={e=>updateScore(m,Number(e.target.value||0))}/><button type="button" onClick={()=>updateScore(m,current+step)}><Plus size={16}/></button></div></div><div className="plan6-statvalue">{Math.max(0,goal-current)} faltam</div></div>})}<div className="plan6-actions" style={{marginTop:18}}><button className="plan6-btn primary" disabled={saving} onClick={save}><Save size={15}/>Salvar notas e atualizar meu plano</button></div></section>
       </div>}
 
       {tab==='plano'&&<div className="plan6-grid">
