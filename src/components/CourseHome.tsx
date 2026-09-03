@@ -1,4 +1,5 @@
 import { ArrowRight, BarChart3, BookOpenCheck, Brain, Camera, CheckCircle2, Compass, FileText, GraduationCap, Sparkles, Target, Trophy } from 'lucide-react';
+import CourseDataProof from '@/components/CourseDataProof';
 
 function navigateWith(params: Record<string, string | null>) {
   const url = new URL(window.location.href);
@@ -56,7 +57,8 @@ export default function CourseHome() {
             </div>
             <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-xs font-bold text-[#8da5c5]">
               <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-emerald-300" />Plano salvo na sua conta</span>
-              <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-emerald-300" />Metas por prova</span>
+              <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-emerald-300" />Metas por prova e curso</span>
+              <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-emerald-300" />Fontes oficiais visíveis</span>
               <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-emerald-300" />Histórico de desempenho</span>
             </div>
           </div>
@@ -72,6 +74,8 @@ export default function CourseHome() {
             <button onClick={openCourse} className="mt-5 flex w-full items-center justify-between rounded-2xl border border-[#31588e] bg-[#0b2856] px-4 py-4 text-left transition hover:border-[#72a5ff]"><span><span className="block text-xs font-bold text-[#8da5c5]">COMEÇAR AGORA</span><span className="mt-0.5 block font-black">Montar meu plano de aprovação</span></span><ArrowRight className="h-5 w-5 text-[#72a5ff]" /></button>
           </div>
         </section>
+
+        <CourseDataProof />
 
         <section className="border-y border-white/5 bg-[#041027]/75">
           <div className="mx-auto max-w-7xl px-5 py-14 md:px-8 md:py-20">
