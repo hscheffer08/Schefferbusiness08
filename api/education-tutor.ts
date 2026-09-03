@@ -19,7 +19,7 @@ export default async function handler(req:any,res:any){
 
     const {messages,context,imageDataUrl}=req.body||{};
     if(!Array.isArray(messages)||!messages.length)return json(res,400,{error:'Escreva sua dúvida.'});
-    const safeMessages: TutorMessage[]=messages.slice(-12).map((m:any)=>({
+    const safeMessages=messages.slice(-12).map((m:any):TutorMessage=>({
       role:m?.role==='assistant'?'assistant':'user',
       content:trim(m?.content,4500),
     })).filter((m:TutorMessage)=>m.content.trim());
