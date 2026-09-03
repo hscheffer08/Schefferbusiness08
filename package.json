@@ -5,14 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run validate:planner-auth && npm run validate:catalog && npm run validate:questionnaires && npm run validate:professional-match && npm run typecheck && vite build",
+    "build": "npm run validate:planner-auth && npm run validate:catalog && npm run validate:questionnaires && npm run validate:professional-match && npm run validate:course-intelligence && npm run typecheck && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "validate:planner-auth": "node scripts/validate-planner-auth.mjs",
     "validate:catalog": "node scripts/validate-catalog.mjs",
     "validate:questionnaires": "node scripts/validate-questionnaires.mjs",
-    "validate:professional-match": "node scripts/validate-professional-match.mjs"
+    "validate:professional-match": "node scripts/validate-professional-match.mjs",
+    "validate:course-intelligence": "node scripts/validate-course-intelligence.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
