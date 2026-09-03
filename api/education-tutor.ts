@@ -1,6 +1,7 @@
 import { generateText } from 'ai';
 import { gateway } from '@ai-sdk/gateway';
 import { google } from '@ai-sdk/google';
+import { createClient } from '@supabase/supabase-js';
 
 const json=(res:any,status:number,body:unknown)=>{res.setHeader('Cache-Control','no-store');return res.status(status).json(body)};
 const trim=(value:unknown,max=3000)=>String(value??'').slice(0,max);
@@ -10,6 +11,7 @@ type PlanSkill={area:string;skill_code:string;skill_name:string;diagnostic_tags?
 
 const MODEL='openai/gpt-5.4-mini';
 const SEARCH_MODEL='google/gemini-2.5-flash-lite';
+const DAILY_QUESTION_LIMIT=20;
 const FALLBACK_SUPABASE_URL='https://kmognvgnfisdchzffkgh.supabase.co';
 const FALLBACK_SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
 
@@ -35,15 +37,42 @@ function rankSkills(skills:RefSkill[],query:string,areaHint:string){
 function sourceList(value:unknown){if(!Array.isArray(value))return[];return value.slice(0,4).map((s:any)=>({title:trim(s?.title||s?.name||'Fonte consultada',140),url:/^https?:\/\//i.test(String(s?.url||''))?trim(s.url,900):''})).filter((s:any)=>s.url)}
 async function sb(url:string,headers:Record<string,string>){return fetch(url,{headers,signal:AbortSignal.timeout(9000)})}
 
+async function verifyAccessToken(url:string,key:string,token:string){
+  const client=createClient(url,key,{auth:{autoRefreshToken:false,persistSession:false,detectSessionInUrl:false}});
+  try{
+    const {data,error}=await client.auth.getClaims(token);
+    const claims=(data as any)?.claims;
+    const userId=String(claims?.sub||'');
+    if(!error&&userId)return{userId,mode:'claims'};
+    if(error)console.warn('tutor getClaims rejected token',error.message);
+  }catch(error:any){console.warn('tutor getClaims unavailable',error?.message||error)}
+
+  // Fallback para projetos/chaves que ainda exigem validação remota. Uma falha de rede aqui
+  // não é confundida com token expirado: isso facilita diagnóstico e evita falsos 401.
+  try{
+    const {data,error}=await client.auth.getUser(token);
+    if(!error&&data?.user?.id)return{userId:String(data.user.id),mode:'getUser'};
+    return{userId:'',mode:'invalid'};
+  }catch(error:any){
+    console.error('tutor auth verification unavailable',error?.message||error);
+    return{userId:'',mode:'unavailable'};
+  }
+}
+
 export default async function handler(req:any,res:any){
-  if(req.method==='GET')return json(res,200,{ok:true,service:'IA Conectaê',model:MODEL,searchModel:SEARCH_MODEL,costMode:'confidence-based-escalation'});
+  if(req.method==='GET')return json(res,200,{ok:true,service:'IA Conectaê',model:MODEL,searchModel:SEARCH_MODEL,costMode:'confidence-based-escalation',dailyQuestionLimit:DAILY_QUESTION_LIMIT,authMode:'supabase-getClaims'});
   if(req.method!=='POST')return json(res,405,{error:'Método não permitido.'});
   try{
     const auth=String(req.headers.authorization||'');if(!auth.startsWith('Bearer '))return json(res,401,{error:'Faça login para conversar com a IA Conectaê.'});
+    const token=auth.slice(7).trim();if(!token)return json(res,401,{error:'Sua sessão expirou. Entre novamente.'});
     const cfg=config();if(!cfg.key)return json(res,503,{error:'A configuração educacional está temporariamente indisponível.'});
-    const baseHeaders={apikey:cfg.key,Authorization:auth};
-    let u:Response;try{u=await sb(`${cfg.url}/auth/v1/user`,baseHeaders)}catch{return json(res,503,{error:'Não foi possível validar sua sessão agora.'})}
-    if(!u.ok)return json(res,401,{error:'Sua sessão expirou. Entre novamente.'});const user=await u.json();const userId=String(user?.id||'');if(!userId)return json(res,401,{error:'Sua sessão não pôde ser validada.'});
+    const verified=await verifyAccessToken(cfg.url,cfg.key,token);
+    if(!verified.userId){
+      if(verified.mode==='unavailable')return json(res,503,{error:'Não foi possível validar sua sessão agora. Tente novamente em alguns segundos.'});
+      return json(res,401,{error:'Sua sessão expirou. Entre novamente.'});
+    }
+    const userId=verified.userId;
+    const baseHeaders={apikey:cfg.key,Authorization:`Bearer ${token}`};
 
     const {messages,context,imageDataUrl}=req.body||{};if(!Array.isArray(messages)||!messages.length)return json(res,400,{error:'Escreva sua dúvida.'});
     const safe: TutorMessage[]=messages.slice(-6).map((m:any)=>({role:m?.role==='assistant'?'assistant':'user',content:trim(m?.content,1800)})).filter((m:TutorMessage)=>m.content.trim());
@@ -54,9 +83,14 @@ export default async function handler(req:any,res:any){
     const c=context&&typeof context==='object'?context:{};const exam=trim(c.exam||'enem',40).toLowerCase();
     try{
       const minute=new Date(Date.now()-60000).toISOString(),day=new Date(Date.now()-86400000).toISOString();
-      const [a,b]=await Promise.all([fetch(`${cfg.url}/rest/v1/ai_tutor_usage?select=id&user_id=eq.${userId}&created_at=gte.${encodeURIComponent(minute)}`,{headers:{...baseHeaders,Prefer:'count=exact'}}),fetch(`${cfg.url}/rest/v1/ai_tutor_usage?select=id&user_id=eq.${userId}&created_at=gte.${encodeURIComponent(day)}`,{headers:{...baseHeaders,Prefer:'count=exact'}})]);
-      const mc=Number(a.headers.get('content-range')?.split('/')?.[1]||0),dc=Number(b.headers.get('content-range')?.split('/')?.[1]||0);if(mc>=12)return json(res,429,{error:'Aguarde um minuto antes de enviar mais perguntas.'});if(dc>=120)return json(res,429,{error:'Você atingiu o limite diário da IA Conectaê.'});
-    }catch{}
+      const [a,b]=await Promise.all([
+        fetch(`${cfg.url}/rest/v1/ai_tutor_usage?select=id&user_id=eq.${encodeURIComponent(userId)}&created_at=gte.${encodeURIComponent(minute)}`,{headers:{...baseHeaders,Prefer:'count=exact'},signal:AbortSignal.timeout(8000)}),
+        fetch(`${cfg.url}/rest/v1/ai_tutor_usage?select=id&user_id=eq.${encodeURIComponent(userId)}&created_at=gte.${encodeURIComponent(day)}`,{headers:{...baseHeaders,Prefer:'count=exact'},signal:AbortSignal.timeout(8000)})
+      ]);
+      const mc=Number(a.headers.get('content-range')?.split('/')?.[1]||0),dc=Number(b.headers.get('content-range')?.split('/')?.[1]||0);
+      if(mc>=8)return json(res,429,{error:'Aguarde um minuto antes de enviar mais perguntas.'});
+      if(dc>=DAILY_QUESTION_LIMIT)return json(res,429,{error:`Você atingiu o limite de ${DAILY_QUESTION_LIMIT} perguntas da IA Conectaê hoje. O acesso é renovado automaticamente.`});
+    }catch(error){console.warn('tutor usage check unavailable',error)}
 
     let refs:RefSkill[]=[];let plans:PlanSkill[]=[];
     try{const r=await sb(`${cfg.url}/rest/v1/exam_ai_skill_reference?select=area,skill_code,skill_name,scope,diagnostic_tags,parent_skill_code,official_reference&exam_id=eq.${encodeURIComponent(exam)}`,{...baseHeaders,Accept:'application/json'});if(r.ok)refs=await r.json()}catch{}
@@ -106,6 +140,6 @@ Retorne APENAS JSON válido: {"answer":"resposta curta","confidence":0.0,"self_c
     if(focus){const match=candidates.find(s=>s.skill_code===String(focus.skill_code||'')&&s.skill_name===String(focus.skill_name||''));if(!match)focus=null;else{const planCode=String(focus.plan_skill_code||match.parent_skill_code||''),plan=plans.find(s=>s.skill_code===planCode);focus={area:match.area,skill_code:match.skill_code,skill_name:match.skill_name,plan_skill_code:plan?.skill_code||null,plan_skill_name:plan?.skill_name||null,confidence:Math.max(0,Math.min(1,Number(focus.confidence)||conf)),reason:trim(focus.reason,300),official_reference:Boolean(match.official_reference)}}}
     const offerPlan=Boolean(final.offer_plan??first.offer_plan)&&Boolean(focus)&&focus.confidence>=0.68&&Boolean(final.resolved_doubt??first.resolved_doubt);
     fetch(`${cfg.url}/rest/v1/ai_tutor_usage`,{method:'POST',headers:{...baseHeaders,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({user_id:userId,exam_id:exam,has_image:image})}).catch(()=>{});
-    return json(res,200,{answer,educational:true,resolvedDoubt:Boolean(final.resolved_doubt??first.resolved_doubt),learningFocus:focus,offerPlan,needsBetterImage:Boolean(final.needs_better_image??first.needs_better_image),model:searchMode==='none'?MODEL:SEARCH_MODEL,searchMode,webVerified:searchMode==='google'&&sources.length>0,sources,costOptimized:true});
+    return json(res,200,{answer,educational:true,resolvedDoubt:Boolean(final.resolved_doubt??first.resolved_doubt),learningFocus:focus,offerPlan,needsBetterImage:Boolean(final.needs_better_image??first.needs_better_image),model:searchMode==='none'?MODEL:SEARCH_MODEL,searchMode,webVerified:searchMode==='google'&&sources.length>0,sources,costOptimized:true,dailyQuestionLimit:DAILY_QUESTION_LIMIT});
   }catch(error:any){console.error('education-tutor failed',error);return json(res,500,{error:'A IA encontrou uma falha inesperada. Tente novamente.'})}
 }
