@@ -6,27 +6,66 @@ import { supabase } from '@/lib/supabase';
 
 type Props={week:RoadmapWeek;examId:ExamId;formatDate:(iso:string)=>string;onOpenQuestions:(focus:string)=>void};
 
+function progressPlanKey(examId:ExamId,w:RoadmapWeek){
+  return `${examId}|${w.phase}|${w.focusKey}|${w.topic}|${w.hours}`
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase()
+    .replace(/[^a-z0-9|._-]+/g,'-')
+    .slice(0,220);
+}
+
 export default function WeeklyPlanExperience({week:w,examId,formatDate,onOpenQuestions}:Props){
   const[videoOpen,setVideoOpen]=useState(false);
   const[completed,setCompleted]=useState<string[]>([]);
   const[progressLoading,setProgressLoading]=useState(true);
   const[savingKey,setSavingKey]=useState<string|null>(null);
+  const[progressError,setProgressError]=useState('');
   const sessionKeys=useMemo(()=>w.sessionPlan.map(s=>s.label),[w.sessionPlan]);
+  const planKey=useMemo(()=>progressPlanKey(examId,w),[examId,w]);
   const doneCount=sessionKeys.filter(k=>completed.includes(k)).length;
   const pct=Math.round(doneCount/Math.max(1,sessionKeys.length)*100);
 
-  useEffect(()=>{let alive=true;(async()=>{setProgressLoading(true);try{if(!supabase)return;const{data:userData}=await supabase.auth.getUser();if(!userData.user)return;const{data}=await supabase.from('student_weekly_plan_progress').select('completed_sessions').eq('user_id',userData.user.id).eq('exam_id',examId).eq('week_start',w.start).maybeSingle();if(alive)setCompleted(Array.isArray(data?.completed_sessions)?data.completed_sessions:[])}finally{if(alive)setProgressLoading(false)}})();return()=>{alive=false}},[examId,w.start]);
+  useEffect(()=>{let alive=true;(async()=>{
+    setProgressLoading(true);setProgressError('');
+    try{
+      if(!supabase)return;
+      const{data:userData}=await supabase.auth.getUser();
+      if(!userData.user)return;
+      const{data,error}=await supabase.from('student_weekly_plan_progress')
+        .select('completed_sessions')
+        .eq('user_id',userData.user.id)
+        .eq('exam_id',examId)
+        .eq('plan_key',planKey)
+        .eq('week_start',w.start)
+        .maybeSingle();
+      if(error)throw error;
+      if(alive)setCompleted(Array.isArray(data?.completed_sessions)?data.completed_sessions:[]);
+    }catch{
+      if(alive){setCompleted([]);setProgressError('Não foi possível carregar o progresso desta semana.');}
+    }finally{if(alive)setProgressLoading(false)}
+  })();return()=>{alive=false}},[examId,planKey,w.start]);
 
   const toggleSession=async(key:string)=>{
     if(savingKey||!supabase)return;
     const previous=completed;
     const next=previous.includes(key)?previous.filter(x=>x!==key):[...previous,key];
-    setCompleted(next);setSavingKey(key);
+    setCompleted(next);setSavingKey(key);setProgressError('');
     try{
       const{data:userData}=await supabase.auth.getUser();if(!userData.user)throw new Error();
-      const{error}=await supabase.from('student_weekly_plan_progress').upsert({user_id:userData.user.id,exam_id:examId,week_start:w.start,completed_sessions:next,updated_at:new Date().toISOString()},{onConflict:'user_id,exam_id,week_start'});
+      const{error}=await supabase.from('student_weekly_plan_progress').upsert({
+        user_id:userData.user.id,
+        exam_id:examId,
+        plan_key:planKey,
+        week_start:w.start,
+        completed_sessions:next,
+        updated_at:new Date().toISOString(),
+      },{onConflict:'user_id,exam_id,plan_key,week_start'});
       if(error)throw error;
-    }catch{setCompleted(previous)}finally{setSavingKey(null)}
+    }catch{
+      setCompleted(previous);
+      setProgressError('Não foi possível salvar esta conclusão. Tente novamente.');
+    }finally{setSavingKey(null)}
   };
 
   return <section className="plan6-card span12">
@@ -39,6 +78,7 @@ export default function WeeklyPlanExperience({week:w,examId,formatDate,onOpenQue
       <div style={{display:'grid',gap:5,justifyItems:'end'}}><div className="plan6-statvalue">{w.hours}h exatas</div><div style={{fontSize:12,fontWeight:800,color:pct===100?'#9ee6b5':'#72a5ff'}}>{progressLoading?'Carregando progresso…':`${doneCount}/${sessionKeys.length} blocos concluídos`}</div></div>
     </div>
 
+    {progressError&&<div className="plan6-message" style={{marginTop:10}}>{progressError}</div>}
     <div style={{height:7,borderRadius:999,background:'#0b2349',overflow:'hidden',marginTop:14}} aria-label={`${pct}% da missão semanal concluída`}><div style={{height:'100%',width:`${pct}%`,background:pct===100?'#6ee7a0':'#72a5ff',transition:'width .25s ease'}}/></div>
     {pct===100&&<div className="plan6-message" style={{marginTop:10}}><b>Semana concluída.</b> Seu próximo resultado e seus erros vão recalibrar as prioridades seguintes.</div>}
 
