@@ -65,7 +65,7 @@ function parseAnswerSheet(raw: string, start: number, end: number) {
 }
 
 function examConfig(exam: ExamChoice) {
-  if (exam === 'cmmg-medicina') return { examId: 'cmmg', label: 'CMMG — Medicina', year: 2027, start: 1, end: 56, source: CMMG_MEDICINA_SOURCE };
+  if (exam === 'cmmg-medicina') return { examId: 'cmmg', label: 'CMMG — Medicina', year: 2027, start: 1, end: 60, source: CMMG_MEDICINA_SOURCE };
   if (exam === 'cmmg-effpo') return { examId: 'cmmg', label: 'CMMG — EFFPO', year: 2027, start: 1, end: 40, source: CMMG_EFFPO_SOURCE };
   return { examId: 'enem', label: 'ENEM', year: 2025, start: 1, end: 180, source: '' };
 }
@@ -80,7 +80,7 @@ function inferredArea(exam: ExamChoice, number: number) {
   if (exam === 'cmmg-effpo') {
     if (number <= 15) return 'Linguagens';
     if (number <= 30) return 'Biologia';
-    return 'Conhecimentos Gerais';
+    return 'Humanas';
   }
   if (number <= 8) return 'Língua Portuguesa';
   if (number <= 12) return 'Literatura';
@@ -128,10 +128,13 @@ export default function OfficialExamReviewV2() {
   const booklet = booklets.find((item) => item.id === bookletId) ?? null;
   const start = isEnem ? booklet?.question_start ?? 1 : config.start;
   const end = isEnem ? booklet?.question_end ?? 180 : config.end;
+  const expectedQuestions = end - start + 1;
   const recognizedAnswers = useMemo(() => parseAnswerSheet(answerRaw, start, end).size, [answerRaw, start, end]);
   const recognizedKey = useMemo(() => parseAnswerSheet(officialKeyRaw, start, end).size, [officialKeyRaw, start, end]);
   const wrongNumbers = useMemo(() => parseNumberList(wrongRaw, start, end), [wrongRaw, start, end]);
-  const needsManualKey = !isEnem || bookletKeyCoverage === 0;
+  const needsManualKey = !isEnem || (bookletKeyCoverage ?? 0) < expectedQuestions;
+  const answersComplete = recognizedAnswers === expectedQuestions;
+  const manualKeyComplete = recognizedKey === expectedQuestions;
 
   useEffect(() => {
     let active = true;
@@ -210,7 +213,7 @@ export default function OfficialExamReviewV2() {
     const { data, error } = await supabase.from('official_exam_item_booklet_map')
       .select('id,question_number,correct_option,answer_status,foreign_language,official_exam_items(id,area,subject,skill_code,skill_name,prompt_text,explanation)')
       .eq('booklet_id', bookletId).order('question_number');
-    if (error) throw error;
+    if (error) return manualMappings;
     const rows = (data ?? []) as unknown as Mapping[];
     const selected = new Map<number, Mapping>();
     rows.forEach((row) => {
@@ -231,6 +234,8 @@ export default function OfficialExamReviewV2() {
   const runAnalysis = async () => {
     setBusy(true); setAnalysis(null); setMessage(''); setReasons({});
     try {
+      if (mode === 'answers' && !answersComplete) throw new Error('answers_incomplete');
+      if (mode === 'answers' && needsManualKey && !manualKeyComplete) throw new Error('key_incomplete');
       const mappings = await loadMappings();
       const mappingByNumber = new Map(mappings.map((mapping) => [mapping.question_number, mapping]));
       const userAnswers = parseAnswerSheet(answerRaw, start, end);
@@ -245,7 +250,7 @@ export default function OfficialExamReviewV2() {
         const correctAnswer = mapping?.correct_option && ANSWERS.has(mapping.correct_option.toUpperCase()) ? cleanAnswer(mapping.correct_option.toUpperCase()) : null;
         const item = mapping?.official_exam_items ?? null;
         const area = item?.area || inferredArea(exam, number);
-        const subject = item?.subject || area;
+        const subject = item?.subject || (exam === 'cmmg-effpo' && area === 'Humanas' ? 'Conhecimentos Gerais' : area);
         const skill = item?.skill_name || subject;
         let status: ReviewRow['status'] = 'unmapped';
         if (mode === 'errors') status = 'wrong';
@@ -287,7 +292,9 @@ export default function OfficialExamReviewV2() {
       if (rows.some((row) => row.status === 'unmapped')) setMessage('Algumas questões não têm gabarito ou indexação suficiente. Elas aparecem como “sem correção” e não entram no percentual.');
     } catch (error) {
       const code = error instanceof Error ? error.message : '';
-      if (code === 'answers') setMessage('Cole suas respostas para iniciar a correção.');
+      if (code === 'answers_incomplete') setMessage(`Informe as ${expectedQuestions} respostas deste bloco. Use - nas questões deixadas em branco para evitar uma nota incorreta.`);
+      else if (code === 'key_incomplete') setMessage(`O gabarito está incompleto: reconheci ${recognizedKey} de ${expectedQuestions} respostas. Cole o gabarito inteiro antes de corrigir.`);
+      else if (code === 'answers') setMessage('Cole suas respostas para iniciar a correção.');
       else if (code === 'errors') setMessage('Informe pelo menos um número de questão errada.');
       else if (code === 'key') setMessage(isEnem ? 'O gabarito deste caderno ainda não está indexado.' : 'Cole também o gabarito oficial da CMMG.');
       else setMessage('Não foi possível corrigir agora. Confira os dados e tente novamente.');
@@ -308,7 +315,7 @@ export default function OfficialExamReviewV2() {
           confidence: row.item?.skill_name ? 1 : 0.65,
           error_type: reasons[row.number] ?? (row.status === 'blank' ? 'tempo' : 'conteudo'),
           error_detail: `Resposta ${row.userAnswer ?? 'não informada'} · gabarito ${row.correctAnswer ?? 'não indexado'}`,
-          diagnosis: { source: isEnem ? 'official_exam_review_v3' : 'manual_official_key_review_v3', question_number: row.number, skill_name: row.skill, subject: row.subject, year, exam_model: exam },
+          diagnosis: { source: isEnem ? 'official_exam_review_v4' : 'manual_official_key_review_v4', question_number: row.number, skill_name: row.skill, subject: row.subject, year, exam_model: exam },
         })));
         if (error) throw error;
       }
@@ -317,7 +324,7 @@ export default function OfficialExamReviewV2() {
         const { error } = await supabase.from('student_exam_attempts').insert(scoresToSave.map((score) => ({
           user_id: data.user!.id, exam_id: config.examId, exam_year: year, area: score.area,
           correct: score.correct, total: score.total, score: null, occurred_at: new Date().toISOString().slice(0, 10),
-          metadata: { source: 'exam_review_v3', exam_model: exam, raw_accuracy: Math.round(score.correct / Math.max(1, score.total) * 100) },
+          metadata: { source: 'exam_review_v4', exam_model: exam, raw_accuracy: Math.round(score.correct / Math.max(1, score.total) * 100), complete_sheet: true },
         })));
         if (error) throw error;
       }
@@ -349,25 +356,25 @@ export default function OfficialExamReviewV2() {
       </div>
 
       <div className="mt-6 grid gap-3 md:grid-cols-3">
-        <label className="text-xs font-bold text-[#b8cae4]">Prova<select value={exam} onChange={(event) => setExam(event.target.value as ExamChoice)} className="mt-1 w-full rounded-xl border border-[#234576] bg-[#081a38] p-3 text-white"><option value="enem">ENEM oficial</option><option value="cmmg-medicina">CMMG — Medicina (56 objetivas)</option><option value="cmmg-effpo">CMMG — EFFPO (40 objetivas)</option></select></label>
+        <label className="text-xs font-bold text-[#b8cae4]">Prova<select value={exam} onChange={(event) => setExam(event.target.value as ExamChoice)} className="mt-1 w-full rounded-xl border border-[#234576] bg-[#081a38] p-3 text-white"><option value="enem">ENEM oficial</option><option value="cmmg-medicina">CMMG — Medicina (60 objetivas)</option><option value="cmmg-effpo">CMMG — EFFPO (40 objetivas)</option></select></label>
         {isEnem ? <><label className="text-xs font-bold text-[#b8cae4]">Ano<select value={year} onChange={(event) => setYear(Number(event.target.value))} className="mt-1 w-full rounded-xl border border-[#234576] bg-[#081a38] p-3 text-white">{availableYears.map((item) => <option key={item}>{item}</option>)}</select></label><label className="text-xs font-bold text-[#b8cae4]">Aplicação<select value={editionId} onChange={(event) => setEditionId(event.target.value)} className="mt-1 w-full rounded-xl border border-[#234576] bg-[#081a38] p-3 text-white">{availableEditions.map((edition) => <option key={edition.id} value={edition.id}>{edition.application_label || edition.application}</option>)}</select></label></> : <label className="text-xs font-bold text-[#b8cae4]">Ano<input type="number" value={year} onChange={(event) => setYear(Number(event.target.value))} className="mt-1 w-full rounded-xl border border-[#234576] bg-[#081a38] p-3 text-white"/></label>}
       </div>
       {isEnem && <div className="mt-3 grid gap-3 md:grid-cols-2"><label className="text-xs font-bold text-[#b8cae4]">Dia e caderno<select value={bookletId} onChange={(event) => setBookletId(event.target.value)} className="mt-1 w-full rounded-xl border border-[#234576] bg-[#081a38] p-3 text-white">{booklets.length ? booklets.map((item) => <option key={item.id} value={item.id}>Dia {item.day} · {item.color} · caderno {item.booklet_code}</option>) : <option value="">Caderno ainda não indexado</option>}</select></label><label className="text-xs font-bold text-[#b8cae4]">Língua estrangeira<select value={language} onChange={(event) => setLanguage(event.target.value)} className="mt-1 w-full rounded-xl border border-[#234576] bg-[#081a38] p-3 text-white"><option value="ingles">Inglês</option><option value="espanhol">Espanhol</option></select></label></div>}
 
-      {isEnem && bookletId && <div className={`mt-3 rounded-xl border p-3 text-sm ${bookletKeyCoverage ? 'border-emerald-300/25 bg-emerald-300/[.06] text-emerald-100' : 'border-amber-300/25 bg-amber-300/[.06] text-amber-100'}`}>
-        {checkingKey ? 'Verificando o gabarito deste caderno…' : bookletKeyCoverage
-          ? `Gabarito automático disponível para ${bookletKeyCoverage} questão(ões).`
-          : 'Este caderno ainda não tem gabarito automático. Abra a fonte oficial abaixo e cole o gabarito para fazer a correção completa agora.'}
+      {isEnem && bookletId && <div className={`mt-3 rounded-xl border p-3 text-sm ${!needsManualKey ? 'border-emerald-300/25 bg-emerald-300/[.06] text-emerald-100' : 'border-amber-300/25 bg-amber-300/[.06] text-amber-100'}`}>
+        {checkingKey ? 'Verificando o gabarito deste caderno…' : !needsManualKey
+          ? `Gabarito automático com cobertura suficiente (${bookletKeyCoverage} registro(s) para ${expectedQuestions} questões).`
+          : `O gabarito automático está incompleto (${bookletKeyCoverage ?? 0}/${expectedQuestions}). Cole o gabarito oficial completo abaixo para evitar correção parcial.`}
       </div>}
 
       <div className="mt-6 flex flex-wrap gap-2">{([['answers', 'Tenho minhas respostas'], ['errors', 'Só sei quais errei']] as [ReviewMode, string][]).map(([value, label]) => <button key={value} onClick={() => setMode(value)} className={`rounded-xl border px-4 py-2.5 text-sm font-extrabold ${mode === value ? 'border-[#72a5ff] bg-[#246cff] text-white' : 'border-[#234576] bg-[#081a38] text-[#b8cae4]'}`}>{label}</button>)}</div>
 
       {mode === 'answers' ? <div className={`mt-4 grid gap-4 ${needsManualKey ? 'lg:grid-cols-2' : ''}`}>
-        {needsManualKey && <label className="text-xs font-bold text-[#b8cae4]">Gabarito oficial<textarea value={officialKeyRaw} onChange={(event) => setOfficialKeyRaw(event.target.value)} className="mt-2 min-h-[128px] w-full rounded-xl border border-[#234576] bg-[#081a38] p-3 text-white" placeholder="Cole a sequência oficial: ABCDE... ou 1-A, 2-C, 3-B... Use - para anulada."/><span className="mt-1 block font-normal text-[#839ab9]">{recognizedKey}/{end - start + 1} respostas do gabarito reconhecidas</span></label>}
-        <label className="text-xs font-bold text-[#b8cae4]">Suas respostas<textarea value={answerRaw} onChange={(event) => setAnswerRaw(event.target.value)} className="mt-2 min-h-[128px] w-full rounded-xl border border-[#234576] bg-[#081a38] p-3 text-white" placeholder="Cole a sequência: ABCDE... ou 1-A, 2-C, 3-B... Use - para branco."/><span className="mt-1 block font-normal text-[#839ab9]">{recognizedAnswers}/{end - start + 1} respostas reconhecidas · questões {start}–{end}</span></label>
+        {needsManualKey && <label className="text-xs font-bold text-[#b8cae4]">Gabarito oficial<textarea value={officialKeyRaw} onChange={(event) => setOfficialKeyRaw(event.target.value)} className="mt-2 min-h-[128px] w-full rounded-xl border border-[#234576] bg-[#081a38] p-3 text-white" placeholder="Cole a sequência oficial completa: ABCDE... ou 1-A, 2-C, 3-B... Use - para anulada."/><span className={`mt-1 block font-normal ${manualKeyComplete ? 'text-emerald-300' : 'text-[#839ab9]'}`}>{recognizedKey}/{expectedQuestions} respostas do gabarito reconhecidas</span></label>}
+        <label className="text-xs font-bold text-[#b8cae4]">Suas respostas<textarea value={answerRaw} onChange={(event) => setAnswerRaw(event.target.value)} className="mt-2 min-h-[128px] w-full rounded-xl border border-[#234576] bg-[#081a38] p-3 text-white" placeholder="Cole a sequência completa. Use - para questão deixada em branco."/><span className={`mt-1 block font-normal ${answersComplete ? 'text-emerald-300' : 'text-[#839ab9]'}`}>{recognizedAnswers}/{expectedQuestions} respostas reconhecidas · questões {start}–{end}</span></label>
       </div> : <label className="mt-4 block text-xs font-bold text-[#b8cae4]">Questões erradas<textarea value={wrongRaw} onChange={(event) => setWrongRaw(event.target.value)} className="mt-2 min-h-[100px] w-full rounded-xl border border-[#234576] bg-[#081a38] p-3 text-white" placeholder="Ex.: 12, 37, 84, 102 ou 90-95"/><span className="mt-1 block font-normal text-[#839ab9]">{wrongNumbers.length} número(s) reconhecido(s)</span></label>}
 
-      <div className="mt-4 flex flex-wrap gap-2"><button onClick={runAnalysis} disabled={busy || checkingKey || (isEnem && !bookletId) || (mode === 'answers' && (!recognizedAnswers || (needsManualKey && !recognizedKey)))} className="inline-flex items-center gap-2 rounded-xl bg-[#246cff] px-5 py-3 text-sm font-extrabold disabled:opacity-40">{busy ? <Loader2 size={16} className="animate-spin"/> : <ClipboardCheck size={16}/>}Corrigir agora</button>{officialSource && <a href={officialSource} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-[#234576] px-4 py-3 text-sm font-bold">Abrir prova/manual oficial <ExternalLink size={15}/></a>}{officialKeySource && <a href={officialKeySource} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-[#234576] px-4 py-3 text-sm font-bold">Conferir fonte do gabarito <ExternalLink size={15}/></a>}</div>
+      <div className="mt-4 flex flex-wrap gap-2"><button onClick={runAnalysis} disabled={busy || checkingKey || (isEnem && !bookletId) || (mode === 'answers' && (!answersComplete || (needsManualKey && !manualKeyComplete)))} className="inline-flex items-center gap-2 rounded-xl bg-[#246cff] px-5 py-3 text-sm font-extrabold disabled:opacity-40">{busy ? <Loader2 size={16} className="animate-spin"/> : <ClipboardCheck size={16}/>}Corrigir agora</button>{officialSource && <a href={officialSource} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-[#234576] px-4 py-3 text-sm font-bold">Abrir prova/manual oficial <ExternalLink size={15}/></a>}{officialKeySource && <a href={officialKeySource} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-[#234576] px-4 py-3 text-sm font-bold">Conferir fonte do gabarito <ExternalLink size={15}/></a>}</div>
       {message && <div className="mt-4 flex gap-2 rounded-xl border border-[#234576] bg-[#081a38] p-3 text-sm text-[#b8cae4]"><AlertCircle size={17} className="shrink-0 text-[#72a5ff]"/>{message}</div>}
 
       {analysis && <div className="mt-7 border-t border-[#173765] pt-6">

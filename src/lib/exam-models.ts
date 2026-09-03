@@ -134,7 +134,7 @@ export function getExamModel(university: string, course: string): ExamModel {
     return {
       examId,
       title: 'Vestibular Medicina Ciências Médicas-MG',
-      structure: '56 questões objetivas: Português 8, Literatura 4, Inglês 12, Biologia 14, Física 4, Química 8 e Matemática 10, mais uma redação de 80 pontos.',
+      structure: '60 questões objetivas: Português 8, Literatura 4, Inglês 12, Biologia 14, Física 4, Química 8 e Matemática 10, mais uma redação de 80 pontos.',
       metrics: CMMG_MEDICINA_METRICS,
       allowedQuestionAreas: ['Língua Portuguesa', 'Literatura', 'Inglês', 'Linguagens', 'Biologia', 'Física', 'Química', 'Matemática', 'Redação'],
       officialSource: 'https://vestibular.cmmg.edu.br/wp-content/uploads/2026/07/Manual-do-Candidato-Medicina-1_2027.pdf',
