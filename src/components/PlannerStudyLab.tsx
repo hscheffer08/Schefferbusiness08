@@ -51,6 +51,7 @@ type Skill = {
 };
 
 type Attempt = {
+  question_id: number | null;
   exam_id: ExamId;
   area: string;
   skill_name: string | null;
@@ -124,6 +125,7 @@ export default function PlannerStudyLab() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
   const [attempts, setAttempts] = useState<Attempt[]>([]);
+  const [seenQuestionIds, setSeenQuestionIds] = useState<number[]>([]);
 
   const [subject, setSubject] = useState('Todas');
   const [difficulty, setDifficulty] = useState('Todas');
@@ -190,13 +192,24 @@ export default function PlannerStudyLab() {
       setSkills((s ?? []) as Skill[]);
 
       if (userData.user) {
-        const { data: a } = await supabase
-          .from('student_practice_attempts')
-          .select('exam_id,area,skill_name,correct,created_at')
-          .eq('user_id', userData.user.id)
-          .order('created_at', { ascending: false })
-          .limit(500);
-        if (alive) setAttempts((a ?? []) as Attempt[]);
+        const [{ data: a }, { data: seen }] = await Promise.all([
+          supabase
+            .from('student_practice_attempts')
+            .select('question_id,exam_id,area,skill_name,correct,created_at')
+            .eq('user_id', userData.user.id)
+            .order('created_at', { ascending: false })
+            .limit(1000),
+          supabase
+            .from('student_seen_questions')
+            .select('question_id')
+            .eq('user_id', userData.user.id)
+            .order('first_seen_at', { ascending: false })
+            .limit(1000),
+        ]);
+        if (alive) {
+          setAttempts((a ?? []) as Attempt[]);
+          setSeenQuestionIds((seen ?? []).map((row) => Number(row.question_id)).filter(Number.isFinite));
+        }
       }
     })();
     return () => { alive = false; };
@@ -221,9 +234,10 @@ export default function PlannerStudyLab() {
     () => ['Todas', ...Array.from(new Set(examQuestions.map((q) => q.area))).sort((a, b) => a.localeCompare(b, 'pt-BR'))],
     [examQuestions],
   );
+  const seenQuestionSet = useMemo(() => new Set(seenQuestionIds), [seenQuestionIds]);
   const filtered = useMemo(
-    () => examQuestions.filter((q) => (subject === 'Todas' || q.area === subject) && (difficulty === 'Todas' || String(q.difficulty) === difficulty)),
-    [examQuestions, subject, difficulty],
+    () => examQuestions.filter((q) => !seenQuestionSet.has(q.id) && (subject === 'Todas' || q.area === subject) && (difficulty === 'Todas' || String(q.difficulty) === difficulty)),
+    [examQuestions, seenQuestionSet, subject, difficulty],
   );
 
   const pageSize = 24;
@@ -239,7 +253,24 @@ export default function PlannerStudyLab() {
     };
   }), [subjects, attempts, examId, examQuestions]);
 
+  const markQuestionSeen = async (questionId: number) => {
+    setSeenQuestionIds((current) => current.includes(questionId) ? current : [...current, questionId]);
+    if (!supabase) return;
+
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) return;
+
+    const { error } = await supabase
+      .from('student_seen_questions')
+      .upsert(
+        { user_id: userData.user.id, question_id: questionId },
+        { onConflict: 'user_id,question_id', ignoreDuplicates: true },
+      );
+    if (error) console.error('Could not persist seen question', error);
+  };
+
   const openQuestion = (question: Question) => {
+    void markQuestionSeen(question.id);
     setActive(question);
     setSelected('');
     setResult(null);
@@ -274,7 +305,8 @@ export default function PlannerStudyLab() {
       .maybeSingle();
 
     setLastAttemptId(inserted?.id ?? null);
-    setAttempts((current) => [{ exam_id: active.exam_id, area: active.area, skill_name: active.skill_name, correct, created_at: new Date().toISOString() }, ...current]);
+    setAttempts((current) => [{ question_id: active.id, exam_id: active.exam_id, area: active.area, skill_name: active.skill_name, correct, created_at: new Date().toISOString() }, ...current]);
+    await markQuestionSeen(active.id);
   };
 
   const saveQuestionError = async (reason: ErrorReason) => {
@@ -292,7 +324,7 @@ export default function PlannerStudyLab() {
   };
 
   const nextQuestion = () => {
-    const pool = filtered.filter((q) => q.id !== active?.id);
+    const pool = filtered.filter((q) => q.id !== active?.id && !seenQuestionSet.has(q.id));
     if (!pool.length) {
       setActive(null);
       return;
@@ -449,7 +481,7 @@ export default function PlannerStudyLab() {
       <div className="study-lab-toolbar">
         <div>
           <strong>Escolha a matéria</strong>
-          <span>{filtered.length} questão{filtered.length === 1 ? '' : 'ões'} neste filtro</span>
+          <span>{filtered.length} questão{filtered.length === 1 ? '' : 'ões'} inédita{filtered.length === 1 ? '' : 's'} neste filtro</span>
         </div>
         <div className="study-lab-selects">
           <select value={subject} onChange={(event) => setSubject(event.target.value)}>
@@ -473,6 +505,13 @@ export default function PlannerStudyLab() {
       </div>
 
       <div className="study-lab-grid">
+        {visible.length === 0 && (
+          <div className="study-lab-empty">
+            <CheckCircle2 size={20}/>
+            <strong>Você já viu todas as questões deste filtro.</strong>
+            <p>Troque a matéria ou a dificuldade. O Conectaê não vai repetir uma questão já vista nesta conta.</p>
+          </div>
+        )}
         {visible.map((question) => (
           <button key={question.id} onClick={() => openQuestion(question)}>
             <span>{question.area} · nível {question.difficulty}/5</span>
