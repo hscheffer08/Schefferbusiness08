@@ -17,7 +17,7 @@ function cleanJson(raw:string){const value=raw.trim().replace(/^```json\s*/i,'')
 async function supabaseJson(url:string,headers:Record<string,string>){const response=await fetch(url,{headers,signal:AbortSignal.timeout(10000)});return response}
 
 export default async function handler(req:any,res:any){
-  if(req.method==='GET')return json(res,200,{ok:true,service:'IA Conectaê',authMode:'vercel-ai-gateway-oidc'});
+  if(req.method==='GET')return json(res,200,{ok:true,service:'IA Conectaê',authMode:'vercel-ai-gateway-oidc',model:'openai/gpt-5.4-mini'});
   if(req.method!=='POST')return json(res,405,{error:'Método não permitido.'});
   try{
     const auth=String(req.headers.authorization||'');
@@ -41,7 +41,6 @@ export default async function handler(req:any,res:any){
     const c=context&&typeof context==='object'?context:{};
     const exam=trim(c.exam||'enem',80).toLowerCase();
 
-    // Guardrails de lançamento: 12 req/min e 120 req/dia por usuário.
     try{
       const minuteAgo=new Date(Date.now()-60_000).toISOString();
       const dayAgo=new Date(Date.now()-86_400_000).toISOString();
@@ -90,14 +89,11 @@ Retorne APENAS JSON válido neste formato:
     });
 
     let raw='';let lastError:any=null;
-    for(const model of ['openai/gpt-5.6-sol','openai/gpt-5.5']){
-      try{
-        const result=await generateText({model,system,messages:modelMessages,maxOutputTokens:3800,abortSignal:AbortSignal.timeout(55000),providerOptions:{gateway:{user:userId,tags:['feature:education-tutor',`exam:${exam}`]}}} as any);
-        raw=String(result.text||'').trim();
-        if(raw)break;
-      }catch(error:any){lastError=error;console.error('tutor model failed',model,error?.statusCode||'',error?.message||error)}
-    }
-    if(!raw){const status=Number(lastError?.statusCode||0);if(status===429)return json(res,429,{error:'A IA está com muitas solicitações agora. Aguarde um instante e tente novamente.'});if(status===401||status===403)return json(res,503,{error:'A IA Conectaê está sendo ativada no servidor. Tente novamente em alguns minutos.'});return json(res,502,{error:'Não foi possível gerar a resposta agora. Tente novamente; sua conversa foi preservada.'})}
+    try{
+      const result=await generateText({model:'openai/gpt-5.4-mini',system,messages:modelMessages,maxOutputTokens:3000,abortSignal:AbortSignal.timeout(55000),providerOptions:{gateway:{user:userId,tags:['feature:education-tutor',`exam:${exam}`]}}} as any);
+      raw=String(result.text||'').trim();
+    }catch(error:any){lastError=error;console.error('tutor model failed','openai/gpt-5.4-mini',error?.statusCode||'',error?.message||error)}
+    if(!raw){const status=Number(lastError?.statusCode||0);if(status===429)return json(res,429,{error:'A IA está com muitas solicitações agora. Aguarde um instante e tente novamente.'});if(status===401||status===403)return json(res,503,{error:'A IA Conectaê está temporariamente indisponível no provedor. Tente novamente em alguns minutos.'});return json(res,502,{error:'Não foi possível gerar a resposta agora. Tente novamente; sua conversa foi preservada.'})}
 
     const parsed=cleanJson(raw);const answer=trim(parsed.answer,14000).trim();
     if(!answer)return json(res,502,{error:'A resposta ficou incompleta. Tente novamente.'});
@@ -106,6 +102,6 @@ Retorne APENAS JSON válido neste formato:
     const offerPlan=Boolean(parsed.offer_plan)&&Boolean(focus)&&focus.confidence>=0.68&&Boolean(parsed.resolved_doubt);
 
     fetch(`${supabaseUrl}/rest/v1/ai_tutor_usage`,{method:'POST',headers:{...baseHeaders,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({user_id:userId,exam_id:exam,has_image:Boolean(imageDataUrl)})}).catch(()=>{});
-    return json(res,200,{answer,educational:Boolean(parsed.educational),resolvedDoubt:Boolean(parsed.resolved_doubt),learningFocus:focus,offerPlan,needsBetterImage:Boolean(parsed.needs_better_image),referenceCoverage:allowedReference.length});
+    return json(res,200,{answer,educational:Boolean(parsed.educational),resolvedDoubt:Boolean(parsed.resolved_doubt),learningFocus:focus,offerPlan,needsBetterImage:Boolean(parsed.needs_better_image),referenceCoverage:allowedReference.length,model:'openai/gpt-5.4-mini'});
   }catch(error:any){console.error('education-tutor failed',error);return json(res,500,{error:'A IA encontrou uma falha inesperada. Tente novamente; nenhuma alteração foi feita no seu plano.'})}
 }
