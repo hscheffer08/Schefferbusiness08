@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BarChart3, BookOpenCheck, Camera, ClipboardCheck, FileText, Loader2, LockKeyhole, LogIn, LogOut, ScanLine, Target, UserCheck } from 'lucide-react';
 import Auth from '@/components/Auth';
 import AdmissionsPlannerV11 from '@/components/AdmissionsPlannerV11';
@@ -16,6 +16,15 @@ function Gate({ onBack }: { onBack: () => void }) {
   const { user, loading } = useAuth();
   const [accessConfirmed, setAccessConfirmed] = useState(false);
   const [switchingAccount, setSwitchingAccount] = useState(false);
+
+  useEffect(()=>{
+    if(!accessConfirmed)return;
+    const timer=window.setTimeout(()=>{
+      const buttons=Array.from(document.querySelectorAll<HTMLButtonElement>('#curso-inicio .plan6-tab'));
+      buttons.find(button=>button.textContent?.trim()==='Plano')?.click();
+    },120);
+    return()=>window.clearTimeout(timer);
+  },[accessConfirmed]);
 
   if (loading) {
     return <div className="min-h-screen bg-[#020817] flex items-center justify-center text-[#72a5ff]"><Loader2 className="w-8 h-8 animate-spin" /></div>;
@@ -59,7 +68,14 @@ function Gate({ onBack }: { onBack: () => void }) {
     </div>;
   }
 
-  const jump = (id:string) => document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'});
+  const openPlanTab=()=>{
+    const buttons=Array.from(document.querySelectorAll<HTMLButtonElement>('#curso-inicio .plan6-tab'));
+    buttons.find(button=>button.textContent?.trim()==='Plano')?.click();
+  };
+  const jump = (id:string) => {
+    if(id==='curso-inicio')openPlanTab();
+    document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'});
+  };
   const navItems = [
     ['curso-inicio', 'Meu plano', Target],
     ['curso-metas', 'Metas', BarChart3],
