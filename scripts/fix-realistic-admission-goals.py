@@ -98,16 +98,16 @@ new = """  const activeCutoff=useMemo(()=>{
       .sort((a,b)=>b.year-a.year||Number(b.target_value)-Number(a.target_value))[0]??null;
   },[cutoffs,university,model.examId,course]);
   const dataGoals=useMemo<Record<string,number>>(()=>{
-    if(!activeCutoff)return{};
-    if(model.examId==='enem')return enemGoalsFromCutoff(Number(activeCutoff.target_value));
+    const goals:Record<string,number>={};
+    if(!activeCutoff)return goals;
+    if(model.examId==='enem')return {...goals,...enemGoalsFromCutoff(Number(activeCutoff.target_value))};
     if(model.examId==='fuvest'){
       const first=metrics.find(m=>m.key==='1ª fase');
-      if(!first)return{};
+      if(!first)return goals;
       const historicalMax=Number(activeCutoff.max_value||90);
-      const normalized=Math.ceil(Number(activeCutoff.target_value)/Math.max(1,historicalMax)*first.max);
-      return{'1ª fase':normalized};
+      goals['1ª fase']=Math.ceil(Number(activeCutoff.target_value)/Math.max(1,historicalMax)*first.max);
     }
-    return{};
+    return goals;
   },[activeCutoff,model.examId,metrics]);
 
   const diagnosis:Priority[]=useMemo(()=>metrics.map(metric=>{
