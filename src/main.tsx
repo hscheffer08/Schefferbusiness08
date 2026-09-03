@@ -7,6 +7,7 @@ import './lib/balanced-area-results.css';
 
 const App = lazy(() => import('./App.tsx'));
 const AdmissionsPlannerGate = lazy(() => import('./components/AdmissionsPlannerGate.tsx'));
+const PlannerDefaultTabMount = lazy(() => import('./lib/planner-default-tab-mount.tsx'));
 const AdmissionsPlannerEntryMount = lazy(() => import('./lib/admissions-planner-entry-mount.tsx'));
 const UsCountryMarker = lazy(() => import('./lib/us-country-marker.tsx'));
 const UsEnglishMode = lazy(() => import('./lib/us-english-mode.tsx'));
@@ -65,7 +66,10 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Suspense fallback={loadingFallback}>
       {plannerOpen ? (
-        <AdmissionsPlannerGate onBack={closePlanner} />
+        <>
+          <AdmissionsPlannerGate onBack={closePlanner} />
+          <PlannerDefaultTabMount />
+        </>
       ) : experienceMode === 'faculdades' || experienceMode === 'descoberta' ? (
         <DiscoveryHub
           onBack={() => navigateExperience(null)}
