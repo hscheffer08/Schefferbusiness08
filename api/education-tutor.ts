@@ -109,7 +109,7 @@ Em finanças: receita = preço × quantidade; lucro = receita − custo/investim
 Em genética probabilística, se o evento pedido inclui sexo E herança E manifestação, inclua todos os fatores pertinentes; não confunda penetrância condicionada ao sexo com probabilidade total de um descendente aleatório.
 
 PESQUISA E VERIFICAÇÃO EXTERNA
-Quando esta requisição representar uma QUESTÃO de prova/exercício, uma busca externa deve ocorrer antes da conclusão. Procure uma frase distintiva do enunciado, acrescentando banca, ano, número ou tema quando visíveis. A busca serve para localizar a questão original, gabarito ou fonte confiável.
+Quando esta requisição representar uma QUESTÃO de prova/exercício, use obrigatoriamente o Google Search disponível antes da conclusão. Procure uma frase distintiva do enunciado, acrescentando banca, ano, número ou tema quando visíveis. A busca serve para localizar a questão original, gabarito ou fonte confiável.
 Mesmo após encontrar um resultado, RESOLVA A QUESTÃO POR CONTA PRÓPRIA. Só marque web_verified=true quando a fonte corresponder ao mesmo enunciado/prova e a evidência externa for coerente com a sua solução. Se houver conflito, não copie a internet: explique a divergência e priorize a fonte oficial quando for claramente o gabarito da mesma prova; caso contrário mantenha a resolução justificada e sinalize incerteza.
 Prioridade de fontes: banca/universidade/órgão oficial > documento oficial > material didático institucional > resolução educacional reconhecida > demais páginas.
 Nunca invente fonte, título, URL ou gabarito. Se a busca não localizar a questão exata, web_verified=false e você resolve independentemente.
@@ -138,17 +138,21 @@ Retorne APENAS JSON válido neste formato: {"answer":"resposta completa","educat
       try{
         const result=await generateText({
           model:GOOGLE_GROUNDED_MODEL,
-          system,
+          system:system+'\nPara esta requisição, execute uma pesquisa no Google antes de redigir o JSON final. Não finalize sem consultar o Google Search.',
           messages:modelMessages,
           maxOutputTokens:4300,
           abortSignal:AbortSignal.timeout(55000),
           tools:{google_search:google.tools.googleSearch({})},
-          toolChoice:'required',
           providerOptions:{gateway:{user:userId,tags:['feature:education-tutor',`exam:${exam}`,'question','google-grounded']}}
         } as any);
-        raw=String(result.text||'').trim();
-        groundedSources=sourceList((result as any).sources);
-        searchMode='google';actualModel=GOOGLE_GROUNDED_MODEL;
+        const candidateSources=sourceList((result as any).sources);
+        if(candidateSources.length>0){
+          raw=String(result.text||'').trim();
+          groundedSources=candidateSources;
+          searchMode='google';actualModel=GOOGLE_GROUNDED_MODEL;
+        }else{
+          console.warn('google grounding returned no sources; refusing to label as google-grounded');
+        }
       }catch(error:any){
         lastError=error;
         console.warn('google-grounded tutor failed',error?.statusCode||'',error?.message||error);
@@ -158,7 +162,7 @@ Retorne APENAS JSON válido neste formato: {"answer":"resposta completa","educat
         try{
           const result=await generateText({
             model:MODEL,
-            system:system+'\nA tentativa de Google Search não ficou disponível nesta requisição. Use a busca web alternativa obrigatoriamente antes de concluir e NÃO diga que pesquisou no Google.',
+            system:system+'\nO Google Search foi tentado mas não retornou grounding utilizável nesta requisição. Use a busca web alternativa obrigatoriamente antes de concluir e NÃO diga que pesquisou no Google.',
             messages:modelMessages,
             maxOutputTokens:4200,
             abortSignal:AbortSignal.timeout(55000),
