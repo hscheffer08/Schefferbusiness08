@@ -106,6 +106,17 @@ const FUVEST_SECOND_PHASE: Record<string, string[]> = {
 
 const CMMG_EFFPO_COURSES = ['Enfermagem', 'Fisioterapia', 'Fonoaudiologia', 'Odontologia', 'Psicologia'];
 
+const UFMG_VERIFIED_COURSES = new Set([
+  'Administração', 'Agronomia', 'Arquitetura e Urbanismo', 'Biomedicina', 'Ciência da Computação',
+  'Ciências Biológicas', 'Ciências Contábeis', 'Ciências Econômicas', 'Design', 'Direito',
+  'Educação Física', 'Enfermagem', 'Engenharia Ambiental', 'Engenharia Civil', 'Engenharia de Alimentos',
+  'Engenharia de Computação', 'Engenharia de Produção', 'Engenharia Elétrica', 'Engenharia Mecânica',
+  'Engenharia Química', 'Farmácia', 'Física', 'Fisioterapia', 'Fonoaudiologia', 'Geografia', 'História',
+  'Jornalismo', 'Letras', 'Matemática', 'Medicina', 'Medicina Veterinária', 'Nutrição', 'Odontologia',
+  'Pedagogia', 'Psicologia', 'Publicidade e Propaganda', 'Química', 'Relações Públicas',
+  'Sistemas de Informação', 'Terapia Ocupacional',
+]);
+
 export const supportedFuvestCourse = (course: string) => Boolean(FUVEST_SECOND_PHASE[course]);
 
 export function getExamId(university: string): ExamId {
@@ -199,7 +210,7 @@ export function getExamModel(university: string, course: string): ExamModel {
 }
 
 export function isSupportedInstitutionCourse(university: string, course: string) {
-  if (university === 'UFMG') return true;
+  if (university === 'UFMG') return UFMG_VERIFIED_COURSES.has(course);
   if (university === 'USP') return supportedFuvestCourse(course);
   if (university === 'Faculdade Ciências Médicas de Minas Gerais') return course === 'Medicina' || CMMG_EFFPO_COURSES.includes(course);
   if (university === 'Link School of Business') return course === 'Administração';

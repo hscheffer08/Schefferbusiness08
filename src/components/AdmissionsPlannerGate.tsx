@@ -7,6 +7,7 @@ import PlannerStudyLabV2 from '@/components/PlannerStudyLabV2';
 import EssayPractice from '@/components/EssayPractice';
 import EnemVisualPractice from '@/components/EnemVisualPractice';
 import OfficialExamReviewV2 from '@/components/OfficialExamReviewV2';
+import CourseDataProof from '@/components/CourseDataProof';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
 import './admissions-planner-v8.css';
@@ -78,6 +79,8 @@ function Gate({ onBack }: { onBack: () => void }) {
         <button type="button" onClick={signOut} className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-[#234576] bg-[#071a38] px-3 py-2 text-xs font-bold text-white hover:bg-[#0c2857]" aria-label="Sair da conta"><LogOut className="w-4 h-4" /><span className="hidden md:inline">Sair</span></button>
       </div>
     </div>
+
+    <CourseDataProof compact />
 
     <div className="fixed bottom-[76px] right-3 z-[85] flex flex-col gap-2 md:bottom-5 md:right-5">
       <button type="button" onClick={()=>jump('correcao-simulado')} className="inline-flex items-center gap-2 rounded-xl border border-[#31588e] bg-[#0b2856]/95 px-3 py-3 text-xs font-extrabold text-white shadow-xl backdrop-blur"><ClipboardCheck size={16}/>Corrigir simulado</button>

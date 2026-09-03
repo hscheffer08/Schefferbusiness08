@@ -1,0 +1,29 @@
+name: Premium product pass
+on:
+  push:
+    paths:
+      - 'scripts/premium-product-pass.trigger'
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Integrate premium product layer
+        run: python scripts/premium-product-pass.py
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate production build
+        run: npm run build
+      - name: Lint premium files
+        run: npx eslint src/components/CourseDataProof.tsx src/components/CourseHome.tsx src/components/AdmissionsPlannerGate.tsx src/lib/exam-models.ts
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+      - name: Commit changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/components/CourseHome.tsx src/components/AdmissionsPlannerGate.tsx src/lib/exam-models.ts
+          git commit -m 'Surface verified intelligence across Course' || exit 0
+          git push
