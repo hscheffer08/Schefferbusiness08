@@ -11,7 +11,7 @@ type PlanSkill={area:string;skill_code:string;skill_name:string;diagnostic_tags?
 const MODEL='openai/gpt-5.4-mini';
 const SEARCH_MODEL='google/gemini-2.5-flash-lite';
 const FALLBACK_SUPABASE_URL='https://kmognvgnfisdchzffkgh.supabase.co';
-const FALLBACK_SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInR5cCI6IkpXVCJ9'.slice(0,0);
+const FALLBACK_SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
 
 function cleanEnv(v:unknown){return String(v??'').trim().replace(/^["']|["']$/g,'')}
 function validUrl(v:string){try{return Boolean(v)&&/\.supabase\.co$/i.test(new URL(v.startsWith('http')?v:`https://${v}`).hostname)}catch{return false}}
