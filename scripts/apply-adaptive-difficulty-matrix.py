@@ -16,6 +16,7 @@ rep="      {tab==='plano'&&<div className=\"plan6-grid\">\n        <DifficultyPr
 s=s.replace(needle,rep)
 s=s.replace("Esse cronograma usa apenas as notas que você salvou. Novas dificuldades enviadas pelo scanner entram abaixo como <b>extras</b>, sem apagar a estrutura principal.", "O cronograma combina notas salvas, tempo disponível, dificuldades que você marcou, erros em questões e diagnósticos enviados por foto. Tudo é redistribuído dentro das mesmas horas semanais.")
 s=s.replace("<h2>Notas + erros + tempo.</h2><p>As notas salvas definem a estrutura semanal. Seus erros e diagnósticos entram como recuperação extra.</p>", "<h2>Notas + dificuldades + erros + tempo.</h2><p>O plano cruza desempenho, tópicos marcados por você, questões erradas e diagnósticos de fotos. Nenhuma dificuldade adiciona horas escondidas: o mesmo orçamento semanal é redistribuído.</p>")
+s=s.replace("<p>Cada diagnóstico recente adiciona uma recuperação extra; ele não substitui a semana principal.</p>", "<p>Cada diagnóstico recente influencia a prioridade e o tema das próximas semanas. A recuperação abaixo mostra o que foi detectado, sem criar horas fora do seu orçamento semanal.</p>")
 p.write_text(s)
 
 r=Path('src/lib/admissions-roadmap.ts')
@@ -28,8 +29,9 @@ t=t.replace("const p=choosePriority(candidates,i+1);if(!p)continue;const baseKey
 old="const topic=pool[Math.floor(i/Math.max(1,candidates.length))%pool.length];const relevant=questions.filter(q=>matchArea(q.area,baseKey));"
 new="const manual=difficultyFor(baseKey);const scans=diagnosticFor(baseKey);const manualTopic=manual.length?manual[i%Math.min(manual.length,4)]?.topic:null;const scanTopic=scans.length?scans[i%scans.length]?.skill:null;const topic=manualTopic||scanTopic||pool[Math.floor(i/Math.max(1,candidates.length))%pool.length];const relevant=questions.filter(q=>matchArea(q.area,baseKey));"
 t=t.replace(old,new)
-old2="const rationale=`${p.metric.label} foi priorizada porque faltam ${p.missing} ${p.metric.unit==='acertos'?'acertos':'pontos'} para a meta${p.accuracy!=null?` e seu desempenho recente está em ${Math.round(p.accuracy*100)}%`:''}.`;"
-new2="const rationale=`${p.metric.label} foi priorizada porque faltam ${p.missing} ${p.metric.unit==='acertos'?'acertos':'pontos'} para a meta${p.accuracy!=null?` e seu desempenho recente está em ${Math.round(p.accuracy*100)}%`:''}${manualTopic?'; você marcou este tópico como dificuldade':''}${scanTopic&&!manualTopic?'; um diagnóstico recente também apontou dificuldade aqui':''}.`;"
-t=t.replace(old2,new2)
+old_r="const rationale=p.metric.unit==='acertos'?`Você está em ${p.current}/${p.metric.max}, com meta ${p.goal}. Como faltam ${p.missing} acertos e há ${accuracyText}, esta área recebe prioridade proporcional — sem aumentar suas ${weeklyHours}h semanais.`:`Seu resultado atual é ${p.current}/${p.metric.max}, meta ${p.goal}; ${accuracyText}. Esta semana concentra prática aqui sem ultrapassar seu tempo disponível.`;"
+new_r="const adaptationReason=manualTopic?` Você marcou ${manualTopic} como dificuldade, então esse tópico recebeu peso adicional.`:scanTopic?` Um diagnóstico recente apontou ${scanTopic}, então esse ponto entrou diretamente no foco.`:'';const rationale=p.metric.unit==='acertos'?`Você está em ${p.current}/${p.metric.max}, com meta ${p.goal}. Como faltam ${p.missing} acertos e há ${accuracyText}, esta área recebe prioridade proporcional — sem aumentar suas ${weeklyHours}h semanais.${adaptationReason}`:`Seu resultado atual é ${p.current}/${p.metric.max}, meta ${p.goal}; ${accuracyText}. Esta semana concentra prática aqui sem ultrapassar seu tempo disponível.${adaptationReason}`;"
+t=t.replace(old_r,new_r)
+t=t.replace("evidenceLabel:`Prioridade calculada por distância até a meta${p.accuracy==null?'':' + desempenho recente'}`", "evidenceLabel:`Prioridade calculada por distância até a meta${p.accuracy==null?'':' + desempenho recente'}${manualTopic?' + dificuldade declarada':''}${scanTopic?' + diagnóstico por foto':''}`")
 r.write_text(t)
 print('adaptive difficulty matrix integrated')
