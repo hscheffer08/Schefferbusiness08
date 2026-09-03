@@ -14,12 +14,12 @@ const checks=[
   ['roadmap boosts priorities from manual difficulties',roadmap.includes('manual.reduce((a,b)=>a+b.level')],
   ['roadmap uses photo diagnostics for priority',roadmap.includes('diagnosticFor')&&roadmap.includes('scans.length')],
   ['roadmap keeps the saved weekly hours as total budget',roadmap.includes('totalMinutes=Math.round(weeklyHours*60)')],
-  ['catalog covers ENEM',catalog.includes("examId==='enem'"))],
-  ['catalog covers FUVEST',catalog.includes("examId==='fuvest'"))],
-  ['catalog covers Insper',catalog.includes("examId==='insper'"))],
-  ['catalog covers CMMG',catalog.includes("examId==='cmmg'"))],
-  ['catalog covers Link',catalog.includes("label:'Jornada Link'"))],
-  ['weekly progress is account-persisted',progress.includes("student_weekly_plan_progress"))],
+  ['catalog covers ENEM',catalog.includes("examId==='enem'")],
+  ['catalog covers FUVEST',catalog.includes("examId==='fuvest'")],
+  ['catalog covers Insper',catalog.includes("examId==='insper'")],
+  ['catalog covers CMMG',catalog.includes("examId==='cmmg'")],
+  ['catalog covers Link',catalog.includes("label:'Jornada Link'")],
+  ['weekly progress is account-persisted',progress.includes('student_weekly_plan_progress')],
   ['weekly progress is keyed by exam and week',progress.includes("eq('exam_id',examId)")&&progress.includes("eq('week_start',w.start)")],
 ];
 
