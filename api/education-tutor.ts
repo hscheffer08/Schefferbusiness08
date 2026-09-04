@@ -9,6 +9,7 @@ type RefSkill={area:string;skill_code:string;skill_name:string;scope:string;diag
 type PlanSkill={area:string;skill_code:string;skill_name:string;diagnostic_tags?:string[]};
 
 const MODEL='openai/gpt-5.6-luna';
+const REVIEW_MODEL='openai/gpt-5.4-mini';
 const FALLBACK_MODELS=['openai/gpt-5.4-mini','google/gemini-3.6-flash'];
 const SEARCH_MODEL='google/gemini-2.5-flash-lite';
 const DAILY_QUESTION_LIMIT=20;
@@ -162,7 +163,8 @@ Retorne APENAS JSON válido: {"answer":"resposta curta","confidence":0.0,"confid
     let final=first,searchMode='none',sources:any[]=[];
     const conf=clampConfidence(first.confidence);
     const hardQuestion=isHardQuestion(`${latest} ${contextQuestion}`);
-    const shouldSearch=Boolean(first.needs_external_check)||(explicitLookup&&conf<0.94)||(image&&conf<0.88)||(hardQuestion&&conf<0.82)||first.self_check_passed===false;
+    const shouldSearch=Boolean(first.needs_external_check)||(explicitLookup&&conf<0.94)||(image&&conf<0.70);
+    const shouldReview=hardQuestion||first.self_check_passed===false||conf<0.80;
     if(shouldSearch){
       try{
         const verifySystem=`Você é o verificador final da IA Conectaê. Pesquise somente o necessário. Compare a melhor fonte disponível com o enunciado e refaça a solução; não copie gabaritos cegamente. Prefira fonte oficial da banca, universidade, órgão público ou publicação primária. Corrija a resposta preliminar quando necessário. Calibre confidence pela evidência encontrada, nunca use 1 e não esconda ambiguidades. Não exponha cadeia de raciocínio. Retorne APENAS JSON válido: {"answer":"resposta comentada curta","confidence":0.0,"confidence_reason":"uma frase","self_check_passed":true,"answerable":true,"resolved_doubt":true,"needs_better_image":false,"uncertainty_reason":null,"assumptions":[],"learning_focus":null,"offer_plan":false,"web_verified":false}.`;
@@ -171,6 +173,20 @@ Retorne APENAS JSON válido: {"answer":"resposta curta","confidence":0.0,"confid
         const r=await generateText({model:SEARCH_MODEL,system:verifySystem,messages:verifyMessages,maxOutputTokens:1200,abortSignal:AbortSignal.timeout(45000),tools:{google_search:google.tools.googleSearch({})},providerOptions:{gateway:{user:userId,tags:['feature:education-tutor',`exam:${exam}`,'selective-google-verification']}}} as any);
         const found=sourceList((r as any).sources);const parsed=parseJson(String(r.text||''));if(parsed?.answer){final={...first,...parsed};sources=found;searchMode=found.length?'google':'google-no-source'}
       }catch(e:any){console.warn('selective search skipped after failure',e?.statusCode||'',e?.message||e)}
+    }
+    if(searchMode==='none'&&shouldReview){
+      try{
+        const reviewSystem=`Você é o revisor adversarial final da IA Conectaê. Ignore a conclusão preliminar e resolva a pergunta do zero. Depois compare os resultados. Em matemática, derive todos os candidatos, aplique restrições de domínio e substitua a resposta no enunciado; testar um palpite não prova inexistência de solução. Em física/química, confira sinais, unidades e ordem de grandeza. Em linguagens/humanas, confira negações, ambiguidades, causalidade e anacronismos. Se faltarem dados, não chute. Não exponha cadeia de raciocínio. Retorne APENAS JSON válido: {"answer":"resposta corrigida e curta","confidence":0.0,"confidence_reason":"uma frase","self_check_passed":true,"answerable":true,"resolved_doubt":true,"needs_better_image":false,"uncertainty_reason":null,"assumptions":[],"agrees_with_preliminary":true}.`;
+        const reviewPrompt=`Pergunta: ${latest}\n${contextQuestion?`Enunciado adicional: ${contextQuestion}\n`:''}Resposta preliminar: ${trim(first.answer,1800)}\nResolva independentemente e devolva a resposta final.`;
+        const reviewMessages:any[]=[{role:'user',content:image?[{type:'text',text:reviewPrompt},{type:'image',image:imageDataUrl}]:reviewPrompt}];
+        const r=await generateText({model:REVIEW_MODEL,system:reviewSystem,messages:reviewMessages,maxOutputTokens:1200,abortSignal:AbortSignal.timeout(45000),providerOptions:{gateway:{models:['google/gemini-3.6-flash'],user:userId,tags:['feature:education-tutor',`exam:${exam}`,'selective-adversarial-review']}}} as any);
+        const parsed=parseJson(String(r.text||''));
+        if(parsed?.answer){
+          const disagreed=parsed.agrees_with_preliminary===false;
+          final={...first,...parsed,confidence:disagreed?Math.min(clampConfidence(parsed.confidence),.93):parsed.confidence};
+          searchMode='review';
+        }
+      }catch(e:any){console.warn('adversarial review skipped after failure',e?.statusCode||'',e?.message||e)}
     }
 
     const answer=trim(final.answer,5000).trim();if(!answer)return json(res,502,{error:'A resposta ficou incompleta. Tente novamente.'});
@@ -188,6 +204,6 @@ Retorne APENAS JSON válido: {"answer":"resposta curta","confidence":0.0,"confid
     }
     const offerPlan=Boolean(final.offer_plan??first.offer_plan)&&Boolean(focus)&&focus.confidence>=0.68&&Boolean(final.resolved_doubt??first.resolved_doubt);
     fetch(`${cfg.url}/rest/v1/ai_tutor_usage`,{method:'POST',headers:{...baseHeaders,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({user_id:userId,exam_id:exam,has_image:image})}).catch(()=>{});
-    return json(res,200,{answer,educational:true,resolvedDoubt:Boolean(final.resolved_doubt??first.resolved_doubt),answerable:Boolean(final.answerable??first.answerable??true),confidence:finalConfidence,confidenceLabel:confidenceLabel(finalConfidence),confidenceReason:trim(final.confidence_reason??first.confidence_reason,260),uncertaintyReason,assumptions,selfChecked:Boolean(final.self_check_passed??first.self_check_passed),learningFocus:focus,offerPlan,needsBetterImage:Boolean(final.needs_better_image??first.needs_better_image),model:searchMode==='none'?MODEL:SEARCH_MODEL,searchMode,webVerified:searchMode==='google'&&sources.length>0,sources,costOptimized:true,dailyQuestionLimit:DAILY_QUESTION_LIMIT,remainingQuestions:Math.max(0,DAILY_QUESTION_LIMIT-usedToday-1)});
+    return json(res,200,{answer,educational:true,resolvedDoubt:Boolean(final.resolved_doubt??first.resolved_doubt),answerable:Boolean(final.answerable??first.answerable??true),confidence:finalConfidence,confidenceLabel:confidenceLabel(finalConfidence),confidenceReason:trim(final.confidence_reason??first.confidence_reason,260),uncertaintyReason,assumptions,selfChecked:Boolean(final.self_check_passed??first.self_check_passed),learningFocus:focus,offerPlan,needsBetterImage:Boolean(final.needs_better_image??first.needs_better_image),model:searchMode==='google'?SEARCH_MODEL:searchMode==='review'?REVIEW_MODEL:MODEL,searchMode,webVerified:searchMode==='google'&&sources.length>0,sources,costOptimized:true,dailyQuestionLimit:DAILY_QUESTION_LIMIT,remainingQuestions:Math.max(0,DAILY_QUESTION_LIMIT-usedToday-1)});
   }catch(error:any){console.error('education-tutor failed',error);return json(res,500,{error:'A IA encontrou uma falha inesperada. Tente novamente.'})}
 }
