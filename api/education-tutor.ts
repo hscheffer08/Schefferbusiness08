@@ -7,6 +7,7 @@ const trim=(value:unknown,max=3000)=>String(value??'').slice(0,max);
 type TutorMessage={role:'user'|'assistant';content:string};
 type RefSkill={area:string;skill_code:string;skill_name:string;scope:string;diagnostic_tags?:string[];parent_skill_code?:string|null;official_reference?:boolean};
 type PlanSkill={area:string;skill_code:string;skill_name:string;diagnostic_tags?:string[]};
+type PracticeExample={id:number;area:string;skill_name:string;difficulty:number;prompt:string;option_a?:string;option_b?:string;option_c?:string;option_d?:string;option_e?:string;correct_option:string;explanation:string;source_basis:string};
 
 const MODEL='openai/gpt-5.6-luna';
 const REVIEW_MODEL='openai/gpt-5.4-mini';
@@ -50,6 +51,16 @@ function rankSkills(skills:RefSkill[],query:string,areaHint:string){
   const q=new Set(tokens(query));const area=areaHint.toLowerCase();
   return skills.map(s=>{const hay=tokens(`${s.area} ${s.skill_name} ${s.scope} ${(s.diagnostic_tags||[]).join(' ')}`);let score=area&&s.area.toLowerCase().includes(area)?5:0;for(const t of hay)if(q.has(t))score+=1;return{s,score}}).sort((a,b)=>b.score-a.score).filter((x,i)=>x.score>0||i<18).slice(0,42).map(x=>x.s);
 }
+function rankPractice(items:PracticeExample[],query:string,areaHint:string){
+  const q=new Set(tokens(query));const area=areaHint.toLowerCase();
+  return items.map(item=>{
+    const hay=tokens(`${item.area} ${item.skill_name} ${item.prompt}`);
+    let score=area&&item.area.toLowerCase().includes(area)?8:0;
+    for(const t of hay)if(q.has(t))score+=1;
+    return{item,score};
+  }).sort((a,b)=>b.score-a.score||Number(b.item.difficulty||0)-Number(a.item.difficulty||0))
+    .filter((x,i)=>x.score>0||i<4).slice(0,4).map(x=>x.item);
+}
 function sourceList(value:unknown){if(!Array.isArray(value))return[];return value.slice(0,4).map((s:any)=>({title:trim(s?.title||s?.name||'Fonte consultada',140),url:/^https?:\/\//i.test(String(s?.url||''))?trim(s.url,900):''})).filter((s:any)=>s.url)}
 function clampConfidence(value:unknown){return Math.max(0,Math.min(.99,Number(value)||0))}
 function confidenceLabel(value:number){if(value>=.94)return'Alta confiança';if(value>=.80)return'Confiança moderada';return'Baixa confiança'}
@@ -64,23 +75,24 @@ async function verifyAccessToken(url:string,key:string,token:string){
     const {data,error}=await client.auth.getClaims(token);
     const claims=(data as any)?.claims;
     const userId=String(claims?.sub||'');
-    if(!error&&userId)return{userId,mode:'claims'};
+    const isAdmin=String(claims?.app_metadata?.role||'').toLowerCase()==='admin';
+    if(!error&&userId)return{userId,isAdmin,mode:'claims'};
     if(error)console.warn('tutor getClaims rejected token',error.message);
   }catch(error:any){console.warn('tutor getClaims unavailable',error?.message||error)}
   try{
     const {data,error}=await client.auth.getUser(token);
-    if(!error&&data?.user?.id)return{userId:String(data.user.id),mode:'getUser'};
-    return{userId:'',mode:'invalid'};
+    if(!error&&data?.user?.id)return{userId:String(data.user.id),isAdmin:String(data.user.app_metadata?.role||'').toLowerCase()==='admin',mode:'getUser'};
+    return{userId:'',isAdmin:false,mode:'invalid'};
   }catch(error:any){
     console.error('tutor auth verification unavailable',error?.message||error);
-    return{userId:'',mode:'unavailable'};
+    return{userId:'',isAdmin:false,mode:'unavailable'};
   }
 }
 
 export default async function handler(req:any,res:any){
   if(req.method==='GET'){
     const cfg=config();
-    return json(res,200,{ok:true,service:'IA Conectaê',model:MODEL,fallbackModels:FALLBACK_MODELS,searchModel:SEARCH_MODEL,costMode:'confidence-based-escalation',dailyQuestionLimit:DAILY_QUESTION_LIMIT,authMode:'supabase-getClaims',supabaseConfig:cfg.source});
+    return json(res,200,{ok:true,service:'IA Conectaê',model:MODEL,fallbackModels:FALLBACK_MODELS,searchModel:SEARCH_MODEL,costMode:'confidence-based-escalation',grounding:'exam-practice-retrieval',dailyQuestionLimit:DAILY_QUESTION_LIMIT,adminAccess:'unlimited',authMode:'supabase-getClaims-app-metadata',supabaseConfig:cfg.source});
   }
   if(req.method!=='POST')return json(res,405,{error:'Método não permitido.'});
   try{
@@ -96,6 +108,7 @@ export default async function handler(req:any,res:any){
       return json(res,401,{error:'Sua sessão expirou. Entre novamente.'});
     }
     const userId=verified.userId;
+    const adminUnlimited=verified.isAdmin===true;
     const baseHeaders={apikey:cfg.key,Authorization:`Bearer ${token}`};
 
     const {messages,context,imageDataUrl}=req.body||{};
@@ -108,7 +121,7 @@ export default async function handler(req:any,res:any){
     const c=context&&typeof context==='object'?context:{};
     const exam=trim(c.exam||'enem',40).toLowerCase();
     let usedToday=0;
-    try{
+    if(!adminUnlimited)try{
       const minute=new Date(Date.now()-60000).toISOString(),day=new Date(Date.now()-86400000).toISOString();
       const [a,b]=await Promise.all([
         fetch(`${cfg.url}/rest/v1/ai_tutor_usage?select=id&user_id=eq.${encodeURIComponent(userId)}&created_at=gte.${encodeURIComponent(minute)}`,{headers:{...baseHeaders,Prefer:'count=exact'},signal:AbortSignal.timeout(8000)}),
@@ -119,13 +132,15 @@ export default async function handler(req:any,res:any){
       if(dc>=DAILY_QUESTION_LIMIT)return json(res,429,{error:`Você atingiu o limite de ${DAILY_QUESTION_LIMIT} perguntas da IA Conectaê hoje. O acesso é renovado automaticamente.`});
     }catch(error){console.warn('tutor usage check unavailable',error)}
 
-    let refs:RefSkill[]=[];let plans:PlanSkill[]=[];
+    let refs:RefSkill[]=[];let plans:PlanSkill[]=[];let practice:PracticeExample[]=[];
     try{const r=await sb(`${cfg.url}/rest/v1/exam_ai_skill_reference?select=area,skill_code,skill_name,scope,diagnostic_tags,parent_skill_code,official_reference&exam_id=eq.${encodeURIComponent(exam)}`,{...baseHeaders,Accept:'application/json'});if(r.ok)refs=await r.json()}catch(error){console.warn('tutor reference lookup unavailable',error)}
     try{const r=await sb(`${cfg.url}/rest/v1/exam_skill_taxonomy?select=area,skill_code,skill_name,diagnostic_tags&exam_id=eq.${encodeURIComponent(exam)}`,{...baseHeaders,Accept:'application/json'});if(r.ok)plans=await r.json()}catch(error){console.warn('tutor taxonomy lookup unavailable',error)}
+    try{const r=await sb(`${cfg.url}/rest/v1/exam_practice_questions?select=id,area,skill_name,difficulty,prompt,option_a,option_b,option_c,option_d,option_e,correct_option,explanation,source_basis&exam_id=eq.${encodeURIComponent(exam)}&active=is.true&limit=500`,{...baseHeaders,Accept:'application/json'});if(r.ok)practice=await r.json()}catch(error){console.warn('tutor practice corpus lookup unavailable',error)}
 
     const latest=safe[safe.length-1]?.content||'';
     const contextQuestion=trim(c.currentQuestion,1500);const areaHint=trim(c.currentArea,80);
     const candidates=rankSkills(refs,`${latest} ${contextQuestion} ${trim(c.currentSkill,120)}`,areaHint);
+    const retrievedExamples=rankPractice(practice,`${latest} ${contextQuestion} ${trim(c.currentSkill,120)}`,areaHint);
     const student={exam,weeklyHours:trim(c.weeklyHours,12),recentDifficulties:Array.isArray(c.recentDifficulties)?c.recentDifficulties.slice(0,4).map((x:any)=>trim(x,120)):[],recentPerformance:Array.isArray(c.recentPerformance)?c.recentPerformance.slice(0,4).map((x:any)=>trim(x,120)):[],currentQuestion:contextQuestion,currentSkill:trim(c.currentSkill,120),currentArea:areaHint};
     const image=typeof imageDataUrl==='string';
     const explicitLookup=/\b(gabarito|fonte|banca|prova|vestibular|enem|fuvest|cmmg|unicamp|unesp|famerp|famema|ita|ime|quest[aã]o\s*\d+|20\d{2})\b/i.test(latest)||Boolean(contextQuestion);
@@ -144,6 +159,8 @@ CUSTO E BUSCA: primeiro resolva por conta própria. Defina needs_external_check=
 
 CONTEXTO: ${JSON.stringify(student)}
 HABILIDADES CANDIDATAS: ${JSON.stringify(candidates.map(s=>({area:s.area,skill_code:s.skill_code,skill_name:s.skill_name,parent_skill_code:s.parent_skill_code||null})))}
+BASE RECUPERADA DO BANCO: ${JSON.stringify(retrievedExamples.map(q=>({area:q.area,habilidade:q.skill_name,dificuldade:q.difficulty,enunciado:q.prompt,alternativas:{A:q.option_a,B:q.option_b,C:q.option_c,D:q.option_d,E:q.option_e},gabarito:q.correct_option,explicacao:q.explanation,origem:q.source_basis})))}
+Use a base recuperada como exemplos de conteúdo e padrão da prova. Confira o gabarito por resolução independente antes de usá-lo. Itens cuja origem diga “autoral” são simulados alinhados ao exame, nunca questões oficiais. Se o aluno pedir uma questão histórica oficial por ano/número e o enunciado não estiver integralmente no contexto, marque needs_external_check=true e consulte a fonte oficial; não atribua um item autoral à banca.
 Escolha learning_focus apenas se coincidir exatamente com uma candidata. Não altere o plano; apenas ofereça inclusão após a dúvida estar resolvida.
 Retorne APENAS JSON válido: {"answer":"resposta curta","confidence":0.0,"confidence_reason":"uma frase objetiva, sem cadeia de raciocínio","self_check_passed":true,"needs_external_check":false,"answerable":true,"resolved_doubt":true,"needs_better_image":false,"uncertainty_reason":null,"assumptions":[],"learning_focus":{"area":"","skill_code":"","skill_name":"","plan_skill_code":null,"confidence":0.0,"reason":""},"offer_plan":false}`;
 
@@ -212,6 +229,6 @@ Retorne APENAS JSON válido: {"answer":"resposta curta","confidence":0.0,"confid
     }
     const offerPlan=Boolean(final.offer_plan??first.offer_plan)&&Boolean(focus)&&focus.confidence>=0.68&&Boolean(final.resolved_doubt??first.resolved_doubt);
     fetch(`${cfg.url}/rest/v1/ai_tutor_usage`,{method:'POST',headers:{...baseHeaders,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({user_id:userId,exam_id:exam,has_image:image})}).catch(()=>{});
-    return json(res,200,{answer,educational:true,resolvedDoubt:Boolean(final.resolved_doubt??first.resolved_doubt),answerable:Boolean(final.answerable??first.answerable??true),confidence:finalConfidence,confidenceLabel:confidenceLabel(finalConfidence),confidenceReason:trim(final.confidence_reason??first.confidence_reason,260),uncertaintyReason,assumptions,selfChecked:Boolean(final.self_check_passed??first.self_check_passed),learningFocus:focus,offerPlan,needsBetterImage:Boolean(final.needs_better_image??first.needs_better_image),model:searchMode==='google'?SEARCH_MODEL:searchMode==='review'?REVIEW_MODEL:MODEL,searchMode,webVerified:searchMode==='google'&&sources.length>0,sources,costOptimized:true,dailyQuestionLimit:DAILY_QUESTION_LIMIT,remainingQuestions:Math.max(0,DAILY_QUESTION_LIMIT-usedToday-1)});
+    return json(res,200,{answer,educational:true,resolvedDoubt:Boolean(final.resolved_doubt??first.resolved_doubt),answerable:Boolean(final.answerable??first.answerable??true),confidence:finalConfidence,confidenceLabel:confidenceLabel(finalConfidence),confidenceReason:trim(final.confidence_reason??first.confidence_reason,260),uncertaintyReason,assumptions,selfChecked:Boolean(final.self_check_passed??first.self_check_passed),learningFocus:focus,offerPlan,needsBetterImage:Boolean(final.needs_better_image??first.needs_better_image),model:searchMode==='google'?SEARCH_MODEL:searchMode==='review'?REVIEW_MODEL:MODEL,searchMode,webVerified:searchMode==='google'&&sources.length>0,sources,costOptimized:true,retrievalGrounded:retrievedExamples.length>0,retrievedExamples:retrievedExamples.length,adminUnlimited,dailyQuestionLimit:adminUnlimited?null:DAILY_QUESTION_LIMIT,remainingQuestions:adminUnlimited?null:Math.max(0,DAILY_QUESTION_LIMIT-usedToday-1)});
   }catch(error:any){console.error('education-tutor failed',error);return json(res,500,{error:'A IA encontrou uma falha inesperada. Tente novamente.'})}
 }

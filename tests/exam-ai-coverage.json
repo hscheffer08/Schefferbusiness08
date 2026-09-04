@@ -1,0 +1,29 @@
+{
+  "verifiedAt": "2026-09-04",
+  "sourceTable": "exam_practice_questions",
+  "exams": {
+    "enem": {
+      "Humanas": 81,
+      "Linguagens": 47,
+      "Matemática": 110,
+      "Natureza": 102,
+      "Redação": 13
+    },
+    "cmmg": {
+      "Biologia": 30,
+      "Física": 16,
+      "Inglês": 5,
+      "Língua Portuguesa": 5,
+      "Linguagens": 8,
+      "Literatura": 5,
+      "Matemática": 17,
+      "Química": 20,
+      "Redação": 3
+    }
+  },
+  "quality": {
+    "allActiveItemsHaveAnswerKey": true,
+    "allActiveItemsHaveExplanation": true,
+    "allActiveItemsHaveSourceBasis": true
+  }
+}

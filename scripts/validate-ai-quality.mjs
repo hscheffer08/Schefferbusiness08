@@ -13,6 +13,12 @@ const behaviors=new Set(cases.map(c=>c.expectedBehavior));for(const b of ['answe
 const tutor=fs.readFileSync(new URL('../api/education-tutor.ts',import.meta.url),'utf8');
 const premium=fs.readFileSync(new URL('../api/education-tutor-premium.ts',import.meta.url),'utf8');
 const analyzer=fs.readFileSync(new URL('../api/analyze-question.ts',import.meta.url),'utf8');
-for(const marker of ['gpt-5.6-luna','selective-adversarial-review','unexpected-script-repair','agrees_with_preliminary','self_check_passed','uncertainty_reason','confidenceLabel','answerable'])if(!tutor.includes(marker))throw new Error(`Tutor sem proteção obrigatória: ${marker}.`);
+for(const marker of ['gpt-5.6-luna','selective-adversarial-review','unexpected-script-repair','agrees_with_preliminary','self_check_passed','uncertainty_reason','confidenceLabel','answerable','rankPractice','BASE RECUPERADA DO BANCO','adminUnlimited'])if(!tutor.includes(marker))throw new Error(`Tutor sem proteção obrigatória: ${marker}.`);
 for(const marker of ['gpt-5.6-luna','self_check_passed','uncertainty_reason']){if(!premium.includes(marker))throw new Error(`Premium sem proteção obrigatória: ${marker}.`);if(!analyzer.includes(marker))throw new Error(`Analisador sem proteção obrigatória: ${marker}.`);}
-console.log(`Qualidade da IA validada: ${cases.length} casos, ${areas.size} áreas e ${behaviors.size} comportamentos epistemológicos.`);
+const coverage=JSON.parse(fs.readFileSync(new URL('../tests/exam-ai-coverage.json',import.meta.url),'utf8'));
+for(const exam of ['enem','cmmg'])if(!coverage.exams?.[exam])throw new Error(`Cobertura ausente: ${exam}.`);
+const requiredSubjects={enem:['Humanas','Linguagens','Matemática','Natureza','Redação'],cmmg:['Biologia','Física','Inglês','Língua Portuguesa','Linguagens','Literatura','Matemática','Química','Redação']};
+for(const [exam,subjects] of Object.entries(requiredSubjects))for(const subject of subjects)if(Number(coverage.exams[exam][subject]||0)<3)throw new Error(`Cobertura insuficiente: ${exam} / ${subject}.`);
+for(const key of ['allActiveItemsHaveAnswerKey','allActiveItemsHaveExplanation','allActiveItemsHaveSourceBasis'])if(coverage.quality?.[key]!==true)throw new Error(`Falha de qualidade na base: ${key}.`);
+const coveredSubjects=Object.values(coverage.exams).reduce((total,exam)=>total+Object.keys(exam).length,0);
+console.log(`Qualidade da IA validada: ${cases.length} casos difíceis, ${coveredSubjects} áreas ENEM/CMMG e ${behaviors.size} comportamentos epistemológicos.`);
