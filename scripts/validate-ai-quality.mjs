@@ -13,6 +13,6 @@ const behaviors=new Set(cases.map(c=>c.expectedBehavior));for(const b of ['answe
 const tutor=fs.readFileSync(new URL('../api/education-tutor.ts',import.meta.url),'utf8');
 const premium=fs.readFileSync(new URL('../api/education-tutor-premium.ts',import.meta.url),'utf8');
 const analyzer=fs.readFileSync(new URL('../api/analyze-question.ts',import.meta.url),'utf8');
-for(const marker of ['gpt-5.6-luna','selective-adversarial-review','agrees_with_preliminary','self_check_passed','uncertainty_reason','confidenceLabel','answerable'])if(!tutor.includes(marker))throw new Error(`Tutor sem proteção obrigatória: ${marker}.`);
+for(const marker of ['gpt-5.6-luna','selective-adversarial-review','unexpected-script-repair','agrees_with_preliminary','self_check_passed','uncertainty_reason','confidenceLabel','answerable'])if(!tutor.includes(marker))throw new Error(`Tutor sem proteção obrigatória: ${marker}.`);
 for(const marker of ['gpt-5.6-luna','self_check_passed','uncertainty_reason']){if(!premium.includes(marker))throw new Error(`Premium sem proteção obrigatória: ${marker}.`);if(!analyzer.includes(marker))throw new Error(`Analisador sem proteção obrigatória: ${marker}.`);}
 console.log(`Qualidade da IA validada: ${cases.length} casos, ${areas.size} áreas e ${behaviors.size} comportamentos epistemológicos.`);

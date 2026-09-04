@@ -55,6 +55,7 @@ function clampConfidence(value:unknown){return Math.max(0,Math.min(.99,Number(va
 function confidenceLabel(value:number){if(value>=.94)return'Alta confiança';if(value>=.80)return'Confiança moderada';return'Baixa confiança'}
 function textList(value:unknown,maxItems=3){return Array.isArray(value)?value.map(v=>trim(v,220).trim()).filter(Boolean).slice(0,maxItems):[]}
 function isHardQuestion(value:string){return /\b(exceto|incorreta|respectivamente|necessariamente|sempre|nunca|probabilidade condicional|sem reposi[cç][aã]o|aproxima[cç][aã]o|arredond|contraexemplo|causa|consequ[eê]ncia|gr[aá]fico|tabela|imagem|figura|gabarito|banca|20\d{2})\b/i.test(value)||/[=<>±√^]|\b(sen|cos|log|mol|newton|joule|volt|gen[oó]tipo|fen[oó]tipo)\b/i.test(value)}
+function hasUnexpectedScript(value:string){return /[\u0400-\u052f\u0590-\u08ff\u0900-\u109f\u3040-\u30ff\u3400-\u9fff]/u.test(value)}
 async function sb(url:string,headers:Record<string,string>){return fetch(url,{headers,signal:AbortSignal.timeout(9000)})}
 
 async function verifyAccessToken(url:string,key:string,token:string){
@@ -135,7 +136,7 @@ MÉTODO INTERNO OBRIGATÓRIO: trate a primeira conclusão como hipótese, não c
 
 CERTEZA RESPONSÁVEL: seja firme quando a evidência sustentar a conclusão e nunca invente certeza. confidence nunca pode ser 1. Use 0.94–0.99 apenas quando enunciado e dados forem suficientes e a resposta sobreviver à contrachecagem; 0.80–0.93 quando houver boa sustentação, mas alguma suposição não crítica; 0.60–0.79 quando houver interpretação plausível ou dado parcial; abaixo de 0.60 quando não for seguro concluir. Liste assumptions apenas se elas realmente afetarem o resultado. Se faltar informação, diga exatamente o que falta e peça o complemento em vez de chutar. Se duas respostas forem plausíveis, explique em uma frase o ponto de ambiguidade.
 
-SAÍDA PARA O ALUNO: comece pela conclusão. Em objetiva: “Resposta: X) ...” + 2 a 5 frases com o raciocínio decisivo. Para dúvida conceitual: resposta direta + explicação breve. Mostre contas quando necessárias. Não use linguagem hesitante quando a confiança for alta; não use tom categórico quando ela for baixa.
+SAÍDA PARA O ALUNO: comece pela conclusão. Em objetiva: “Resposta: X) ...” + 2 a 5 frases com o raciocínio decisivo. Para dúvida conceitual: resposta direta + explicação breve. Mostre contas quando necessárias. Não use linguagem hesitante quando a confiança for alta; não use tom categórico quando ela for baixa. Escreva apenas em português com alfabeto latino e matemática em texto simples, sem delimitadores LaTeX.
 
 REGRAS POR ÁREA: matemática/física/química conferem domínio, unidade, sinais e ordem de grandeza; genética separa sexo, herança, penetrância e probabilidade conjunta; linguagens se apoia no texto; humanas evita anacronismo e separa correlação, causa e consequência.
 
@@ -176,7 +177,7 @@ Retorne APENAS JSON válido: {"answer":"resposta curta","confidence":0.0,"confid
     }
     if(searchMode==='none'&&shouldReview){
       try{
-        const reviewSystem=`Você é o revisor adversarial final da IA Conectaê. Ignore a conclusão preliminar e resolva a pergunta do zero. Depois compare os resultados. Em matemática, derive todos os candidatos, aplique restrições de domínio e substitua a resposta no enunciado; testar um palpite não prova inexistência de solução. Em física/química, confira sinais, unidades e ordem de grandeza. Em linguagens/humanas, confira negações, ambiguidades, causalidade e anacronismos. Se faltarem dados, não chute. Não exponha cadeia de raciocínio. Retorne APENAS JSON válido: {"answer":"resposta corrigida e curta","confidence":0.0,"confidence_reason":"uma frase","self_check_passed":true,"answerable":true,"resolved_doubt":true,"needs_better_image":false,"uncertainty_reason":null,"assumptions":[],"agrees_with_preliminary":true}.`;
+        const reviewSystem=`Você é o revisor adversarial final da IA Conectaê. Ignore a conclusão preliminar e resolva a pergunta do zero. Depois compare os resultados. Em matemática, derive todos os candidatos, aplique restrições de domínio e substitua a resposta no enunciado; testar um palpite não prova inexistência de solução. Em física/química, confira sinais, unidades e ordem de grandeza. Em linguagens/humanas, confira negações, ambiguidades, causalidade e anacronismos. Se faltarem dados, não chute. Não exponha cadeia de raciocínio. Escreva somente em português com alfabeto latino e matemática em texto simples, sem delimitadores LaTeX. Retorne APENAS JSON válido: {"answer":"resposta corrigida e curta","confidence":0.0,"confidence_reason":"uma frase","self_check_passed":true,"answerable":true,"resolved_doubt":true,"needs_better_image":false,"uncertainty_reason":null,"assumptions":[],"agrees_with_preliminary":true}.`;
         const reviewPrompt=`Pergunta: ${latest}\n${contextQuestion?`Enunciado adicional: ${contextQuestion}\n`:''}Resposta preliminar: ${trim(first.answer,1800)}\nResolva independentemente e devolva a resposta final.`;
         const reviewMessages:any[]=[{role:'user',content:image?[{type:'text',text:reviewPrompt},{type:'image',image:imageDataUrl}]:reviewPrompt}];
         const r=await generateText({model:REVIEW_MODEL,system:reviewSystem,messages:reviewMessages,maxOutputTokens:1200,abortSignal:AbortSignal.timeout(45000),providerOptions:{gateway:{models:['google/gemini-3.6-flash'],user:userId,tags:['feature:education-tutor',`exam:${exam}`,'selective-adversarial-review']}}} as any);
@@ -189,7 +190,14 @@ Retorne APENAS JSON válido: {"answer":"resposta curta","confidence":0.0,"confid
       }catch(e:any){console.warn('adversarial review skipped after failure',e?.statusCode||'',e?.message||e)}
     }
 
-    const answer=trim(final.answer,5000).trim();if(!answer)return json(res,502,{error:'A resposta ficou incompleta. Tente novamente.'});
+    let answer=trim(final.answer,5000).trim();if(!answer)return json(res,502,{error:'A resposta ficou incompleta. Tente novamente.'});
+    if(hasUnexpectedScript(answer)){
+      try{
+        const cleaned=await generateText({model:REVIEW_MODEL,system:'Reescreva o texto em português do Brasil, usando somente alfabeto latino e matemática em texto simples, sem alterar fatos, números ou conclusão. Não use markdown, LaTeX ou outro alfabeto.',messages:[{role:'user',content:answer}],maxOutputTokens:700,abortSignal:AbortSignal.timeout(30000),providerOptions:{gateway:{models:['google/gemini-3.6-flash'],user:userId,tags:['feature:education-tutor','unexpected-script-repair']}}} as any);
+        answer=trim(cleaned.text,5000).trim();
+      }catch(e:any){console.warn('unexpected script repair failed',e?.message||e)}
+      if(!answer||hasUnexpectedScript(answer))return json(res,502,{error:'A resposta ficou com caracteres inválidos. Tente novamente.'});
+    }
     const finalConfidence=clampConfidence(final.confidence??first.confidence);
     const uncertaintyReason=trim(final.uncertainty_reason??first.uncertainty_reason,360).trim()||null;
     const assumptions=textList(final.assumptions??first.assumptions);
