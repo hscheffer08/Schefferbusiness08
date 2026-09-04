@@ -8,8 +8,8 @@ type TutorMessage={role:'user'|'assistant';content:string};
 type RefSkill={area:string;skill_code:string;skill_name:string;scope:string;diagnostic_tags?:string[];parent_skill_code?:string|null;official_reference?:boolean};
 type PlanSkill={area:string;skill_code:string;skill_name:string;diagnostic_tags?:string[]};
 
-const MODEL='openai/gpt-5.4-mini';
-const FALLBACK_MODELS=['openai/gpt-5.4-nano','google/gemini-3.6-flash'];
+const MODEL='openai/gpt-5.6-luna';
+const FALLBACK_MODELS=['openai/gpt-5.4-mini','google/gemini-3.6-flash'];
 const SEARCH_MODEL='google/gemini-2.5-flash-lite';
 const DAILY_QUESTION_LIMIT=20;
 const FALLBACK_SUPABASE_URL='https://kmognvgnfisdchzffkgh.supabase.co';
@@ -50,6 +50,10 @@ function rankSkills(skills:RefSkill[],query:string,areaHint:string){
   return skills.map(s=>{const hay=tokens(`${s.area} ${s.skill_name} ${s.scope} ${(s.diagnostic_tags||[]).join(' ')}`);let score=area&&s.area.toLowerCase().includes(area)?5:0;for(const t of hay)if(q.has(t))score+=1;return{s,score}}).sort((a,b)=>b.score-a.score).filter((x,i)=>x.score>0||i<18).slice(0,42).map(x=>x.s);
 }
 function sourceList(value:unknown){if(!Array.isArray(value))return[];return value.slice(0,4).map((s:any)=>({title:trim(s?.title||s?.name||'Fonte consultada',140),url:/^https?:\/\//i.test(String(s?.url||''))?trim(s.url,900):''})).filter((s:any)=>s.url)}
+function clampConfidence(value:unknown){return Math.max(0,Math.min(.99,Number(value)||0))}
+function confidenceLabel(value:number){if(value>=.94)return'Alta confiança';if(value>=.80)return'Confiança moderada';return'Baixa confiança'}
+function textList(value:unknown,maxItems=3){return Array.isArray(value)?value.map(v=>trim(v,220).trim()).filter(Boolean).slice(0,maxItems):[]}
+function isHardQuestion(value:string){return /\b(exceto|incorreta|respectivamente|necessariamente|sempre|nunca|probabilidade condicional|sem reposi[cç][aã]o|aproxima[cç][aã]o|arredond|contraexemplo|causa|consequ[eê]ncia|gr[aá]fico|tabela|imagem|figura|gabarito|banca|20\d{2})\b/i.test(value)||/[=<>±√^]|\b(sen|cos|log|mol|newton|joule|volt|gen[oó]tipo|fen[oó]tipo)\b/i.test(value)}
 async function sb(url:string,headers:Record<string,string>){return fetch(url,{headers,signal:AbortSignal.timeout(9000)})}
 
 async function verifyAccessToken(url:string,key:string,token:string){
@@ -124,7 +128,22 @@ export default async function handler(req:any,res:any){
     const image=typeof imageDataUrl==='string';
     const explicitLookup=/\b(gabarito|fonte|banca|prova|vestibular|enem|fuvest|cmmg|unicamp|unesp|famerp|famema|ita|ime|quest[aã]o\s*\d+|20\d{2})\b/i.test(latest)||Boolean(contextQuestion);
 
-    const system=`Você é a IA Conectaê, tutor educacional rigoroso e conciso. Responda em português do Brasil.\n\nQUALIDADE INTERNA: desconfie da primeira conclusão. Releia o comando, tente refutar sua resposta, confira sinais, unidades, condicionais, EXCETO/incorreta/respectivamente, dados de gráficos/tabelas, probabilidade condicionada, causalidade e a alternativa escolhida. Faça essa auditoria internamente; não exponha checklist nem cadeia de raciocínio.\n\nSAÍDA PARA O ALUNO: resposta comentada curta. Em objetiva: “Resposta: X) ...” + 2 a 5 frases com o raciocínio decisivo. Mostre contas apenas quando necessárias. Para dúvida conceitual: resposta direta + explicação breve. Só alongue se solicitado.\n\nREGRAS ESSENCIAIS: matemática/física/química devem conferir unidade, sinais e ordem de grandeza; genética deve separar sexo, herança, penetrância e probabilidade conjunta; linguagens devem se apoiar no texto; humanas devem evitar anacronismo e separar causa de consequência. Se faltar dado legível, peça imagem melhor em vez de chutar.\n\nCUSTO E BUSCA: primeiro resolva por conta própria. Defina needs_external_check=true SOMENTE se uma busca externa provavelmente aumentar a confiabilidade: baixa confiança (<0.88), questão identificável por banca/ano/gabarito, fato externo específico, imagem ambígua, ou conflito entre duas interpretações plausíveis. Não peça busca para dúvidas conceituais estáveis nem questões autocontidas resolvidas com alta confiança.\n\nCONTEXTO: ${JSON.stringify(student)}\nHABILIDADES CANDIDATAS: ${JSON.stringify(candidates.map(s=>({area:s.area,skill_code:s.skill_code,skill_name:s.skill_name,parent_skill_code:s.parent_skill_code||null})))}\nEscolha learning_focus apenas se coincidir exatamente com uma candidata. Não altere o plano; apenas ofereça inclusão após dúvida resolvida.\nRetorne APENAS JSON válido: {"answer":"resposta curta","confidence":0.0,"self_check_passed":true,"needs_external_check":false,"resolved_doubt":true,"needs_better_image":false,"learning_focus":{"area":"","skill_code":"","skill_name":"","plan_skill_code":null,"confidence":0.0,"reason":""},"offer_plan":false}`;
+    const system=`Você é a IA Conectaê, tutor educacional rigoroso, claro e intelectualmente honesto. Responda em português do Brasil.
+
+MÉTODO INTERNO OBRIGATÓRIO: trate a primeira conclusão como hipótese, não como resposta final. Resolva; tente encontrar um erro; confira o comando e as palavras EXCETO, incorreta, respectivamente, sempre e nunca; valide sinais, unidades, domínio, ordem de grandeza, alternativas e dados de gráficos/tabelas; use um segundo caminho ou substituição quando possível. Faça tudo internamente, sem expor cadeia de raciocínio.
+
+CERTEZA RESPONSÁVEL: seja firme quando a evidência sustentar a conclusão e nunca invente certeza. confidence nunca pode ser 1. Use 0.94–0.99 apenas quando enunciado e dados forem suficientes e a resposta sobreviver à contrachecagem; 0.80–0.93 quando houver boa sustentação, mas alguma suposição não crítica; 0.60–0.79 quando houver interpretação plausível ou dado parcial; abaixo de 0.60 quando não for seguro concluir. Liste assumptions apenas se elas realmente afetarem o resultado. Se faltar informação, diga exatamente o que falta e peça o complemento em vez de chutar. Se duas respostas forem plausíveis, explique em uma frase o ponto de ambiguidade.
+
+SAÍDA PARA O ALUNO: comece pela conclusão. Em objetiva: “Resposta: X) ...” + 2 a 5 frases com o raciocínio decisivo. Para dúvida conceitual: resposta direta + explicação breve. Mostre contas quando necessárias. Não use linguagem hesitante quando a confiança for alta; não use tom categórico quando ela for baixa.
+
+REGRAS POR ÁREA: matemática/física/química conferem domínio, unidade, sinais e ordem de grandeza; genética separa sexo, herança, penetrância e probabilidade conjunta; linguagens se apoia no texto; humanas evita anacronismo e separa correlação, causa e consequência.
+
+CUSTO E BUSCA: primeiro resolva por conta própria. Defina needs_external_check=true somente quando a busca puder mudar a resposta: fato atual ou externo, gabarito/banca/ano identificável, baixa confiança, conflito real entre interpretações ou imagem ambígua. Não pesquise conteúdo estável e autocontido resolvido com alta confiança.
+
+CONTEXTO: ${JSON.stringify(student)}
+HABILIDADES CANDIDATAS: ${JSON.stringify(candidates.map(s=>({area:s.area,skill_code:s.skill_code,skill_name:s.skill_name,parent_skill_code:s.parent_skill_code||null})))}
+Escolha learning_focus apenas se coincidir exatamente com uma candidata. Não altere o plano; apenas ofereça inclusão após a dúvida estar resolvida.
+Retorne APENAS JSON válido: {"answer":"resposta curta","confidence":0.0,"confidence_reason":"uma frase objetiva, sem cadeia de raciocínio","self_check_passed":true,"needs_external_check":false,"answerable":true,"resolved_doubt":true,"needs_better_image":false,"uncertainty_reason":null,"assumptions":[],"learning_focus":{"area":"","skill_code":"","skill_name":"","plan_skill_code":null,"confidence":0.0,"reason":""},"offer_plan":false}`;
 
     const modelMessages:any[]=safe.map((m,i)=>i===safe.length-1&&m.role==='user'&&image?{role:'user',content:[{type:'text',text:m.content},{type:'image',image:imageDataUrl}]}:{role:m.role,content:m.content});
     let firstRaw='';let firstError:any=null;
@@ -141,11 +160,12 @@ export default async function handler(req:any,res:any){
     let first:any;try{first=parseJson(firstRaw)}catch(error){console.error('tutor parse failed',String(firstRaw).slice(0,500),error);return json(res,502,{error:'A resposta ficou incompleta. Tente novamente.'})}
 
     let final=first,searchMode='none',sources:any[]=[];
-    const conf=Math.max(0,Math.min(1,Number(first.confidence)||0));
-    const shouldSearch=Boolean(first.needs_external_check)||(explicitLookup&&conf<0.94)||(image&&conf<0.88)||first.self_check_passed===false;
+    const conf=clampConfidence(first.confidence);
+    const hardQuestion=isHardQuestion(`${latest} ${contextQuestion}`);
+    const shouldSearch=Boolean(first.needs_external_check)||(explicitLookup&&conf<0.94)||(image&&conf<0.88)||(hardQuestion&&conf<0.82)||first.self_check_passed===false;
     if(shouldSearch){
       try{
-        const verifySystem=`Você é o verificador final da IA Conectaê. Pesquise no Google apenas o necessário para verificar esta questão. Compare a fonte encontrada com o enunciado e com a resposta preliminar. Não copie cegamente um site: resolva novamente e corrija se necessário. Prefira fonte oficial da banca/universidade. Responda de forma curta ao aluno e não descreva seu processo interno. Retorne APENAS JSON válido: {"answer":"resposta comentada curta","confidence":0.0,"resolved_doubt":true,"needs_better_image":false,"learning_focus":null,"offer_plan":false,"web_verified":false}.`;
+        const verifySystem=`Você é o verificador final da IA Conectaê. Pesquise somente o necessário. Compare a melhor fonte disponível com o enunciado e refaça a solução; não copie gabaritos cegamente. Prefira fonte oficial da banca, universidade, órgão público ou publicação primária. Corrija a resposta preliminar quando necessário. Calibre confidence pela evidência encontrada, nunca use 1 e não esconda ambiguidades. Não exponha cadeia de raciocínio. Retorne APENAS JSON válido: {"answer":"resposta comentada curta","confidence":0.0,"confidence_reason":"uma frase","self_check_passed":true,"answerable":true,"resolved_doubt":true,"needs_better_image":false,"uncertainty_reason":null,"assumptions":[],"learning_focus":null,"offer_plan":false,"web_verified":false}.`;
         const verificationPrompt=`Prova ativa: ${exam}.\nPergunta: ${latest}\n${contextQuestion?`Enunciado adicional: ${contextQuestion}\n`:''}Resposta preliminar: ${trim(first.answer,1800)}\nVerifique e corrija se necessário.`;
         const verifyMessages:any[]=[{role:'user',content:image?[{type:'text',text:verificationPrompt},{type:'image',image:imageDataUrl}]:verificationPrompt}];
         const r=await generateText({model:SEARCH_MODEL,system:verifySystem,messages:verifyMessages,maxOutputTokens:1200,abortSignal:AbortSignal.timeout(45000),tools:{google_search:google.tools.googleSearch({})},providerOptions:{gateway:{user:userId,tags:['feature:education-tutor',`exam:${exam}`,'selective-google-verification']}}} as any);
@@ -154,6 +174,9 @@ export default async function handler(req:any,res:any){
     }
 
     const answer=trim(final.answer,5000).trim();if(!answer)return json(res,502,{error:'A resposta ficou incompleta. Tente novamente.'});
+    const finalConfidence=clampConfidence(final.confidence??first.confidence);
+    const uncertaintyReason=trim(final.uncertainty_reason??first.uncertainty_reason,360).trim()||null;
+    const assumptions=textList(final.assumptions??first.assumptions);
     let focus=final.learning_focus&&typeof final.learning_focus==='object'?final.learning_focus:first.learning_focus;
     if(focus){
       const match=candidates.find(s=>s.skill_code===String(focus.skill_code||'')&&s.skill_name===String(focus.skill_name||''));
@@ -165,6 +188,6 @@ export default async function handler(req:any,res:any){
     }
     const offerPlan=Boolean(final.offer_plan??first.offer_plan)&&Boolean(focus)&&focus.confidence>=0.68&&Boolean(final.resolved_doubt??first.resolved_doubt);
     fetch(`${cfg.url}/rest/v1/ai_tutor_usage`,{method:'POST',headers:{...baseHeaders,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({user_id:userId,exam_id:exam,has_image:image})}).catch(()=>{});
-    return json(res,200,{answer,educational:true,resolvedDoubt:Boolean(final.resolved_doubt??first.resolved_doubt),learningFocus:focus,offerPlan,needsBetterImage:Boolean(final.needs_better_image??first.needs_better_image),model:searchMode==='none'?MODEL:SEARCH_MODEL,searchMode,webVerified:searchMode==='google'&&sources.length>0,sources,costOptimized:true,dailyQuestionLimit:DAILY_QUESTION_LIMIT,remainingQuestions:Math.max(0,DAILY_QUESTION_LIMIT-usedToday-1)});
+    return json(res,200,{answer,educational:true,resolvedDoubt:Boolean(final.resolved_doubt??first.resolved_doubt),answerable:Boolean(final.answerable??first.answerable??true),confidence:finalConfidence,confidenceLabel:confidenceLabel(finalConfidence),confidenceReason:trim(final.confidence_reason??first.confidence_reason,260),uncertaintyReason,assumptions,selfChecked:Boolean(final.self_check_passed??first.self_check_passed),learningFocus:focus,offerPlan,needsBetterImage:Boolean(final.needs_better_image??first.needs_better_image),model:searchMode==='none'?MODEL:SEARCH_MODEL,searchMode,webVerified:searchMode==='google'&&sources.length>0,sources,costOptimized:true,dailyQuestionLimit:DAILY_QUESTION_LIMIT,remainingQuestions:Math.max(0,DAILY_QUESTION_LIMIT-usedToday-1)});
   }catch(error:any){console.error('education-tutor failed',error);return json(res,500,{error:'A IA encontrou uma falha inesperada. Tente novamente.'})}
 }

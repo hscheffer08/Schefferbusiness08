@@ -1,8 +1,8 @@
 import { generateText } from 'ai';
 import { createClient } from '@supabase/supabase-js';
 
-const MODEL='openai/gpt-5.4-mini';
-const FALLBACK_MODELS=['openai/gpt-5.4-nano','google/gemini-3.6-flash'];
+const MODEL='openai/gpt-5.6-luna';
+const FALLBACK_MODELS=['openai/gpt-5.4-mini','google/gemini-3.6-flash'];
 const FALLBACK_SUPABASE_URL='https://kmognvgnfisdchzffkgh.supabase.co';
 const FALLBACK_SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
 
@@ -11,6 +11,8 @@ const trim=(v:unknown,max=6000)=>String(v??'').slice(0,max);
 function cleanEnv(v:unknown){return String(v??'').trim().replace(/^["']|["']$/g,'')}
 function validUrl(v:string){try{const u=new URL(v.startsWith('http')?v:`https://${v}`);const h=u.hostname.toLowerCase();if(!/^[a-z0-9-]+\.supabase\.co$/i.test(h))return'';if(/(^|\.)x{6,}\.supabase\.co$/i.test(h)||h.includes('your-project')||h.includes('project-id'))return'';return u.origin}catch{return''}}
 function config(){const rawUrl=cleanEnv(process.env.SUPABASE_URL||process.env.VITE_SUPABASE_URL);const rawKey=cleanEnv(process.env.SUPABASE_ANON_KEY||process.env.VITE_SUPABASE_ANON_KEY||process.env.VITE_SUPABASE_PUBLISHABLE_KEY);const url=validUrl(rawUrl);return url&&rawKey?{url,key:rawKey}:{url:FALLBACK_SUPABASE_URL,key:FALLBACK_SUPABASE_ANON_KEY}}
+function parseJson(raw:string){const v=raw.trim().replace(/^\`\`\`json\s*/i,'').replace(/^\`\`\`\s*/,'').replace(/\`\`\`$/,'').trim();const a=v.indexOf('{'),b=v.lastIndexOf('}');for(const x of [v,a>=0&&b>a?v.slice(a,b+1):'']){if(!x)continue;try{return JSON.parse(x)}catch{}}return null}
+function confidenceLabel(value:number){if(value>=.94)return'Alta confiança';if(value>=.80)return'Confiança moderada';return'Baixa confiança'}
 
 async function verify(url:string,key:string,token:string){
   const client=createClient(url,key,{auth:{autoRefreshToken:false,persistSession:false,detectSessionInUrl:false}});
@@ -42,12 +44,22 @@ export default async function handler(req:any,res:any){
   if(typeof imageDataUrl==='string'&&imageDataUrl.length>3_600_000)return json(res,413,{error:'A foto ficou grande demais. Recorte a questão e tente novamente.'});
 
   const safe=messages.slice(-10).map((m:any)=>({role:m?.role==='assistant'?'assistant':'user',content:trim(m?.content,2600)})).filter((m:any)=>m.content.trim());
-  const system=`Você é a IA Conectaê Premium, tutor educacional de alta profundidade. Responda em português do Brasil. O aluno é assinante Premium e tem acesso sem limite diário de produto.\n\nSua prioridade é ensinar, não apenas dar a resposta. Para questões objetivas, dê a alternativa correta e explique o raciocínio decisivo; quando for útil, explique por que as distrações mais plausíveis estão erradas. Para matemática, física e química, confira unidades, sinais e ordem de grandeza. Para biologia/genética, separe conceitos próximos. Para linguagens, fundamente no texto. Para humanas, diferencie causa, consequência, contexto e anacronismo.\n\nQuando o aluno pedir plano de estudo, entregue um plano aprofundado, concreto e executável, respeitando exatamente as horas semanais informadas no contexto, com prioridades, sequência, metas de questões/acertos, revisão espaçada e checkpoints. Use dificuldades e desempenho recente para personalizar.\n\nSe a imagem estiver incompleta ou ilegível, peça uma foto melhor em vez de inventar. Faça autochecagem internamente e não exponha cadeia de raciocínio privada.\n\nContexto do aluno: ${JSON.stringify(context&&typeof context==='object'?context:{})}.`;
+  const system=`Você é a IA Conectaê Premium, tutor educacional de alta profundidade. Responda em português do Brasil.
+
+Antes de responder, trate a primeira conclusão como hipótese: resolva, tente refutá-la, confira comando, domínio, sinais, unidades, ordem de grandeza, alternativas, condicionais, gráficos e possíveis anacronismos. Use um segundo caminho quando possível. Essa auditoria é interna; não exponha cadeia de raciocínio.
+
+Seja firme quando a resposta sobreviver à checagem e explícito quando faltar informação. confidence nunca pode ser 1: use 0.94–0.99 para conclusão bem determinada e checada; 0.80–0.93 para boa sustentação com pequena suposição; 0.60–0.79 para interpretação plausível; abaixo de 0.60 quando não for seguro concluir. Não chute dados ausentes.
+
+Ensine, não apenas dê o resultado. Em objetivas, informe alternativa e raciocínio decisivo; explique distrações apenas quando isso ajudar. Em planos, respeite exatamente as horas semanais do contexto e entregue prioridades, sequência, metas, revisão espaçada e checkpoints.
+
+Contexto do aluno: ${JSON.stringify(context&&typeof context==='object'?context:{})}.
+Retorne APENAS JSON válido: {"answer":"resposta didática","confidence":0.0,"confidence_reason":"uma frase","self_check_passed":true,"answerable":true,"uncertainty_reason":null,"assumptions":[]}`;
 
   const modelMessages:any[]=safe.map((m:any,i:number)=>i===safe.length-1&&m.role==='user'&&typeof imageDataUrl==='string'?{role:'user',content:[{type:'text',text:m.content},{type:'image',image:imageDataUrl}]}:{role:m.role,content:m.content});
   try{
     const r=await generateText({model:MODEL,system,messages:modelMessages,maxOutputTokens:3200,abortSignal:AbortSignal.timeout(60000),providerOptions:{gateway:{models:FALLBACK_MODELS,user:userId,tags:['feature:education-tutor-premium','plan:premium','production-failover']}}} as any);
-    const answer=String(r.text||'').trim();if(!answer)return json(res,502,{error:'A resposta ficou incompleta. Tente novamente.'});
-    return json(res,200,{answer,educational:true,premium:true,unlimitedDaily:true,remainingQuestions:null,model:(r as any)?.response?.modelId||MODEL});
+    const raw=String(r.text||'').trim();if(!raw)return json(res,502,{error:'A resposta ficou incompleta. Tente novamente.'});
+    const parsed=parseJson(raw);const answer=String(parsed?.answer||raw).trim();const confidence=Math.max(0,Math.min(.99,Number(parsed?.confidence)||0));
+    return json(res,200,{answer,educational:true,premium:true,unlimitedDaily:true,remainingQuestions:null,confidence,confidenceLabel:confidenceLabel(confidence),confidenceReason:trim(parsed?.confidence_reason,260),selfChecked:Boolean(parsed?.self_check_passed),answerable:Boolean(parsed?.answerable??true),uncertaintyReason:trim(parsed?.uncertainty_reason,360)||null,assumptions:Array.isArray(parsed?.assumptions)?parsed.assumptions.map((x:any)=>trim(x,220)).filter(Boolean).slice(0,3):[],model:(r as any)?.response?.modelId||MODEL});
   }catch(error:any){const status=Number(error?.statusCode||error?.status||0);console.error('premium tutor failed',status,error?.message||error);if(status===429)return json(res,429,{error:'A IA atingiu um limite momentâneo do provedor. Tente novamente em alguns segundos.'});return json(res,502,{error:'A IA Premium ficou temporariamente indisponível. Tente novamente.'})}
 }

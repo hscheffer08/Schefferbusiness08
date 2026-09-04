@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run validate:planner-auth && npm run validate:catalog && npm run validate:questionnaires && npm run validate:professional-match && npm run validate:course-intelligence && npm run validate:adaptive-planner && npm run typecheck && vite build",
+    "build": "npm run validate:planner-auth && npm run validate:ai-quality && npm run validate:catalog && npm run validate:questionnaires && npm run validate:professional-match && npm run validate:course-intelligence && npm run validate:adaptive-planner && npm run typecheck && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
@@ -14,7 +14,8 @@
     "validate:questionnaires": "node scripts/validate-questionnaires.mjs",
     "validate:professional-match": "node scripts/validate-professional-match.mjs",
     "validate:course-intelligence": "node scripts/validate-course-intelligence.mjs",
-    "validate:adaptive-planner": "node scripts/validate-adaptive-planner.mjs"
+    "validate:adaptive-planner": "node scripts/validate-adaptive-planner.mjs",
+    "validate:ai-quality": "node scripts/validate-ai-quality.mjs"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.0",
