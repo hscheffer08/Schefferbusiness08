@@ -10,6 +10,11 @@ type PlanSkill={area:string;skill_code:string;skill_name:string;diagnostic_tags?
 type PracticeExample={id:number;area:string;skill_name:string;difficulty:number;prompt:string;option_a?:string;option_b?:string;option_c?:string;option_d?:string;option_e?:string;correct_option:string;explanation:string;source_basis:string};
 type TutorSource={title:string;url:string};
 
+const EXAM_FINGERPRINTS:Record<string,string>={
+  insper:'Insper: vestibular com 60 questões objetivas e redação dissertativo-argumentativa. Reconheça Língua Portuguesa, Matemática, Biologia, Física, Química, História, Geografia, Sociologia e os quatro critérios oficiais de redação: tema, estrutura/coerência, linguagem/registro e coesão. Não exija proposta de intervenção no padrão ENEM.',
+  link:'Link School of Business: jornada holística em PREP, SPRINT e entrevista. PREP reúne trajetória acadêmica, vídeo e portfólio. SPRINT combina matemática e business case com entregas escrita e em vídeo; diagnostique estrutura do problema, dados, mercado, unit economics, trade-offs, criatividade, recomendação e comunicação. A entrevista mede motivação, fit e evidências comportamentais.',
+};
+
 const MODEL='openai/gpt-5.6-luna';
 const REVIEW_MODEL='google/gemini-3.6-flash';
 const FALLBACK_MODELS=['google/gemini-3.6-flash','openai/gpt-5.4-mini'];
@@ -157,7 +162,9 @@ export default async function handler(req:any,res:any){
 
     const latest=safe[safe.length-1]?.content||'';
     const contextQuestion=trim(c.currentQuestion,1500);const areaHint=trim(c.currentArea,80);
-    const candidates=rankSkills(refs,`${latest} ${contextQuestion} ${trim(c.currentSkill,120)}`,areaHint);
+    const taxonomyRefs:RefSkill[]=plans.map(s=>({area:s.area,skill_code:s.skill_code,skill_name:s.skill_name,scope:`Habilidade da taxonomia de ${exam}: ${s.skill_name}.`,diagnostic_tags:s.diagnostic_tags||[],official_reference:false}));
+    const referencePool=[...refs,...taxonomyRefs.filter(p=>!refs.some(r=>r.skill_code===p.skill_code))];
+    const candidates=rankSkills(referencePool,`${latest} ${contextQuestion} ${trim(c.currentSkill,120)}`,areaHint);
     const retrievedExamples=rankPractice(practice,`${latest} ${contextQuestion} ${trim(c.currentSkill,120)}`,areaHint);
     const student={exam,weeklyHours:trim(c.weeklyHours,12),recentDifficulties:Array.isArray(c.recentDifficulties)?c.recentDifficulties.slice(0,4).map((x:any)=>trim(x,120)):[],recentPerformance:Array.isArray(c.recentPerformance)?c.recentPerformance.slice(0,4).map((x:any)=>trim(x,120)):[],currentQuestion:contextQuestion,currentSkill:trim(c.currentSkill,120),currentArea:areaHint};
     const image=typeof imageDataUrl==='string';
@@ -172,6 +179,9 @@ CERTEZA RESPONSÁVEL: seja firme quando a evidência sustentar a conclusão e nu
 SAÍDA PARA O ALUNO: comece pela conclusão. Em objetiva: “Resposta: X) ...” + 2 a 5 frases com o raciocínio decisivo. Para dúvida conceitual: resposta direta + explicação breve. Mostre contas quando necessárias. Não use linguagem hesitante quando a confiança for alta; não use tom categórico quando ela for baixa. Escreva apenas em português com alfabeto latino e matemática em texto simples, sem delimitadores LaTeX.
 
 REGRAS POR ÁREA: matemática/física/química conferem domínio, unidade, sinais e ordem de grandeza; genética separa sexo, herança, penetrância e probabilidade conjunta; linguagens se apoia no texto; humanas evita anacronismo e separa correlação, causa e consequência.
+
+PERFIL DA PROVA ATIVA: ${EXAM_FINGERPRINTS[exam]||'Use a taxonomia e o contexto da prova ativa para classificar a habilidade antes de responder.'}
+Ao receber foto, primeiro transcreva mentalmente o comando, os dados e as alternativas; identifique a área e a habilidade pela prova ativa; então resolva. Se o recorte omitir gráfico, tabela, alternativas ou parte relevante do enunciado, marque needs_better_image=true e diga qual parte precisa aparecer. Não confunda a redação do Insper com a do ENEM nem um business case da Link com uma questão escolar genérica.
 
 CUSTO E BUSCA: primeiro resolva por conta própria. Defina needs_external_check=true somente quando a busca puder mudar a resposta: fato atual ou externo, gabarito/banca/ano identificável, baixa confiança, conflito real entre interpretações ou imagem ambígua. Não pesquise conteúdo estável e autocontido resolvido com alta confiança.
 
