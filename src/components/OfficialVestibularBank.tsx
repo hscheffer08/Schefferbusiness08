@@ -49,7 +49,7 @@ export default function OfficialVestibularBank(){
       .select('*')
       .order('year',{ascending:false})
       .order('question_number',{ascending:true})
-      .limit(1000);
+      .limit(5000);
     if(!alive)return;
     if(loadError){setError('Não foi possível carregar as questões oficiais agora.');setLoading(false);return}
     setRows((data??[]) as OfficialQuestion[]);
