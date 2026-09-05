@@ -11,6 +11,7 @@ import AIEducationTutor from '@/components/AIEducationTutor';
 import PhaseTrainingLab from '@/components/PhaseTrainingLab';
 import StudentStrategyCenter from '@/components/StudentStrategyCenter';
 import CourseDashboard from '@/components/CourseDashboard';
+import EmbeddedQuestionBank from '@/components/EmbeddedQuestionBank';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
 import './admissions-planner-v8.css';
@@ -30,23 +31,22 @@ function Gate({ onBack }: { onBack: () => void }) {
 
   useEffect(()=>{
     if(view!=='plano')return;
-    const timer=window.setTimeout(()=>{
+    let stopped=false;
+    let tries=0;
+    const activate=()=>{
+      if(stopped||tries>=50)return;
+      tries+=1;
       const buttons=Array.from(document.querySelectorAll<HTMLButtonElement>('#curso-planner .plan6-tab'));
-      buttons.find(button=>button.textContent?.trim()===plannerTab)?.click();
-      window.scrollTo({top:0,behavior:'smooth'});
-    },120);
-    return()=>window.clearTimeout(timer);
+      const target=buttons.find(button=>button.textContent?.trim()===plannerTab);
+      if(target){
+        if(!target.classList.contains('active'))target.click();
+        if(target.classList.contains('active')){window.scrollTo({top:0,behavior:'smooth'});return;}
+      }
+      window.setTimeout(activate,75);
+    };
+    activate();
+    return()=>{stopped=true};
   },[view,plannerTab]);
-
-  useEffect(()=>{
-    if(view!=='treinar'||trainingView!=='questoes')return;
-    const timer=window.setTimeout(()=>{
-      const buttons=Array.from(document.querySelectorAll<HTMLButtonElement>('#curso-questoes .plan6-tab'));
-      buttons.find(button=>button.textContent?.trim()==='Questões')?.click();
-      window.scrollTo({top:0,behavior:'smooth'});
-    },140);
-    return()=>window.clearTimeout(timer);
-  },[view,trainingView]);
 
   if (loading) return <div className="min-h-screen bg-[#020817] flex items-center justify-center text-[#72a5ff]"><Loader2 className="w-8 h-8 animate-spin" /></div>;
 
@@ -84,7 +84,7 @@ function Gate({ onBack }: { onBack: () => void }) {
     {view==='treinar'&&<main className="mx-auto w-full max-w-5xl px-4 pb-28 pt-5 md:px-6 md:pb-12 md:pt-8">
       {trainingView==='hub'?<><div className="mb-5"><div className="text-[11px] font-extrabold uppercase tracking-[.1em] text-[#72a5ff]">Treinar</div><h1 className="mt-2 text-3xl font-extrabold tracking-[-.04em]">Escolha o tipo de treino.</h1><p className="mt-2 text-sm text-[#9fb5d4]">Uma escolha por vez, sem misturar ferramentas na mesma tela.</p></div><div className="grid gap-3 md:grid-cols-2">{[
         ['questoes','Questões','Pratique por matéria e conteúdo no banco de questões.',BookOpenCheck],['simulados','Simulados e correção','Faça provas e transforme erros em prioridades.',BarChart3],['fases','Outras fases','Entrevista, oral, PREP, SPRINT e etapas específicas.',Mic2],['visual','Questões por foto','Envie uma questão ou dificuldade visual para a IA.',ScanLine],['redacao','Redação','Treine texto e acompanhe a evolução dentro do Curso.',FileText]
-      ].map(([id,title,text,Icon])=><button key={String(id)} type="button" onClick={()=>openTraining(id as TrainingView)} className="flex min-h-[116px] items-center gap-4 rounded-[20px] border border-[#173765] bg-[#06152f] p-4 text-left transition hover:border-[#31588e]"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#0b2856] text-[#72a5ff]"><Icon size={21}/></span><span><strong className="block text-lg">{String(title)}</strong><span className="mt-1 block text-xs leading-relaxed text-[#8ea6c9]">{String(text)}</span></span></button>)}</div></>:<><button type="button" onClick={()=>setTrainingView('hub')} className="mb-4 inline-flex items-center gap-1.5 text-xs font-extrabold text-[#8bb8ff]"><ChevronLeft size={15}/>Todos os treinos</button>{trainingView==='questoes'&&<section id="curso-questoes" className="-mx-4 md:mx-0 [&_.plan6-top]:!hidden [&_.plan6-hero]:!hidden [&_.plan6-selectors]:!hidden [&_.plan6-tabs]:!hidden [&_.plan6-bottomnav]:!hidden"><AdmissionsPlannerV11 onBack={()=>setTrainingView('hub')} /></section>}{trainingView==='simulados'&&<OfficialExamReviewV2/>}{trainingView==='fases'&&<PhaseTrainingLab/>}{trainingView==='visual'&&<EnemVisualPractice/>}{trainingView==='redacao'&&<EssayPractice/>}</>}
+      ].map(([id,title,text,Icon])=><button key={String(id)} type="button" onClick={()=>openTraining(id as TrainingView)} className="flex min-h-[116px] items-center gap-4 rounded-[20px] border border-[#173765] bg-[#06152f] p-4 text-left transition hover:border-[#31588e]"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#0b2856] text-[#72a5ff]"><Icon size={21}/></span><span><strong className="block text-lg">{String(title)}</strong><span className="mt-1 block text-xs leading-relaxed text-[#8ea6c9]">{String(text)}</span></span></button>)}</div></>:<><button type="button" onClick={()=>setTrainingView('hub')} className="mb-4 inline-flex items-center gap-1.5 text-xs font-extrabold text-[#8bb8ff]"><ChevronLeft size={15}/>Todos os treinos</button>{trainingView==='questoes'&&<EmbeddedQuestionBank onBack={()=>setTrainingView('hub')}/>} {trainingView==='simulados'&&<OfficialExamReviewV2/>}{trainingView==='fases'&&<PhaseTrainingLab/>}{trainingView==='visual'&&<EnemVisualPractice/>}{trainingView==='redacao'&&<EssayPractice/>}</>}
     </main>}
 
     {view==='mais'&&<main className="mx-auto w-full max-w-5xl px-4 pb-28 pt-5 md:px-6 md:pb-12 md:pt-8">
