@@ -5,6 +5,7 @@ const planner=read('src/components/AdmissionsPlannerV11.tsx');
 const roadmap=read('src/lib/admissions-roadmap.ts');
 const catalog=read('src/lib/exam-skill-catalog.ts');
 const progress=read('src/components/WeeklyPlanExperience.tsx');
+const tutor=read('api/education-tutor.ts');
 
 const checks=[
   ['difficulty profiler is mounted',planner.includes('<DifficultyProfile')],
@@ -19,6 +20,11 @@ const checks=[
   ['catalog covers Insper',catalog.includes("examId==='insper'")],
   ['catalog covers CMMG',catalog.includes("examId==='cmmg'")],
   ['catalog covers Link',catalog.includes("label:'Jornada Link'")],
+  ['Insper catalog includes official essay criteria',catalog.includes('Revisão pelos quatro critérios oficiais do Insper')],
+  ['Link catalog separates PREP and SPRINT',catalog.includes("subject:'PREP: trajetória acadêmica'")&&catalog.includes("subject:'SPRINT: business case'")],
+  ['question bank exposes executable simulations',planner.includes('startSimulation')&&planner.includes('SPRINT dirigido')],
+  ['AI recognizes Insper and Link fingerprints',tutor.includes('EXAM_FINGERPRINTS')&&tutor.includes('Não confunda a redação do Insper')],
+  ['AI falls back to the exam taxonomy',tutor.includes('taxonomyRefs')&&tutor.includes('referencePool')],
   ['weekly progress is account-persisted',progress.includes('student_weekly_plan_progress')],
   ['weekly progress is keyed by exam and week',progress.includes("eq('exam_id',examId)")&&progress.includes("eq('week_start',w.start)")],
 ];
