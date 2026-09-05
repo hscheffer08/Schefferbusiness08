@@ -37,11 +37,16 @@ const FUVEST:SkillSubject[]=[
 ];
 
 const INSPER:SkillSubject[]=[
- {subject:'Linguagens',area:'Linguagens',topics:['Interpretação e inferência','Argumentação e gêneros textuais','Gramática em contexto','Literatura e leitura crítica','Inglês: leitura e vocabulário em contexto']},
- {subject:'Matemática',area:'Matemática',topics:['Álgebra e funções','Porcentagem e matemática financeira','Geometria','Trigonometria','Probabilidade e combinatória','Estatística e análise de dados','Raciocínio lógico e resolução de problemas']},
- {subject:'Ciências Humanas',area:'Humanas',topics:['História do Brasil e mundo contemporâneo','Geopolítica','Economia e sociedade','Urbanização e população','Filosofia, ética e política','Sociologia, cultura e desigualdade']},
- {subject:'Ciências da Natureza',area:'Natureza',topics:['Biologia e ecologia','Genética e fisiologia','Química geral e orgânica','Estequiometria e soluções','Mecânica e energia','Eletricidade, ondas e termologia']},
- {subject:'Redação',area:'Redação',topics:['Leitura da proposta','Tese','Argumentação','Estrutura e coesão','Norma-padrão']},
+ {subject:'Língua Portuguesa',area:'Linguagens',topics:['Funcionamento social da língua, variação e registro','Morfologia e formação de palavras','Sintaxe, pontuação e relações de sentido','Coesão, coerência e progressão textual','Gêneros, intertextualidade e textos multimodais','Literatura brasileira, portuguesa, africana e indígena']},
+ {subject:'Matemática: números e álgebra',area:'Matemática',topics:['Conjuntos numéricos, razão e proporcionalidade','Porcentagem e matemática financeira','Sequências e progressões','Equações, inequações e sistemas','Funções afim, quadrática, exponencial e logarítmica','Trigonometria e funções trigonométricas']},
+ {subject:'Matemática: dados e espaço',area:'Matemática',topics:['Análise combinatória e princípios de contagem','Probabilidade simples e condicional','Geometria plana e semelhança','Geometria espacial e medidas','Estatística, boxplot, variância e desvio padrão','Leitura de tabelas, gráficos e algoritmos']},
+ {subject:'Biologia',area:'Natureza',topics:['Citologia, metabolismo e divisão celular','Genética, biologia molecular e biotecnologia','Evolução e diversidade da vida','Ecologia, ciclos e impactos ambientais','Fisiologia, imunidade e saúde']},
+ {subject:'Física',area:'Natureza',topics:['Cinemática, dinâmica e energia','Gravitação, fluidos e termodinâmica','Ondas, acústica e óptica','Eletricidade, circuitos e magnetismo','Física moderna e interpretação experimental']},
+ {subject:'Química',area:'Natureza',topics:['Estrutura da matéria, ligações e propriedades','Estequiometria, gases e soluções','Termoquímica, cinética e equilíbrio','Ácidos, bases e eletroquímica','Química orgânica e ambiental']},
+ {subject:'História',area:'Humanas',topics:['Brasil colonial, escravidão e independência','Brasil Império, República e cidadania','Revoluções, industrialização e imperialismo','Guerras mundiais, Guerra Fria e mundo contemporâneo']},
+ {subject:'Geografia',area:'Humanas',topics:['Cartografia, território e leitura espacial','População, migrações e urbanização','Economia, redes, energia e espaço agrário','Geopolítica, globalização e relações internacionais','Clima, biomas, recursos e sustentabilidade']},
+ {subject:'Sociologia',area:'Humanas',topics:['Cultura, identidade e socialização','Trabalho, desigualdade, raça e gênero','Poder, Estado, cidadania e movimentos sociais','Mídia, tecnologia e sociedade']},
+ {subject:'Redação dissertativo-argumentativa',area:'Redação',topics:['Recorte do tema e tese explícita','Projeto de texto e progressão argumentativa','Argumentos, evidências e repertório produtivo','Coerência global e coesão entre partes','Norma-padrão, registro e precisão linguística','Revisão pelos quatro critérios oficiais do Insper']},
 ];
 
 const CMMG_MED:SkillSubject[]=[
@@ -66,18 +71,19 @@ const CMMG_EFFPO:SkillSubject[]=[
 ];
 
 const LINK:SkillSubject[]=[
- {subject:'Matemática',area:'Matemática',topics:['Raciocínio quantitativo','Porcentagem, proporções e taxas','Álgebra e funções','Probabilidade e estatística','Leitura de tabelas e gráficos','Resolução de problemas sob tempo']},
- {subject:'Business Case',area:'Business Case',topics:['Estruturação do problema','Hipóteses e priorização','Análise de dados','Unit economics e lógica de negócios','Criatividade e solução de problemas','Recomendação baseada em evidências']},
- {subject:'Comunicação escrita',area:'Escrita',topics:['Síntese','Clareza e estrutura','Argumentação','Comunicação executiva','Uso de evidências']},
- {subject:'Comunicação oral e vídeo',area:'Oral',topics:['Estrutura da resposta','Clareza e objetividade','Storytelling','Presença e segurança','Gestão do tempo']},
- {subject:'PREP e portfólio',area:'Portfólio',topics:['Seleção de experiências','Contexto, ação e resultado','Demonstração de impacto','Motivação pessoal','Narrativa coerente de trajetória']},
- {subject:'Entrevista',area:'Entrevista',topics:['Motivação e fit','Perguntas comportamentais','Exemplos concretos','Autoconhecimento','Comunicação sob pressão']},
+ {subject:'PREP: trajetória acadêmica',area:'Portfólio',topics:['Evidências de desempenho e curiosidade acadêmica','Seleção de projetos, iniciativas e experiências','Contexto, ação, resultado e aprendizado','Impacto demonstrado com métricas e evidências','Coerência entre trajetória, ambição e propósito']},
+ {subject:'PREP: vídeo de apresentação',area:'Oral',topics:['Roteiro com gancho, evidência e fechamento','Storytelling pessoal sem respostas genéricas','Clareza, presença, ritmo e linguagem corporal','Autenticidade, concisão e gestão do tempo']},
+ {subject:'SPRINT: matemática',area:'Matemática',topics:['Razão, proporção, porcentagem e taxas','Álgebra, equações e funções','Probabilidade e estatística aplicada','Leitura de tabelas, gráficos e indicadores','Estimativas, lógica e resolução sob tempo']},
+ {subject:'SPRINT: business case',area:'Business Case',topics:['Definição do problema e separação entre causa e sintoma','Hipóteses, árvore de problemas e priorização','Cliente, mercado, concorrência e posicionamento','Receita, custos, margem e unit economics','Análise de dados, trade-offs e riscos','Criatividade com viabilidade e impacto','Experimentos, implementação e indicadores','Recomendação final baseada em evidências']},
+ {subject:'SPRINT: entrega escrita',area:'Escrita',topics:['Síntese executiva e resposta ao comando','Estrutura lógica e progressão','Argumentação baseada em dados','Trade-offs, riscos e próximos passos','Clareza, precisão e revisão final']},
+ {subject:'SPRINT: entrega em vídeo',area:'Oral',topics:['Pitch com problema, análise e recomendação','Seleção de dados para sustentar a decisão','Comunicação oral clara e persuasiva','Presença, ritmo e gestão do tempo','Resposta a objeções e defesa de escolhas']},
+ {subject:'Entrevista de fit',area:'Entrevista',topics:['Motivação específica para a Link','Perguntas comportamentais no formato STAR','Liderança, iniciativa e trabalho em equipe','Fracasso, feedback, aprendizado e autoconhecimento','Ética, impacto e alinhamento com a missão','Prontidão para comunicação em inglês']},
 ];
 
 export function getExamSkillCatalog(examId:ExamId, course?:string):ExamSkillCatalog{
  if(examId==='enem')return{examId,label:'Matriz ENEM 2026',sourceLabel:'Inep — Matrizes de Referência ENEM 2026',sourceUrl:'https://www.gov.br/inep/pt-br/centrais-de-conteudo/acervo-linha-editorial/publicacoes-institucionais/avaliacoes-e-exames-da-educacao-basica/matrizes-de-referencia-enem',subjects:ENEM};
  if(examId==='fuvest')return{examId,label:'Programa FUVEST 2027',sourceLabel:'FUVEST — Programa e Guia de Provas 2027',sourceUrl:'https://www.fuvest.br/vestibular-da-usp/',subjects:FUVEST};
- if(examId==='insper')return{examId,label:'Vestibular Insper 2027.1',sourceLabel:'Insper — Vestibular e conteúdos programáticos',sourceUrl:'https://www.insper.edu.br/pt/cursos/vestibular/inscricao',subjects:INSPER};
+ if(examId==='insper')return{examId,label:'Vestibular Insper 2027.1',sourceLabel:'Insper — Vestibular e conteúdos programáticos',sourceUrl:'https://www.insper.edu.br/pt/cursos/vestibular',subjects:INSPER};
  if(examId==='cmmg'){const effpo=['Enfermagem','Fisioterapia','Fonoaudiologia','Odontologia','Psicologia'].includes(course||'');return{examId,label:'Vestibular FCM-MG 2027.1',sourceLabel:'FCM-MG — Manual do Candidato e conteúdo programático',sourceUrl:'https://vestibular.cmmg.edu.br/',subjects:effpo?CMMG_EFFPO:CMMG_MED};}
  return{examId,label:'Jornada Link',sourceLabel:'Link School of Business — Jornada de admissão',sourceUrl:'https://lsb.edu.br/pt-br/adm',subjects:LINK};
 }
