@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BarChart3, ClipboardCheck, FileText, Loader2, LockKeyhole, LogIn, LogOut, Mic2, ScanLine, Target, UserCheck } from 'lucide-react';
+import { BarChart3, BrainCircuit, ClipboardCheck, FileText, Loader2, LockKeyhole, LogIn, LogOut, Mic2, ScanLine, Target, UserCheck } from 'lucide-react';
 import Auth from '@/components/Auth';
 import AdmissionsPlannerV11 from '@/components/AdmissionsPlannerV11';
 import AdmissionsTargetIntelligence from '@/components/AdmissionsTargetIntelligence';
@@ -9,6 +9,7 @@ import OfficialExamReviewV2 from '@/components/OfficialExamReviewV2';
 import CourseDataProof from '@/components/CourseDataProof';
 import AIEducationTutor from '@/components/AIEducationTutor';
 import PhaseTrainingLab from '@/components/PhaseTrainingLab';
+import StudentStrategyCenter from '@/components/StudentStrategyCenter';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
 import './admissions-planner-v8.css';
@@ -41,13 +42,14 @@ function Gate({ onBack }: { onBack: () => void }) {
 
   const openPlanTab=()=>{const buttons=Array.from(document.querySelectorAll<HTMLButtonElement>('#curso-inicio .plan6-tab'));buttons.find(button=>button.textContent?.trim()==='Plano')?.click();};
   const jump=(id:string)=>{if(id==='curso-inicio')openPlanTab();document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'});};
-  const navItems=[['curso-inicio','Meu plano',Target],['curso-metas','Metas',BarChart3],['correcao-simulado','Simulados',ClipboardCheck],['curso-fases','Outras fases',Mic2],['curso-visual','Questões visuais',ScanLine],['curso-redacao','Redação',FileText]] as const;
+  const navItems=[['curso-inicio','Meu plano',Target],['curso-estrategia','Estratégia',BrainCircuit],['curso-metas','Metas',BarChart3],['correcao-simulado','Simulados',ClipboardCheck],['curso-fases','Outras fases',Mic2],['curso-visual','Questões visuais',ScanLine],['curso-redacao','Redação',FileText]] as const;
 
   return <div className="relative min-h-screen bg-[#020817]">
     <div className="sticky top-0 z-[92] border-b border-[#173765] bg-[#020817]/95 text-white shadow-xl shadow-black/10 backdrop-blur-xl"><div className="mx-auto flex max-w-[1240px] items-center gap-3 px-3 py-2.5 md:px-6"><button type="button" onClick={()=>jump('curso-inicio')} className="mr-1 flex shrink-0 items-center gap-2 rounded-xl px-2 py-1.5 font-extrabold"><span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#246cff] text-sm">C</span><span className="hidden sm:block">Curso</span></button><nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">{navItems.map(([id,label,Icon])=><button key={id} type="button" onClick={()=>jump(id)} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-[#9fb5d4] transition hover:bg-[#0b2856] hover:text-white"><Icon size={14}/>{label}</button>)}</nav><button type="button" onClick={signOut} className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-[#234576] bg-[#071a38] px-3 py-2 text-xs font-bold text-white hover:bg-[#0c2857]" aria-label="Sair da conta"><LogOut className="w-4 h-4" /><span className="hidden md:inline">Sair</span></button></div></div>
     <CourseDataProof compact />
-    <div className="fixed bottom-[76px] left-3 z-[85] flex flex-col gap-2 md:bottom-5 md:left-5 md:right-auto"><button type="button" onClick={()=>jump('curso-fases')} className="inline-flex items-center gap-2 rounded-xl border border-[#31588e] bg-[#0b2856]/95 px-3 py-3 text-xs font-extrabold text-white shadow-xl backdrop-blur"><Mic2 size={16}/>Treinar outras fases</button><button type="button" onClick={()=>jump('correcao-simulado')} className="inline-flex items-center gap-2 rounded-xl border border-[#31588e] bg-[#0b2856]/95 px-3 py-3 text-xs font-extrabold text-white shadow-xl backdrop-blur"><ClipboardCheck size={16}/>Corrigir simulado</button></div>
+    <div className="fixed bottom-[76px] left-3 z-[85] flex flex-col gap-2 md:bottom-5 md:left-5 md:right-auto"><button type="button" onClick={()=>jump('curso-estrategia')} className="inline-flex items-center gap-2 rounded-xl border border-[#31588e] bg-[#0b2856]/95 px-3 py-3 text-xs font-extrabold text-white shadow-xl backdrop-blur"><BrainCircuit size={16}/>Próximo melhor movimento</button><button type="button" onClick={()=>jump('curso-fases')} className="inline-flex items-center gap-2 rounded-xl border border-[#31588e] bg-[#0b2856]/95 px-3 py-3 text-xs font-extrabold text-white shadow-xl backdrop-blur"><Mic2 size={16}/>Treinar outras fases</button><button type="button" onClick={()=>jump('correcao-simulado')} className="inline-flex items-center gap-2 rounded-xl border border-[#31588e] bg-[#0b2856]/95 px-3 py-3 text-xs font-extrabold text-white shadow-xl backdrop-blur"><ClipboardCheck size={16}/>Corrigir simulado</button></div>
     <section id="curso-inicio" className="scroll-mt-16"><AdmissionsPlannerV11 onBack={onBack} /></section>
+    <StudentStrategyCenter />
     <section id="curso-metas" className="scroll-mt-16"><AdmissionsTargetIntelligence /></section>
     <OfficialExamReviewV2 />
     <section id="curso-fases" className="scroll-mt-16"><PhaseTrainingLab /></section>
