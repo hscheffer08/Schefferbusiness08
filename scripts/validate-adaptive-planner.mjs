@@ -3,6 +3,7 @@ import fs from 'node:fs';
 const read=(p)=>fs.readFileSync(p,'utf8');
 const planner=read('src/components/AdmissionsPlannerV11.tsx');
 const gate=read('src/components/AdmissionsPlannerGate.tsx');
+const embeddedQuestions=read('src/components/EmbeddedQuestionBank.tsx');
 const dashboard=read('src/components/CourseDashboard.tsx');
 const roadmap=read('src/lib/admissions-roadmap.ts');
 const catalog=read('src/lib/exam-skill-catalog.ts');
@@ -37,6 +38,9 @@ const checks=[
   ['mobile navigation has four clear destinations',gate.includes("['inicio','Início',Home]")&&gate.includes("['plano','Plano',Target]")&&gate.includes("['treinar','Treinar',BookOpenCheck]")&&gate.includes("['mais','Mais',LayoutGrid]")],
   ['secondary tools are grouped instead of stacked on course home',gate.includes("type TrainingView='hub'")&&gate.includes("type MoreView='hub'")],
   ['old floating shortcuts remain removed',!gate.includes('Próximo melhor movimento')&&!gate.includes('Treinar outras fases')&&!gate.includes('Corrigir simulado')&&!gate.includes('Atualizar meu gêmeo</button></div>')],
+  ['Questions lives inside Training',gate.includes("['questoes','Questões','Pratique por matéria e conteúdo no banco de questões.'")&&gate.includes('<EmbeddedQuestionBank')],
+  ['embedded Questions waits for the correct active tab',embeddedQuestions.includes("textContent?.trim() === 'Questões'")&&embeddedQuestions.includes(".plan6-tab.active")&&embeddedQuestions.includes('Abrindo seu banco de questões')],
+  ['embedded Questions hides planner chrome',embeddedQuestions.includes('[&_.plan6-top]:!hidden')&&embeddedQuestions.includes('[&_.plan6-bottomnav]:!hidden')],
   ['question bank exposes executable simulations',planner.includes('startSimulation')&&planner.includes('SPRINT dirigido')],
   ['AI recognizes all exam fingerprints',tutor.includes('EXAM_FINGERPRINTS')&&['enem:','fuvest:','cmmg:','insper:','link:'].every(x=>tutor.includes(x))],
   ['AI falls back to the exam taxonomy',tutor.includes('taxonomyRefs')&&tutor.includes('const pool')],
