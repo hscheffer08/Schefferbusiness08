@@ -13,8 +13,11 @@ const behaviors=new Set(cases.map(c=>c.expectedBehavior));for(const b of ['answe
 const tutor=fs.readFileSync(new URL('../api/education-tutor.ts',import.meta.url),'utf8');
 const premium=fs.readFileSync(new URL('../api/education-tutor-premium.ts',import.meta.url),'utf8');
 const analyzer=fs.readFileSync(new URL('../api/analyze-question.ts',import.meta.url),'utf8');
-for(const marker of ['gpt-5.6-luna','selective-adversarial-review','unexpected-script-repair','agrees_with_preliminary','self_check_passed','uncertainty_reason','confidenceLabel','answerable','rankPractice','BASE RECUPERADA DO BANCO','adminUnlimited'])if(!tutor.includes(marker))throw new Error(`Tutor sem proteção obrigatória: ${marker}.`);
-for(const marker of ['gpt-5.6-luna','self_check_passed','uncertainty_reason']){if(!premium.includes(marker))throw new Error(`Premium sem proteção obrigatória: ${marker}.`);if(!analyzer.includes(marker))throw new Error(`Analisador sem proteção obrigatória: ${marker}.`);}
+const tutorUi=fs.readFileSync(new URL('../src/components/AIEducationTutor.tsx',import.meta.url),'utf8');
+for(const marker of ['gpt-5.6-luna','selective-adversarial-review','unexpected-script-repair','agrees_with_preliminary','self_check_passed','uncertainty_reason','confidenceLabel','answerable','rankPractice','BASE RECUPERADA DO BANCO','adminUnlimited','premiumUnlimited','parsed.web_verified===true&&found.length','Math.min(finalConfidence,.55)','tutor usage record unavailable'])if(!tutor.includes(marker))throw new Error(`Tutor sem proteção obrigatória: ${marker}.`);
+if(!premium.includes("export { default } from './education-tutor'"))throw new Error('A rota Premium precisa reutilizar o tutor principal para não perder as proteções de qualidade.');
+for(const marker of ['gpt-5.6-luna','self_check_passed','uncertainty_reason'])if(!analyzer.includes(marker))throw new Error(`Analisador sem proteção obrigatória: ${marker}.`);
+for(const marker of ["fetch('/api/education-tutor'",'data.premiumUnlimited','confidenceReason','data.sources','Fontes:'])if(!tutorUi.includes(marker))throw new Error(`Interface da IA sem integração obrigatória: ${marker}.`);
 const coverage=JSON.parse(fs.readFileSync(new URL('../tests/exam-ai-coverage.json',import.meta.url),'utf8'));
 for(const exam of ['enem','cmmg'])if(!coverage.exams?.[exam])throw new Error(`Cobertura ausente: ${exam}.`);
 const requiredSubjects={enem:['Humanas','Linguagens','Matemática','Natureza','Redação'],cmmg:['Biologia','Física','Inglês','Língua Portuguesa','Linguagens','Literatura','Matemática','Química','Redação']};
