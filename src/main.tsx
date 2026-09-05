@@ -91,13 +91,13 @@ createRoot(document.getElementById('root')!).render(
           <VocationalDemoMount />
           <ExpandedHomeMount />
           <AdmissionsPlannerEntryMount />
-          <AccountControlsMount />
           <BalancedAreaResultsMount />
           <PremiumDemoMount />
         </>
       ) : (
         <CourseHome />
       )}
+      <AccountControlsMount />
     </Suspense>
     <AlphabeticalSelectOrder />
     <Analytics />
