@@ -22,6 +22,7 @@ const features = [
 export default function CourseHome() {
   const openCourse = () => navigateWith({ planner: 'aprovacao', experience: null });
   const openCollegeTools = () => navigateWith({ experience: 'faculdades', planner: null });
+  const openOfficialBank = () => navigateWith({ experience: 'vestibulares-oficiais', planner: null });
 
   return (
     <div className="min-h-screen overflow-hidden bg-[#020817] text-white font-['Plus_Jakarta_Sans']">
@@ -38,6 +39,7 @@ export default function CourseHome() {
           </div>
           <nav className="hidden items-center gap-6 text-sm font-bold text-[#9fb5d4] md:flex">
             <button onClick={openCourse} className="text-white">Curso</button>
+            <button onClick={openOfficialBank} className="transition hover:text-white">Questões oficiais</button>
             <button onClick={openCollegeTools} className="transition hover:text-white">Faculdades</button>
             <button onClick={openCollegeTools} className="transition hover:text-white">Teste vocacional</button>
           </nav>
@@ -51,8 +53,9 @@ export default function CourseHome() {
             <div className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/[.07] px-3 py-1.5 text-xs font-extrabold text-emerald-200"><Sparkles className="h-4 w-4" />GRATUITO POR TEMPO LIMITADO</div>
             <h1 className="max-w-4xl text-4xl font-black leading-[.98] tracking-[-.055em] sm:text-5xl md:text-7xl">Seu curso inteiro organizado para <span className="text-[#72a5ff]">passar.</span></h1>
             <p className="mt-6 max-w-2xl text-base leading-relaxed text-[#a9bddc] md:text-xl">Escolha o curso e a faculdade que você quer. O Conectaê transforma suas notas, seus erros e o tempo até a prova em um plano adaptativo com estudo, questões, simulados e revisão.</p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <button onClick={openCourse} className="group inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#246cff] px-6 text-base font-black shadow-2xl shadow-[#246cff]/25 transition hover:-translate-y-0.5 hover:bg-[#3678ff]">Abrir meu Curso <ArrowRight className="h-5 w-5 transition group-hover:translate-x-1" /></button>
+              <button onClick={openOfficialBank} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-emerald-400/30 bg-emerald-400/[.08] px-6 text-sm font-extrabold text-emerald-100 transition hover:border-emerald-300/60 hover:bg-emerald-400/[.12]"><BookOpenCheck className="h-5 w-5" />548+ questões oficiais</button>
               <button onClick={openCollegeTools} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-[#234576] bg-[#071a38] px-6 text-sm font-extrabold text-[#c4d4ea] transition hover:border-[#72a5ff] hover:text-white"><Compass className="h-5 w-5" />Ainda não sei meu curso/faculdade</button>
             </div>
             <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-xs font-bold text-[#8da5c5]">
@@ -85,8 +88,9 @@ export default function CourseHome() {
         </section>
 
         <section className="mx-auto max-w-7xl px-5 py-14 md:px-8 md:py-20">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-3">
             <button onClick={openCourse} className="group rounded-[26px] border border-[#31588e] bg-gradient-to-br from-[#0b2856] to-[#06152f] p-6 text-left transition hover:-translate-y-1 hover:border-[#72a5ff] md:p-8"><Target className="h-7 w-7 text-[#72a5ff]" /><div className="mt-6 text-xs font-black uppercase tracking-[.15em] text-[#72a5ff]">Principal</div><h3 className="mt-2 text-3xl font-black tracking-tight">Curso de Aprovação</h3><p className="mt-3 max-w-xl text-sm leading-relaxed text-[#a9bddc]">Para quem já tem um objetivo e quer transformar esse objetivo em execução diária.</p><span className="mt-6 inline-flex items-center gap-2 font-black">Entrar no Curso <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></span></button>
+            <button onClick={openOfficialBank} className="group rounded-[26px] border border-emerald-400/25 bg-emerald-400/[.06] p-6 text-left transition hover:-translate-y-1 hover:border-emerald-300/55 md:p-8"><BookOpenCheck className="h-7 w-7 text-emerald-300" /><div className="mt-6 text-xs font-black uppercase tracking-[.15em] text-emerald-300">Banco especial</div><h3 className="mt-2 text-3xl font-black tracking-tight">Questões dos Vestibulares</h3><p className="mt-3 max-w-xl text-sm leading-relaxed text-[#a9bddc]">548+ questões oficiais identificadas por vestibular, edição, número e área, com acesso à prova e ao gabarito oficial.</p><span className="mt-6 inline-flex items-center gap-2 font-black text-emerald-200">Abrir banco oficial <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></span></button>
             <button onClick={openCollegeTools} className="group rounded-[26px] border border-[#173765] bg-[#051127] p-6 text-left transition hover:-translate-y-1 hover:border-[#31588e] md:p-8"><Compass className="h-7 w-7 text-cyan-300" /><div className="mt-6 text-xs font-black uppercase tracking-[.15em] text-[#839ab9]">Complementar</div><h3 className="mt-2 text-3xl font-black tracking-tight">Explorar cursos e faculdades</h3><p className="mt-3 max-w-xl text-sm leading-relaxed text-[#9fb5d4]">Teste vocacional, match de faculdades, comparação e perfil continuam disponíveis para quem ainda está decidindo.</p><span className="mt-6 inline-flex items-center gap-2 font-black text-cyan-200">Explorar opções <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></span></button>
           </div>
         </section>
