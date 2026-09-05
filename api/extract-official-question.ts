@@ -1,0 +1,97 @@
+import { generateText } from 'ai';
+import { createClient } from '@supabase/supabase-js';
+
+const MODEL='google/gemini-3.5-flash';
+const FALLBACKS=['google/gemini-3.7-flash','google/gemini-3.5-flash-lite'];
+const FALLBACK_SUPABASE_URL='https://kmognvgnfisdchzffkgh.supabase.co';
+const FALLBACK_SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
+
+function clean(v:unknown){return String(v??'').trim().replace(/^["']|["']$/g,'')}
+function cfg(){
+  const ru=clean(process.env.SUPABASE_URL||process.env.VITE_SUPABASE_URL),rk=clean(process.env.SUPABASE_ANON_KEY||process.env.VITE_SUPABASE_ANON_KEY||process.env.VITE_SUPABASE_PUBLISHABLE_KEY);
+  try{const u=new URL(ru.startsWith('http')?ru:`https://${ru}`);if(rk&&/^[a-z0-9-]+\.supabase\.co$/i.test(u.hostname))return{url:u.origin,key:rk}}catch{}
+  return{url:FALLBACK_SUPABASE_URL,key:FALLBACK_SUPABASE_ANON_KEY};
+}
+async function verify(url:string,key:string,token:string){
+  const c=createClient(url,key,{auth:{autoRefreshToken:false,persistSession:false,detectSessionInUrl:false}});
+  try{const{data,error}=await c.auth.getClaims(token);if(!error&&(data as any)?.claims?.sub)return String((data as any).claims.sub)}catch{}
+  try{const{data,error}=await c.auth.getUser(token);if(!error&&data.user?.id)return String(data.user.id)}catch{}
+  return'';
+}
+function allowedUrl(raw:unknown){
+  try{const u=new URL(String(raw||''));return u.protocol==='https:'&&['download.inep.gov.br','vestibular.cmmg.edu.br'].includes(u.hostname)?u.toString():''}catch{return''}
+}
+function parseJson(raw:string){
+  const s=raw.trim().replace(/^```json\s*/i,'').replace(/^```\s*/,'').replace(/```$/,'').trim();
+  const a=s.indexOf('{'),b=s.lastIndexOf('}');
+  return JSON.parse(a>=0&&b>a?s.slice(a,b+1):s);
+}
+const reply=(res:any,status:number,body:any)=>{res.setHeader('Cache-Control','private, max-age=300');return res.status(status).json(body)};
+
+export default async function handler(req:any,res:any){
+  if(req.method!=='POST')return reply(res,405,{error:'Método não permitido.'});
+  try{
+    const auth=String(req.headers.authorization||'');
+    if(!auth.startsWith('Bearer '))return reply(res,401,{error:'Entre na sua conta para abrir questões oficiais.'});
+    const c=cfg(),userId=await verify(c.url,c.key,auth.slice(7).trim());
+    if(!userId)return reply(res,401,{error:'Sua sessão expirou. Entre novamente.'});
+
+    const mode=String(req.body?.mode||'question');
+    const sourceUrl=allowedUrl(req.body?.sourceUrl);
+    const questionNumber=Math.max(1,Math.min(250,Number(req.body?.questionNumber)||0));
+    const exam=String(req.body?.exam||'').slice(0,80);
+    const year=Number(req.body?.year)||null;
+    if(!sourceUrl||!questionNumber)return reply(res,400,{error:'Fonte oficial ou número da questão inválido.'});
+
+    if(mode==='answer'){
+      const prompt=`Leia APENAS o gabarito oficial anexado. Localize a questão ${questionNumber}${year?` da edição ${year}`:''}${exam?` de ${exam}`:''}. Retorne somente JSON válido no formato {"correct_option":"A|B|C|D|E|null","confidence":0.0}. Não invente resposta: se a numeração não puder ser localizada com segurança, use null.`;
+      const out=await generateText({
+        model:MODEL,
+        messages:[{role:'user',content:[{type:'text',text:prompt},{type:'file',mediaType:'application/pdf',data:sourceUrl}]}],
+        maxOutputTokens:300,
+        abortSignal:AbortSignal.timeout(45000),
+        providerOptions:{gateway:{models:FALLBACKS,user:userId,tags:['feature:official-question-answer',`exam:${exam.toLowerCase()||'unknown'}`]}}
+      } as any);
+      const parsed=parseJson(String(out.text||''));
+      const option=/^[A-E]$/.test(String(parsed.correct_option||'').toUpperCase())?String(parsed.correct_option).toUpperCase():null;
+      return reply(res,200,{correct_option:option,confidence:Math.max(0,Math.min(.99,Number(parsed.confidence)||0)),source:'official-answer-key'});
+    }
+
+    const prompt=`Você está lendo uma PROVA OFICIAL. Extraia somente a questão número ${questionNumber}${year?` da edição ${year}`:''}${exam?` de ${exam}`:''}.
+
+Regras obrigatórias:
+1) Preserve fielmente o sentido e os dados da questão; não resolva e não indique o gabarito.
+2) Retorne o enunciado necessário para resolver e as alternativas A, B, C, D e E exatamente como aparecem quando existirem.
+3) Inclua textos auxiliares indispensáveis da própria questão (títulos de tabela, legenda, descrição textual curta de figura). Se uma imagem/gráfico for indispensável e não puder ser convertido com fidelidade, marque needs_source_image=true e descreva em image_note o que precisa ser exibido; não invente valores.
+4) Ignore instruções gerais da prova e outras questões.
+5) Se não localizar a questão com segurança, found=false.
+6) Não inclua resposta correta, comentário ou solução.
+
+Retorne APENAS JSON válido: {"found":true,"prompt":"...","option_a":"...","option_b":"...","option_c":"...","option_d":"...","option_e":"...","needs_source_image":false,"image_note":null,"confidence":0.0}.`;
+    const out=await generateText({
+      model:MODEL,
+      messages:[{role:'user',content:[{type:'text',text:prompt},{type:'file',mediaType:'application/pdf',data:sourceUrl}]}],
+      maxOutputTokens:2600,
+      abortSignal:AbortSignal.timeout(60000),
+      providerOptions:{gateway:{models:FALLBACKS,user:userId,tags:['feature:official-question-extract',`exam:${exam.toLowerCase()||'unknown'}`]}}
+    } as any);
+    const p=parseJson(String(out.text||''));
+    const found=p.found!==false&&String(p.prompt||'').trim().length>10;
+    return reply(res,200,{
+      found,
+      prompt:found?String(p.prompt||'').trim():'',
+      option_a:found?String(p.option_a||'').trim()||null:null,
+      option_b:found?String(p.option_b||'').trim()||null:null,
+      option_c:found?String(p.option_c||'').trim()||null:null,
+      option_d:found?String(p.option_d||'').trim()||null:null,
+      option_e:found?String(p.option_e||'').trim()||null:null,
+      needs_source_image:Boolean(p.needs_source_image),
+      image_note:p.image_note?String(p.image_note).slice(0,500):null,
+      confidence:Math.max(0,Math.min(.99,Number(p.confidence)||0)),
+      source:'official-exam-pdf'
+    });
+  }catch(error:any){
+    console.error('extract-official-question failed',error?.message||error);
+    return reply(res,500,{error:'Não consegui abrir essa questão oficial agora. Tente novamente.'});
+  }
+}
