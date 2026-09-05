@@ -113,13 +113,14 @@ export default function OfficialQuestionWorkspaceV2() {
   useEffect(() => {
     let alive = true;
     (async () => {
-      if (!supabase) {
+      const client = supabase;
+      if (!client) {
         setLoading(false);
         return;
       }
       setLoading(true);
 
-      const practicePromise = supabase
+      const practicePromise = client
         .from('exam_practice_questions')
         .select('id,exam_id,area,skill_name,difficulty,prompt,option_a,option_b,option_c,option_d,option_e,correct_option,explanation,source_kind,source_exam_year,source_question_number,source_exam_label,source_exam_url,source_answer_url')
         .eq('active', true)
@@ -130,7 +131,7 @@ export default function OfficialQuestionWorkspaceV2() {
       if (config.vestibular) {
         const batches = await Promise.all(
           config.areas.map((examArea) =>
-            supabase
+            client
               .from('official_vestibular_question_bank')
               .select('question_id,vestibular,year,question_number,area,subject,skill_name,correct_option,source_pdf_url,answer_key_url,source_url')
               .eq('vestibular', config.vestibular!)
@@ -215,12 +216,12 @@ export default function OfficialQuestionWorkspaceV2() {
     resetAttempt();
   };
 
-  const authHeaders = async () => {
+  const authHeaders = async (): Promise<Record<string, string>> => {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     const session = await supabase?.auth.getSession();
     const token = session?.data.session?.access_token;
-    return token
-      ? { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-      : { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return headers;
   };
 
   const openOfficial = async (q: OfficialRef) => {
