@@ -34,7 +34,7 @@ const checks=[
   ['top declared difficulties feed exact roadmap diagnostics',profiler.includes('selectedDetails.slice(0,8)')&&profiler.includes("evidence_path:'manual_difficulty'")&&profiler.includes("conectae:diagnostic-saved")],
   ['course home prioritizes course, college, ENEM scores and twin',['Curso</span>','Faculdade</span>','Últimas notas do ENEM','Seu gêmeo de estudos'].every(x=>dashboard.includes(x))],
   ['study twin remains one tap from course home',dashboard.includes('onOpenTwin')&&dashboard.includes('Criar meu gêmeo')],
-  ['mobile navigation has four clear destinations',gate.includes("['inicio','Início',Home]")&&gate.includes("['plano','Plano',Target]")&&gate.includes("['treinar','Treinar',BookOpenCheck]")&&gate.includes("['mais','Mais',LayoutGrid]"))],
+  ['mobile navigation has four clear destinations',gate.includes("['inicio','Início',Home]")&&gate.includes("['plano','Plano',Target]")&&gate.includes("['treinar','Treinar',BookOpenCheck]")&&gate.includes("['mais','Mais',LayoutGrid]")],
   ['secondary tools are grouped instead of stacked on course home',gate.includes("type TrainingView='hub'")&&gate.includes("type MoreView='hub'")],
   ['old floating shortcuts remain removed',!gate.includes('Próximo melhor movimento')&&!gate.includes('Treinar outras fases')&&!gate.includes('Corrigir simulado')&&!gate.includes('Atualizar meu gêmeo</button></div>')],
   ['question bank exposes executable simulations',planner.includes('startSimulation')&&planner.includes('SPRINT dirigido')],
