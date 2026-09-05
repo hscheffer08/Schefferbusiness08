@@ -4,6 +4,7 @@ const read=(p)=>fs.readFileSync(p,'utf8');
 const planner=read('src/components/AdmissionsPlannerV11.tsx');
 const gate=read('src/components/AdmissionsPlannerGate.tsx');
 const embeddedQuestions=read('src/components/EmbeddedQuestionBank.tsx');
+const officialWorkspace=read('src/components/OfficialQuestionWorkspace.tsx');
 const dashboard=read('src/components/CourseDashboard.tsx');
 const roadmap=read('src/lib/admissions-roadmap.ts');
 const catalog=read('src/lib/exam-skill-catalog.ts');
@@ -39,11 +40,13 @@ const checks=[
   ['secondary tools are grouped instead of stacked on course home',gate.includes("type TrainingView='hub'")&&gate.includes("type MoreView='hub'")],
   ['old floating shortcuts remain removed',!gate.includes('Próximo melhor movimento')&&!gate.includes('Treinar outras fases')&&!gate.includes('Corrigir simulado')&&!gate.includes('Atualizar meu gêmeo</button></div>')],
   ['Questions lives inside Training',gate.includes("['questoes','Questões','Pratique por matéria e conteúdo no banco de questões.'")&&gate.includes('<EmbeddedQuestionBank')],
-  ['question bank is a dedicated module instead of hidden planner tab',!embeddedQuestions.includes('AdmissionsPlannerV11')&&embeddedQuestions.includes("exam_practice_questions")],
-  ['question bank separates exams explicitly',['ENEM','CMMG','FUVEST','Insper','Link'].every(x=>embeddedQuestions.includes(`label:'${x}'`))],
-  ['question bank separates provenance',embeddedQuestions.includes("official_adapted")&&embeddedQuestions.includes('Adaptada de prova real')&&embeddedQuestions.includes('Estilo da prova')],
-  ['question bank exposes granular filters',embeddedQuestions.includes('Buscar conteúdo ou palavra-chave')&&embeddedQuestions.includes("label:'Matéria'")&&embeddedQuestions.includes("label:'Conteúdo'")],
-  ['question modal sits above permanent navigation',embeddedQuestions.includes('z-[200]')&&embeddedQuestions.includes("conectae:question-modal")&&embeddedQuestions.includes("document.body.style.overflow")],
+  ['embedded Questions delegates to official workspace',embeddedQuestions.includes('OfficialQuestionWorkspace')],
+  ['question bank separates exams explicitly',['ENEM','CMMG','FUVEST','Insper','Link'].every(x=>officialWorkspace.includes(`label:'${x}'`))],
+  ['question bank is official-first',officialWorkspace.includes("type Mode='official'|'practice'")&&officialWorkspace.includes('Questões oficiais')&&officialWorkspace.includes('Treino complementar')],
+  ['question bank reads official index',officialWorkspace.includes("official_vestibular_question_bank")&&officialWorkspace.includes('source_pdf_url')&&officialWorkspace.includes('answer_key_url')],
+  ['question bank exposes granular filters',officialWorkspace.includes('Buscar matéria, conteúdo ou número')&&officialWorkspace.includes("label:'Matéria'")&&officialWorkspace.includes("label:'Conteúdo'"))],
+  ['question modal sits above permanent navigation',officialWorkspace.includes('z-[220]')&&officialWorkspace.includes("conectae:question-modal")&&officialWorkspace.includes('document.body.style.overflow')],
+  ['question bank keeps provenance explicit',officialWorkspace.includes('Oficial completa')&&officialWorkspace.includes('Adaptada de prova real')&&officialWorkspace.includes('Estilo da prova')],
   ['question bank exposes executable simulations',planner.includes('startSimulation')&&planner.includes('SPRINT dirigido')],
   ['AI recognizes all exam fingerprints',tutor.includes('EXAM_FINGERPRINTS')&&['enem:','fuvest:','cmmg:','insper:','link:'].every(x=>tutor.includes(x))],
   ['AI falls back to the exam taxonomy',tutor.includes('taxonomyRefs')&&tutor.includes('const pool')],
