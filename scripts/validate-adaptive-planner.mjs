@@ -24,7 +24,7 @@ const checks=[
   ['Link catalog separates PREP and SPRINT',catalog.includes("subject:'PREP: trajetória acadêmica'")&&catalog.includes("subject:'SPRINT: business case'")],
   ['question bank exposes executable simulations',planner.includes('startSimulation')&&planner.includes('SPRINT dirigido')],
   ['AI recognizes all exam fingerprints',tutor.includes('EXAM_FINGERPRINTS')&&['enem:','fuvest:','cmmg:','insper:','link:'].every(x=>tutor.includes(x))],
-  ['AI falls back to the exam taxonomy',tutor.includes('taxonomyRefs')&&tutor.includes('const pool=')],
+  ['AI falls back to the exam taxonomy',tutor.includes('taxonomyRefs')&&tutor.includes('const pool')],
   ['AI uses seen-question history',tutor.includes('student_seen_questions')&&tutor.includes('seen.has')],
   ['AI uses provenance metadata',tutor.includes('source_exam_year')&&tutor.includes('source_question_number')&&tutor.includes('provenanceAware')],
   ['weekly progress is account-persisted',progress.includes('student_weekly_plan_progress')],
