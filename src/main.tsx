@@ -21,6 +21,7 @@ const PremiumDemoMount = lazy(() => import('./lib/premium-demo-mount.tsx'));
 const DiscoveryHub = lazy(() => import('./components/DiscoveryHub.tsx'));
 const AreaMatchPortal = lazy(() => import('./components/AreaMatchPortal.tsx'));
 const VocationalDemoPremium = lazy(() => import('./components/VocationalDemoPremium.tsx'));
+const OfficialVestibularBankPage = lazy(() => import('./components/OfficialVestibularBankPage.tsx'));
 
 const params = new URLSearchParams(window.location.search);
 const plannerOpen = params.get('planner') === 'aprovacao';
@@ -71,6 +72,8 @@ createRoot(document.getElementById('root')!).render(
           <AdmissionsPlannerGate onBack={closePlanner} />
           <PlannerDefaultTabMount />
         </>
+      ) : experienceMode === 'vestibulares-oficiais' ? (
+        <OfficialVestibularBankPage onBack={() => navigateExperience(null)} />
       ) : experienceMode === 'faculdades' || experienceMode === 'descoberta' ? (
         <DiscoveryHub
           onBack={() => navigateExperience(null)}
