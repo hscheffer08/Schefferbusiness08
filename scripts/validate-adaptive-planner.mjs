@@ -3,6 +3,7 @@ import fs from 'node:fs';
 const read=(p)=>fs.readFileSync(p,'utf8');
 const planner=read('src/components/AdmissionsPlannerV11.tsx');
 const gate=read('src/components/AdmissionsPlannerGate.tsx');
+const dashboard=read('src/components/CourseDashboard.tsx');
 const roadmap=read('src/lib/admissions-roadmap.ts');
 const catalog=read('src/lib/exam-skill-catalog.ts');
 const granular=read('src/lib/granular-study-topics.ts');
@@ -31,8 +32,11 @@ const checks=[
   ['study twin uses progressive disclosure',profiler.includes('Criar meu gêmeo')&&profiler.includes('started&&<>')],
   ['difficulty profiler supports topic search',profiler.includes('Busque um conteúdo: crase, MRUV, genética')],
   ['top declared difficulties feed exact roadmap diagnostics',profiler.includes('selectedDetails.slice(0,8)')&&profiler.includes("evidence_path:'manual_difficulty'")&&profiler.includes("conectae:diagnostic-saved")],
-  ['course navigation surfaces the study twin',gate.includes("['curso-inicio','Meu gêmeo',BrainCircuit]")&&gate.includes('Atualizar meu gêmeo')],
-  ['course floating shortcuts are reduced to one',!gate.includes('Próximo melhor movimento')&&!gate.includes('Treinar outras fases')&&!gate.includes('Corrigir simulado')],
+  ['course home prioritizes course, college, ENEM scores and twin',['Curso</span>','Faculdade</span>','Últimas notas do ENEM','Seu gêmeo de estudos'].every(x=>dashboard.includes(x))],
+  ['study twin remains one tap from course home',dashboard.includes('onOpenTwin')&&dashboard.includes('Criar meu gêmeo')],
+  ['mobile navigation has four clear destinations',gate.includes("['inicio','Início',Home]")&&gate.includes("['plano','Plano',Target]")&&gate.includes("['treinar','Treinar',BookOpenCheck]")&&gate.includes("['mais','Mais',LayoutGrid]")],
+  ['secondary tools are grouped instead of stacked on course home',gate.includes("type TrainingView='hub'")&&gate.includes("type MoreView='hub'")],
+  ['old floating shortcuts remain removed',!gate.includes('Próximo melhor movimento')&&!gate.includes('Treinar outras fases')&&!gate.includes('Corrigir simulado')&&!gate.includes('Atualizar meu gêmeo</button></div>')],
   ['question bank exposes executable simulations',planner.includes('startSimulation')&&planner.includes('SPRINT dirigido')],
   ['AI recognizes all exam fingerprints',tutor.includes('EXAM_FINGERPRINTS')&&['enem:','fuvest:','cmmg:','insper:','link:'].every(x=>tutor.includes(x))],
   ['AI falls back to the exam taxonomy',tutor.includes('taxonomyRefs')&&tutor.includes('const pool')],
