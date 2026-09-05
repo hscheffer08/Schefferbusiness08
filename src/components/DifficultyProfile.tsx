@@ -17,7 +17,25 @@ export default function DifficultyProfile({examId,course,value,onChange}:{examId
  const normalized=query.trim().toLowerCase();
  const visibleSubjects=useMemo(()=>catalog.subjects.map(s=>({...s,topics:normalized?s.topics.filter(t=>`${s.subject} ${s.area} ${t}`.toLowerCase().includes(normalized)):s.topics})).filter(s=>s.topics.length>0),[catalog,normalized]);
  const setLevel=(key:string,level:DifficultyLevel)=>{const next={...value};if(next[key]===level)delete next[key];else next[key]=level;onChange(next)};
- const save=async()=>{setSaving(true);setMsg('');try{if(!supabase)throw new Error();const{data}=await supabase.auth.getUser();if(!data.user)throw new Error();const{error}=await supabase.from('student_exam_preferences').upsert({user_id:data.user.id,exam_id:examId,difficulty_topics:value,updated_at:new Date().toISOString()},{onConflict:'user_id,exam_id'});if(error)throw error;setMsg('Dificuldades salvas. O plano foi recalculado para priorizar exatamente estes conteúdos.');window.dispatchEvent(new CustomEvent('conectae:difficulties-saved',{detail:{examId,value}}));}catch{setMsg('Não foi possível salvar agora. Tente novamente.')}finally{setSaving(false)}};
+ const selectedDetails=useMemo(()=>catalog.subjects.flatMap(s=>s.topics.map(topic=>({subject:s.subject,area:s.area,topic,key:topicKey(s.subject,topic),level:value[topicKey(s.subject,topic)]??0}))).filter(x=>x.level>0).sort((a,b)=>b.level-a.level||a.topic.localeCompare(b.topic,'pt-BR')),[catalog,value]);
+ const save=async()=>{setSaving(true);setMsg('');try{
+   if(!supabase)throw new Error();
+   const{data}=await supabase.auth.getUser();if(!data.user)throw new Error();
+   const{error}=await supabase.from('student_exam_preferences').upsert({user_id:data.user.id,exam_id:examId,difficulty_topics:value,updated_at:new Date().toISOString()},{onConflict:'user_id,exam_id'});if(error)throw error;
+   await supabase.from('student_skill_diagnostics').delete().eq('user_id',data.user.id).eq('exam_id',examId).eq('evidence_path','manual_difficulty');
+   const exactFocus=selectedDetails.slice(0,8);
+   if(exactFocus.length){
+     const{error:diagnosticError}=await supabase.from('student_skill_diagnostics').insert(exactFocus.map(item=>({
+       user_id:data.user.id,exam_id:examId,skill_code:null,area:item.area,question_text:null,correct:null,confidence:1,
+       error_type:'declared_difficulty',error_detail:`Dificuldade declarada: ${item.topic}`,
+       diagnosis:{source:'manual_difficulty',skill_name:item.topic,subject:item.subject,level:item.level},evidence_path:'manual_difficulty'
+     })));
+     if(diagnosticError)throw diagnosticError;
+   }
+   setMsg(`Dificuldades salvas. O plano vai priorizar ${exactFocus.length?`até ${exactFocus.length} dos pontos mais críticos`:'os conteúdos da prova'} sem aumentar sua carga semanal.`);
+   window.dispatchEvent(new CustomEvent('conectae:difficulties-saved',{detail:{examId,value}}));
+   window.dispatchEvent(new CustomEvent('conectae:diagnostic-saved',{detail:{examId,source:'manual_difficulty'}}));
+ }catch{setMsg('Não foi possível salvar agora. Tente novamente.')}finally{setSaving(false)}};
  return <section className="plan6-card span12">
   <div className="plan6-sectionlabel"><BrainCircuit size={14} style={{display:'inline',marginRight:6}}/>Mapa de dificuldades</div>
   <h2>Marque exatamente o conteúdo em que você tem dúvida.</h2>
