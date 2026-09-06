@@ -29,9 +29,12 @@ assert.equal(cmmg?.prompt,'Assinale a alternativa CORRETA.');
 assert.equal(cmmg?.opts.D,'quarta');
 
 const workspace=await readFile(new URL('../src/components/OfficialQuestionWorkspaceV3.tsx',import.meta.url),'utf8');
+const publicPage=await readFile(new URL('../src/components/OfficialVestibularBankPage.tsx',import.meta.url),'utf8');
 const pdfClient=await readFile(new URL('../src/lib/official-pdf-client.ts',import.meta.url),'utf8');
 assert.match(workspace,/\.range\(from,from\+499\)/);
 assert.match(workspace,/isEnemInteractiveQuestion\(q\.year,q\.question_number\)/);
+assert.match(publicPage,/OfficialQuestionWorkspaceV3/);
+assert.doesNotMatch(publicPage,/OfficialVestibularBank\/>/);
 assert.match(workspace,/extracted\?\.correct_option/);
 assert.doesNotMatch(workspace,/filter\(x=>x\.area===q\.area\)\.length\)<60/);
 assert.ok(pdfClient.indexOf('/api/proxy-official-pdf')<pdfClient.indexOf('SUPABASE_PDF_PROXY}?url='));
