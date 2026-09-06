@@ -1,6 +1,7 @@
 import { generateText } from 'ai';
+import { google } from '@ai-sdk/google';
 
-const MODELS=['google/gemini-2.5-flash-lite','google/gemini-2.5-flash'] as const;
+const GATEWAY_MODELS=['google/gemini-2.5-flash-lite','google/gemini-2.5-flash'] as const;
 
 function allowedUrl(raw:unknown){
   try{
@@ -15,25 +16,43 @@ function parseJson(raw:string){
 }
 const reply=(res:any,status:number,body:any)=>{res.setHeader('Cache-Control','no-store');return res.status(status).json(body)};
 
+async function generateOnce(model:any,args:{prompt:string;sourceUrl:string;maxOutputTokens:number;timeoutMs:number;exam:string;tag:string},gateway=false){
+  return generateText({
+    model,
+    messages:[{role:'user',content:[{type:'text',text:args.prompt},{type:'file',mediaType:'application/pdf',data:args.sourceUrl}]}],
+    maxOutputTokens:args.maxOutputTokens,
+    abortSignal:AbortSignal.timeout(args.timeoutMs),
+    ...(gateway?{providerOptions:{gateway:{tags:[args.tag,`exam:${args.exam.toLowerCase()||'unknown'}`]}}}:{}),
+  } as any);
+}
+
 async function runModel(args:{prompt:string;sourceUrl:string;maxOutputTokens:number;timeoutMs:number;exam:string;tag:string}){
   const errors:string[]=[];
-  for(const model of MODELS){
+
+  if(process.env.GOOGLE_GENERATIVE_AI_API_KEY){
+    for(const directModel of ['gemini-2.5-flash-lite','gemini-2.5-flash'] as const){
+      try{
+        const out=await generateOnce(google(directModel),args,false);
+        if(String(out.text||'').trim())return out;
+        errors.push(`google-direct/${directModel}: resposta vazia`);
+      }catch(error:any){
+        errors.push(`google-direct/${directModel}: ${String(error?.message||error).slice(0,220)}`);
+        console.warn('official-question direct model attempt failed',directModel,error?.message||error);
+      }
+    }
+  }
+
+  for(const model of GATEWAY_MODELS){
     try{
-      const out=await generateText({
-        model,
-        messages:[{role:'user',content:[{type:'text',text:args.prompt},{type:'file',mediaType:'application/pdf',data:args.sourceUrl}]}],
-        maxOutputTokens:args.maxOutputTokens,
-        abortSignal:AbortSignal.timeout(args.timeoutMs),
-        providerOptions:{gateway:{tags:[args.tag,`exam:${args.exam.toLowerCase()||'unknown'}`]}}
-      } as any);
+      const out=await generateOnce(model,args,true);
       if(String(out.text||'').trim())return out;
       errors.push(`${model}: resposta vazia`);
     }catch(error:any){
       errors.push(`${model}: ${String(error?.message||error).slice(0,220)}`);
-      console.warn('official-question model attempt failed',model,error?.message||error);
+      console.warn('official-question gateway model attempt failed',model,error?.message||error);
     }
   }
-  throw new Error(`Todos os modelos falharam: ${errors.join(' | ')}`);
+  throw new Error(`Todos os provedores falharam: ${errors.join(' | ')}`);
 }
 
 export default async function handler(req:any,res:any){
