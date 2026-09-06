@@ -10,6 +10,7 @@ const roadmap=read('src/lib/admissions-roadmap.ts');
 const catalog=read('src/lib/exam-skill-catalog.ts');
 const granular=read('src/lib/granular-study-topics.ts');
 const profiler=read('src/components/DifficultyProfile.tsx');
+const twin=read('src/lib/study-twin-engine.ts');
 const progress=read('src/components/WeeklyPlanExperience.tsx');
 const tutor=read('api/education-tutor-v2.ts');
 
@@ -30,7 +31,11 @@ const checks=[
   ['Link catalog separates PREP and SPRINT',catalog.includes("subject:'PREP: trajetória acadêmica'")&&catalog.includes("subject:'SPRINT: business case'")],
   ['granular map covers exact school topics',['MRUV','Crase','Genética mendeliana','Era Vargas','Probabilidade condicional','Unit economics'].every(x=>granular.includes(x))],
   ['difficulty profiler expands the official catalog',profiler.includes('expandStudyCatalog')&&profiler.includes('countGranularTopics')],
-  ['study twin clearly does not require submitted answers',profiler.includes('não precisa enviar prova, gabarito ou respostas')],
+  ['study twin works before a large measured history',profiler.includes("twin.strongest?.label||'Ainda medindo'")&&profiler.includes('Responda mais questões para confirmar')],
+  ['study twin combines declared and measured evidence',profiler.includes('buildStudyTwin')&&profiler.includes('student_practice_attempts')&&profiler.includes('student_skill_diagnostics')&&profiler.includes('dificuldades declaradas')],
+  ['study twin reports best performance and study method',profiler.includes('MELHOR RENDIMENTO')&&profiler.includes('Como estudar:')&&profiler.includes('Quando reduzir o foco:')],
+  ['study twin protects against tiny-sample certainty',twin.includes('Beta(2,2)')&&twin.includes('confidenceFor')&&twin.includes('attempts<3')],
+  ['study twin allocates within weekly time budget',twin.includes('weeklyMinutes')&&twin.includes('minutesPerWeek')&&twin.includes('maintenanceBudget')],
   ['study twin uses progressive disclosure',profiler.includes('Criar meu gêmeo')&&profiler.includes('started&&<>')],
   ['difficulty profiler supports topic search',profiler.includes('Busque um conteúdo: crase, MRUV, genética')],
   ['students can choose whole difficult subjects',profiler.includes('Quais matérias são mais difíceis para você?')&&profiler.includes('setSubjectLevel')&&profiler.includes('Matéria inteira · nível')],
