@@ -80,10 +80,26 @@ const LINK:SkillSubject[]=[
  {subject:'Entrevista de fit',area:'Entrevista',topics:['Motivação específica para a Link','Perguntas comportamentais no formato STAR','Liderança, iniciativa e trabalho em equipe','Fracasso, feedback, aprendizado e autoconhecimento','Ética, impacto e alinhamento com a missão','Prontidão para comunicação em inglês']},
 ];
 
+const IBMEC:SkillSubject[]=[
+ ...INSPER.filter(s=>['Língua Portuguesa','Matemática: números e álgebra','Matemática: dados e espaço','História','Geografia'].includes(s.subject)),
+ {subject:'Literatura',area:'Linguagens',topics:['Interpretação literária','Gêneros e recursos estilísticos','Escolas literárias e contexto histórico','Relações entre texto literário e sociedade']},
+ {subject:'Língua Inglesa',area:'Linguagens',topics:['Leitura e compreensão','Vocabulário em contexto','Inferência e intenção comunicativa','Estruturas linguísticas aplicadas à leitura']},
+ {subject:'Redação',area:'Redação',topics:['Compreensão do tema','Tese e projeto de texto','Argumentação e repertório','Coesão e coerência','Norma-padrão e revisão']},
+ {subject:'Dinâmica de grupo',area:'Dinâmica',topics:['Comunicação e escuta','Colaboração e liderança','Resolução de problemas','Argumentação sob pressão','Autoconhecimento e postura profissional']},
+];
+
+const EINSTEIN_BASE:SkillSubject[]=[
+ ...ENEM.filter(s=>['Língua Portuguesa e interpretação','Língua estrangeira','História','Geografia','Biologia','Química','Física','Matemática','Redação'].includes(s.subject)),
+ {subject:'Questões analítico-dissertativas',area:'Dissertativas',topics:['Interpretação precisa do comando','Construção de resposta passo a passo','Justificativa científica e matemática','Clareza, unidade e conclusão','Gestão de tempo em resposta aberta']},
+];
+const EINSTEIN_MME:SkillSubject={subject:'Múltiplas Minientrevistas (MME)',area:'MME',topics:['Comunicação e escuta ativa','Ética e tomada de decisão','Empatia e trabalho em equipe','Resolução de conflitos','Raciocínio sob pressão','Autoconhecimento e motivação para Medicina']};
+
 export function getExamSkillCatalog(examId:ExamId, course?:string):ExamSkillCatalog{
  if(examId==='enem')return{examId,label:'Matriz ENEM 2026',sourceLabel:'Inep — Matrizes de Referência ENEM 2026',sourceUrl:'https://www.gov.br/inep/pt-br/centrais-de-conteudo/acervo-linha-editorial/publicacoes-institucionais/avaliacoes-e-exames-da-educacao-basica/matrizes-de-referencia-enem',subjects:ENEM};
  if(examId==='fuvest')return{examId,label:'Programa FUVEST 2027',sourceLabel:'FUVEST — Programa e Guia de Provas 2027',sourceUrl:'https://www.fuvest.br/vestibular-da-usp/',subjects:FUVEST};
  if(examId==='insper')return{examId,label:'Vestibular Insper 2027.1',sourceLabel:'Insper — Vestibular e conteúdos programáticos',sourceUrl:'https://www.insper.edu.br/pt/cursos/vestibular',subjects:INSPER};
+ if(examId==='ibmec')return{examId,label:'Vestibular Ibmec 2027.1',sourceLabel:'Ibmec — formas de ingresso e provas recentes',sourceUrl:'https://www.ibmec.br/estude-no-ibmec/formas-de-ingresso/vestibular',subjects:IBMEC};
+ if(examId==='einstein')return{examId,label:'Vestibular Unificado Einstein 2027',sourceLabel:'Einstein / Fundação Vunesp — Vestibular Unificado 2027',sourceUrl:'https://www.vunesp.com.br/FEAE2602',subjects:course==='Medicina'?[...EINSTEIN_BASE,EINSTEIN_MME]:EINSTEIN_BASE};
  if(examId==='cmmg'){const effpo=['Enfermagem','Fisioterapia','Fonoaudiologia','Odontologia','Psicologia'].includes(course||'');return{examId,label:'Vestibular FCM-MG 2027.1',sourceLabel:'FCM-MG — Manual do Candidato e conteúdo programático',sourceUrl:'https://vestibular.cmmg.edu.br/',subjects:effpo?CMMG_EFFPO:CMMG_MED};}
  return{examId,label:'Jornada Link',sourceLabel:'Link School of Business — Jornada de admissão',sourceUrl:'https://lsb.edu.br/pt-br/adm',subjects:LINK};
 }
