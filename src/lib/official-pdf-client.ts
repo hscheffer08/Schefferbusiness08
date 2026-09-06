@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 type ParsedQuestion={
   found:boolean;
   prompt:string;
@@ -9,6 +10,7 @@ type ParsedQuestion={
   needs_source_image:boolean;
   image_note:string|null;
   confidence:number;
+  source_page?:number;
 };
 
 const PDFJS_URL='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';
@@ -33,8 +35,8 @@ function normalize(s:string){return s.normalize('NFD').replace(/[\u0300-\u036f]/
 
 async function fetchPdfBytes(sourceUrl:string){
   const urls=[
-    `${SUPABASE_PDF_PROXY}?url=${encodeURIComponent(sourceUrl)}`,
     `/api/proxy-official-pdf?url=${encodeURIComponent(sourceUrl)}`,
+    `${SUPABASE_PDF_PROXY}?url=${encodeURIComponent(sourceUrl)}`,
   ];
   let last='';
   for(const proxied of urls){
@@ -67,16 +69,24 @@ function pageLines(items:any[]){
   return [...rows.entries()].sort((a,b)=>b[0]-a[0]).map(([,parts])=>clean(parts.sort((a,b)=>a.x-b.x).map(p=>p.str).join(' '))).filter(Boolean);
 }
 
-function isQuestionMarker(line:string,n:number){
+export function isQuestionMarker(line:string,n:number){
   const s=normalize(line).replace(/[^A-Z0-9 ]+/g,' ');
-  return new RegExp(`\\bQUESTAO\\s+0*${n}\\b`).test(s)||new RegExp(`^0*${n}\\s*$`).test(s);
+  return new RegExp(`\\bQUESTAO\\s+0*${n}\\b`).test(s)
+    ||new RegExp(`^\\s*0*${n}\\s*[.)-]\\s+\\S`,'i').test(line);
 }
 
-function splitOptions(lines:string[]){
+function stripQuestionMarker(line:string,n:number){
+  return line
+    .replace(new RegExp(`^\\s*QUEST(?:Ã|A)O\\s+0*${n}\\s*[.):-]?\\s*`,'i'),'')
+    .replace(new RegExp(`^\\s*0*${n}\\s*[.):-]\\s*`,'i'),'')
+    .trim();
+}
+
+export function splitOptions(lines:string[]){
   const matches:{i:number;letter:string;rest:string}[]=[];
   for(let i=0;i<lines.length;i++){
     const line=lines[i].trim();
-    let m=line.match(/^([A-E])\s*[).:\-]?\s+(.+)$/i);
+    let m=line.match(/^([A-E])\s*[).:-]?\s+(.+)$/i);
     if(m){matches.push({i,letter:m[1].toUpperCase(),rest:m[2]});continue;}
     m=line.match(/^([A-E])\s*$/i);
     if(m&&i+1<lines.length)matches.push({i,letter:m[1].toUpperCase(),rest:''});
@@ -104,8 +114,8 @@ function splitOptions(lines:string[]){
   return null;
 }
 
-function parsedResult(parsed:{prompt:string;opts:Record<string,string|null>},confidence:number):ParsedQuestion{
-  const imageDependent=/\b(figura|imagem|grafico|gráfico|tabela|mapa|esquema|fotografia|charge|tirinha)\b/i.test(parsed.prompt);
+function parsedResult(parsed:{prompt:string;opts:Record<string,string|null>},confidence:number,sourcePage:number):ParsedQuestion{
+  const imageDependent=/\b(figura|imagem|grafico|gráfico|tabela|mapa|esquema|fotografia|charge|tirinha|texto anterior)\b/i.test(parsed.prompt);
   return {
     found:true,
     prompt:parsed.prompt,
@@ -117,26 +127,28 @@ function parsedResult(parsed:{prompt:string;opts:Record<string,string|null>},con
     needs_source_image:imageDependent,
     image_note:imageDependent?'A questão menciona elemento visual da prova oficial.':'',
     confidence,
+    source_page:sourcePage,
   };
 }
 
 export async function extractOfficialQuestion(sourceUrl:string,questionNumber:number):Promise<ParsedQuestion>{
   const pdf=await loadPdf(sourceUrl);
   const collected:string[]=[]; let started=false; let pagesAfterStart=0;
+  let sourcePage=1;
   for(let p=1;p<=pdf.numPages;p++){
     const page=await pdf.getPage(p); const content=await page.getTextContent(); const lines=pageLines(content.items||[]);
     for(const line of lines){
-      if(!started){if(isQuestionMarker(line,questionNumber)){started=true;collected.push(line);}continue;}
+      if(!started){if(isQuestionMarker(line,questionNumber)){started=true;sourcePage=p;const remainder=stripQuestionMarker(line,questionNumber);if(remainder)collected.push(remainder);}continue;}
       if(isQuestionMarker(line,questionNumber+1)){
-        const parsed=splitOptions(collected.slice(1));
-        if(parsed)return parsedResult(parsed,.92);
+        const parsed=splitOptions(collected);
+        if(parsed)return parsedResult(parsed,.92,sourcePage);
         return {found:false,prompt:'',option_a:null,option_b:null,option_c:null,option_d:null,option_e:null,needs_source_image:false,image_note:null,confidence:0};
       }
       collected.push(line);
     }
     if(started&&++pagesAfterStart>=3)break;
   }
-  if(started){const parsed=splitOptions(collected.slice(1));if(parsed)return parsedResult(parsed,.88)}
+  if(started){const parsed=splitOptions(collected);if(parsed)return parsedResult(parsed,.88,sourcePage)}
   return {found:false,prompt:'',option_a:null,option_b:null,option_c:null,option_d:null,option_e:null,needs_source_image:false,image_note:null,confidence:0};
 }
 

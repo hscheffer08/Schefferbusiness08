@@ -1,5 +1,5 @@
 import { ArrowLeft, GraduationCap } from 'lucide-react';
-import OfficialVestibularBank from '@/components/OfficialVestibularBank';
+import OfficialQuestionWorkspaceV3 from '@/components/OfficialQuestionWorkspaceV3';
 import './admissions-planner-v6.css';
 
 export default function OfficialVestibularBankPage({onBack}:{onBack:()=>void}){
@@ -18,9 +18,9 @@ export default function OfficialVestibularBankPage({onBack}:{onBack:()=>void}){
           <h1>Questões reais, separadas da parte autoral.</h1>
           <p className="plan6-lead">Filtre por vestibular, edição e área. Cada item mantém a identificação da prova e acesso à fonte oficial correspondente.</p>
         </div>
-        <aside className="plan6-summary"><strong>1.140</strong><small>questões oficiais indexadas</small><div className="plan6-summary-row"><span>ENEM + CMMG</span><span><b>fontes rastreadas</b></span></div></aside>
+        <aside className="plan6-summary"><strong>1.406</strong><small>questões oficiais interativas</small><div className="plan6-summary-row"><span>ENEM + CMMG</span><span><b>fontes rastreadas</b></span></div></aside>
       </section>
-      <div className="plan6-grid"><OfficialVestibularBank/></div>
+      <div className="plan6-grid"><div className="span12"><OfficialQuestionWorkspaceV3/></div></div>
     </main>
   </div>;
 }
