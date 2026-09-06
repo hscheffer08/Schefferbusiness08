@@ -13,6 +13,7 @@ type ParsedQuestion={
 
 const PDFJS_URL='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';
 const PDFJS_WORKER='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+const SUPABASE_PDF_PROXY='https://kmognvgnfisdchzffkgh.supabase.co/functions/v1/official-pdf-proxy';
 let pdfjsPromise:Promise<any>|null=null;
 
 function remoteImport(url:string){
@@ -30,12 +31,27 @@ async function pdfjs(){
 function clean(s:string){return s.replace(/\s+/g,' ').trim()}
 function normalize(s:string){return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase()}
 
+async function fetchPdfBytes(sourceUrl:string){
+  const urls=[
+    `${SUPABASE_PDF_PROXY}?url=${encodeURIComponent(sourceUrl)}`,
+    `/api/proxy-official-pdf?url=${encodeURIComponent(sourceUrl)}`,
+  ];
+  let last='';
+  for(const proxied of urls){
+    try{
+      const response=await fetch(proxied,{cache:'force-cache'});
+      if(!response.ok){last=`HTTP ${response.status}`;continue;}
+      const data=await response.arrayBuffer();
+      if(data.byteLength>0)return data;
+      last='arquivo vazio';
+    }catch(error:any){last=String(error?.message||error)}
+  }
+  throw new Error(`Não consegui acessar o PDF oficial${last?`: ${last}`:''}.`);
+}
+
 async function loadPdf(sourceUrl:string){
   const lib=await pdfjs();
-  const proxied=`/api/proxy-official-pdf?url=${encodeURIComponent(sourceUrl)}`;
-  const response=await fetch(proxied,{cache:'force-cache'});
-  if(!response.ok)throw new Error('Não consegui acessar o PDF oficial.');
-  const data=await response.arrayBuffer();
+  const data=await fetchPdfBytes(sourceUrl);
   return lib.getDocument({data:new Uint8Array(data),useWorkerFetch:true,isEvalSupported:false}).promise;
 }
 
@@ -88,6 +104,22 @@ function splitOptions(lines:string[]){
   return null;
 }
 
+function parsedResult(parsed:{prompt:string;opts:Record<string,string|null>},confidence:number):ParsedQuestion{
+  const imageDependent=/\b(figura|imagem|grafico|gráfico|tabela|mapa|esquema|fotografia|charge|tirinha)\b/i.test(parsed.prompt);
+  return {
+    found:true,
+    prompt:parsed.prompt,
+    option_a:parsed.opts.A||null,
+    option_b:parsed.opts.B||null,
+    option_c:parsed.opts.C||null,
+    option_d:parsed.opts.D||null,
+    option_e:parsed.opts.E||null,
+    needs_source_image:imageDependent,
+    image_note:imageDependent?'A questão menciona elemento visual da prova oficial.':'',
+    confidence,
+  };
+}
+
 export async function extractOfficialQuestion(sourceUrl:string,questionNumber:number):Promise<ParsedQuestion>{
   const pdf=await loadPdf(sourceUrl);
   const collected:string[]=[]; let started=false; let pagesAfterStart=0;
@@ -97,23 +129,14 @@ export async function extractOfficialQuestion(sourceUrl:string,questionNumber:nu
       if(!started){if(isQuestionMarker(line,questionNumber)){started=true;collected.push(line);}continue;}
       if(isQuestionMarker(line,questionNumber+1)){
         const parsed=splitOptions(collected.slice(1));
-        if(parsed){
-          const imageDependent=/\b(figura|imagem|grafico|gráfico|tabela|mapa|esquema|fotografia|charge|tirinha)\b/i.test(parsed.prompt);
-          return {found:true,prompt:parsed.prompt,...Object.fromEntries(['a','b','c','d','e'].map(l=>[`option_${l}`,parsed.opts[l.toUpperCase()]||null])) as any,needs_source_image:imageDependent,image_note:imageDependent?'A questão menciona elemento visual da prova oficial.':'',confidence:.92};
-        }
+        if(parsed)return parsedResult(parsed,.92);
         return {found:false,prompt:'',option_a:null,option_b:null,option_c:null,option_d:null,option_e:null,needs_source_image:false,image_note:null,confidence:0};
       }
       collected.push(line);
     }
     if(started&&++pagesAfterStart>=3)break;
   }
-  if(started){
-    const parsed=splitOptions(collected.slice(1));
-    if(parsed){
-      const imageDependent=/\b(figura|imagem|grafico|gráfico|tabela|mapa|esquema|fotografia|charge|tirinha)\b/i.test(parsed.prompt);
-      return {found:true,prompt:parsed.prompt,...Object.fromEntries(['a','b','c','d','e'].map(l=>[`option_${l}`,parsed.opts[l.toUpperCase()]||null])) as any,needs_source_image:imageDependent,image_note:imageDependent?'A questão menciona elemento visual da prova oficial.':'',confidence:.88};
-    }
-  }
+  if(started){const parsed=splitOptions(collected.slice(1));if(parsed)return parsedResult(parsed,.88)}
   return {found:false,prompt:'',option_a:null,option_b:null,option_c:null,option_d:null,option_e:null,needs_source_image:false,image_note:null,confidence:0};
 }
 
