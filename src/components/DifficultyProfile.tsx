@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BrainCircuit, Check, ChevronDown, ChevronUp, Save, Search, Sparkles } from 'lucide-react';
+import { BrainCircuit, Check, ChevronDown, ChevronUp, Save, Search, Sparkles, Target, Trophy, Activity, Clock3 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getExamSkillCatalog, topicKey, type DifficultyLevel, type DifficultySelection } from '@/lib/exam-skill-catalog';
 import { countGranularTopics, expandStudyCatalog } from '@/lib/granular-study-topics';
+import { buildStudyTwin, type TwinAttempt, type TwinDiagnostic, type TwinPriority } from '@/lib/study-twin-engine';
 import type { ExamId } from '@/lib/exam-models';
 
 export default function DifficultyProfile({examId,course,value,onChange}:{examId:ExamId;course:string;value:DifficultySelection;onChange:(next:DifficultySelection)=>void}){
@@ -13,6 +14,10 @@ export default function DifficultyProfile({examId,course,value,onChange}:{examId
  const[started,setStarted]=useState(Object.keys(value).length>0);
  const[saving,setSaving]=useState(false);
  const[msg,setMsg]=useState('');
+ const[twinAttempts,setTwinAttempts]=useState<TwinAttempt[]>([]);
+ const[twinDiagnostics,setTwinDiagnostics]=useState<TwinDiagnostic[]>([]);
+ const[twinHours,setTwinHours]=useState(9);
+ const[twinLoading,setTwinLoading]=useState(true);
  const selected=Object.keys(value).length;
  const totalTopics=countGranularTopics(baseCatalog);
  const normalized=query.trim().toLowerCase();
@@ -35,6 +40,26 @@ export default function DifficultyProfile({examId,course,value,onChange}:{examId
    onChange(next);setStarted(true);setOpen(v=>({...v,[subject]:true}));setMsg('');
  };
  const selectedDetails=useMemo(()=>catalog.subjects.flatMap(s=>s.topics.map(topic=>({subject:s.subject,area:s.area,topic,key:topicKey(s.subject,topic),level:value[topicKey(s.subject,topic)]??0}))).filter(x=>x.level>0).sort((a,b)=>b.level-a.level||a.topic.localeCompare(b.topic,'pt-BR')),[catalog,value]);
+
+ const refreshTwin=async()=>{
+   try{
+     if(!supabase){setTwinLoading(false);return}
+     const{data:userData}=await supabase.auth.getUser();const user=userData.user;if(!user){setTwinLoading(false);return}
+     const[{data:attempts},{data:diagnostics},{data:pref}]=await Promise.all([
+       supabase.from('student_practice_attempts').select('exam_id,area,skill_name,correct,created_at,duration_seconds').eq('user_id',user.id).eq('exam_id',examId).order('created_at',{ascending:false}).limit(240),
+       supabase.from('student_skill_diagnostics').select('area,skill_code,error_type,created_at,diagnosis').eq('user_id',user.id).eq('exam_id',examId).order('created_at',{ascending:false}).limit(80),
+       supabase.from('student_exam_preferences').select('weekly_hours').eq('user_id',user.id).eq('exam_id',examId).maybeSingle(),
+     ]);
+     setTwinAttempts((attempts??[]) as TwinAttempt[]);setTwinDiagnostics((diagnostics??[]) as TwinDiagnostic[]);if(pref?.weekly_hours)setTwinHours(Number(pref.weekly_hours));
+   }finally{setTwinLoading(false)}
+ };
+ useEffect(()=>{setTwinLoading(true);refreshTwin();const handler=()=>refreshTwin();window.addEventListener('conectae:diagnostic-saved',handler);return()=>window.removeEventListener('conectae:diagnostic-saved',handler)},[examId]);
+ const twinPriorities=useMemo<TwinPriority[]>(()=>{
+   const areas=Array.from(new Set(catalog.subjects.map(s=>s.area)));
+   return areas.map(area=>({metric:{key:area,label:area,max:100,unit:'pontos'},current:0,goal:0,missing:0,score:1,accuracy:null}));
+ },[catalog]);
+ const twin=useMemo(()=>buildStudyTwin({examId,priorities:twinPriorities,attempts:twinAttempts,diagnostics:twinDiagnostics,difficultyTopics:value,weeklyHours:twinHours}),[examId,twinPriorities,twinAttempts,twinDiagnostics,value,twinHours]);
+
  const save=async()=>{setSaving(true);setMsg('');try{
    if(!supabase)throw new Error();
    const{data}=await supabase.auth.getUser();if(!data.user)throw new Error();
@@ -52,13 +77,35 @@ export default function DifficultyProfile({examId,course,value,onChange}:{examId
    setMsg(exactFocus.length?`Gêmeo atualizado com ${exactFocus.length} prioridades. O plano já pode usar esses pontos.`:'Gêmeo atualizado. Você pode voltar aqui quando descobrir novas dificuldades.');
    window.dispatchEvent(new CustomEvent('conectae:difficulties-saved',{detail:{examId,value}}));
    window.dispatchEvent(new CustomEvent('conectae:diagnostic-saved',{detail:{examId,source:'manual_difficulty'}}));
+   await refreshTwin();
  }catch{setMsg('Não foi possível salvar agora. Tente novamente.')}finally{setSaving(false)}};
  return <section className="plan6-card span12" style={{overflow:'hidden'}}>
   <div className="plan6-sectionlabel"><BrainCircuit size={14} style={{display:'inline',marginRight:6}}/>Seu gêmeo de estudos</div>
   <div style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) auto',gap:18,alignItems:'start'}}>
-   <div><h2 style={{maxWidth:680}}>Diga onde você trava. O gêmeo monta o foco do plano.</h2><p style={{maxWidth:760}}>Você não precisa enviar prova, gabarito ou respostas. Primeiro escolha as matérias em que tem dificuldade; depois, se quiser, refine os conteúdos e o nível de cada ponto.</p></div>
+   <div><h2 style={{maxWidth:720}}>O gêmeo não olha só o que você diz que é difícil. Ele compara o que você sente com o que você realmente rende.</h2><p style={{maxWidth:800}}>Ele cruza dificuldades declaradas, acertos recentes, quantidade de evidências, tipos de erro e tempo disponível. Conforme você responde questões, ele identifica forças, prioridades, onde ainda falta medir e qual método tende a dar mais retorno.</p></div>
    {selectedSubjects>0&&<span className="plan6-chip active" style={{whiteSpace:'nowrap'}}><Sparkles size={13}/> {selectedSubjects} {selectedSubjects===1?'matéria em foco':'matérias em foco'}</span>}
   </div>
+
+  <div className="plan6-callout blue" style={{margin:'16px 0'}}>
+   <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'flex-start',flexWrap:'wrap'}}><div><strong>Leitura por evidências · confiança {twin.evidenceLabel}</strong><p style={{marginTop:5}}>{twinLoading?'Lendo seu histórico...':twin.summary}</p></div><span className="plan6-chip active"><Activity size={13}/>{twin.evidenceScore}% evidência</span></div>
+   {!twinLoading&&<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:8,marginTop:12}}>
+    <div style={{border:'1px solid rgba(113,147,198,.18)',borderRadius:12,padding:11}}><div style={{fontSize:11,opacity:.58}}>AMOSTRA MEDIDA</div><b>{twin.measuredAttempts} respostas</b><div style={{fontSize:11,opacity:.65,marginTop:2}}>{twin.measuredSkills} habilidades observadas</div></div>
+    <div style={{border:'1px solid rgba(113,147,198,.18)',borderRadius:12,padding:11}}><div style={{fontSize:11,opacity:.58}}>MELHOR RENDIMENTO</div><b>{twin.strongest?.label||'Ainda medindo'}</b><div style={{fontSize:11,opacity:.65,marginTop:2}}>{twin.strongest?`${twin.strongest.correct}/${twin.strongest.attempts} acertos · confiança ${twin.strongest.confidence}`:'Responda mais questões para confirmar'}</div></div>
+    <div style={{border:'1px solid rgba(113,147,198,.18)',borderRadius:12,padding:11}}><div style={{fontSize:11,opacity:.58}}>HORAS DISPONÍVEIS</div><b>{twinHours}h/semana</b><div style={{fontSize:11,opacity:.65,marginTop:2}}>o gêmeo redistribui, não inventa horas</div></div>
+   </div>}
+  </div>
+
+  {!twinLoading&&twin.priorities.length>0&&<div style={{margin:'14px 0 18px'}}>
+   <div style={{display:'flex',alignItems:'center',gap:7,fontSize:12,fontWeight:900,marginBottom:8}}><Target size={15}/> Onde focar agora</div>
+   <div style={{display:'grid',gap:8}}>{twin.priorities.slice(0,3).map((focus,index)=><div key={focus.key} style={{border:'1px solid rgba(113,147,198,.18)',borderRadius:14,padding:'12px 13px',background:index===0?'rgba(36,108,255,.07)':'rgba(255,255,255,.015)'}}>
+    <div style={{display:'flex',justifyContent:'space-between',gap:10,alignItems:'center',flexWrap:'wrap'}}><b>{index+1}. {focus.label}</b><span className="plan6-chip active"><Clock3 size={12}/>{focus.minutesPerWeek} min/semana</span></div>
+    <div style={{fontSize:12,opacity:.68,marginTop:5}}>{focus.evidence}</div>
+    <div style={{fontSize:13,lineHeight:1.45,marginTop:8}}><b>Como estudar:</b> {focus.method}</div>
+    <div style={{fontSize:12,opacity:.7,marginTop:6}}><b>Quando reduzir o foco:</b> {focus.successCriterion}</div>
+   </div>)}</div>
+  </div>}
+
+  {!twinLoading&&twin.strongest&&<div style={{display:'flex',gap:10,alignItems:'flex-start',padding:'12px 13px',border:'1px solid rgba(70,200,140,.2)',borderRadius:14,background:'rgba(70,200,140,.035)',marginBottom:16}}><Trophy size={17} style={{flex:'0 0 auto',marginTop:1}}/><div><b>Força a preservar: {twin.strongest.label}</b><div style={{fontSize:12,opacity:.7,marginTop:3}}>Seu melhor resultado medido não deve receber a maior fatia do tempo se outras áreas têm retorno maior. Faça manutenção curta e espaçada para não perder o domínio.</div></div></div>}
 
   <div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:8,margin:'16px 0'}}>
    {[['1','Escolha as matérias'],['2','Refine os conteúdos'],['3','Salve e adapte o plano']].map(([n,label])=><div key={n} style={{border:'1px solid rgba(113,147,198,.16)',borderRadius:12,padding:'10px 12px',background:'rgba(255,255,255,.015)'}}><span style={{fontSize:11,opacity:.55}}>{n}</span><div style={{fontSize:13,fontWeight:700,marginTop:2}}>{label}</div></div>)}
@@ -66,7 +113,7 @@ export default function DifficultyProfile({examId,course,value,onChange}:{examId
 
   <div className="plan6-callout blue" style={{margin:'4px 0 14px'}}>
    <strong>Quais matérias são mais difíceis para você?</strong>
-   <p style={{marginTop:6}}>Marque a matéria inteira: <b>1</b> atenção, <b>2</b> dificuldade, <b>3</b> muita dificuldade. O plano passa a priorizar os conteúdos dessa matéria dentro das mesmas horas semanais. Depois você pode ajustar conteúdos específicos abaixo.</p>
+   <p style={{marginTop:6}}>Marque a matéria inteira: <b>1</b> atenção, <b>2</b> dificuldade, <b>3</b> muita dificuldade. O gêmeo cruza essa percepção com seu desempenho medido; ela não substitui os dados de questões.</p>
    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(210px,1fr))',gap:8,marginTop:12}}>
     {subjectStats.map(s=><div key={s.subject} style={{border:`1px solid ${s.marked?'rgba(114,165,255,.55)':'rgba(113,147,198,.16)'}`,borderRadius:14,padding:'11px 12px',background:s.marked?'rgba(36,108,255,.06)':'rgba(255,255,255,.015)'}}>
       <button type="button" onClick={()=>{setStarted(true);setOpen(v=>({...v,[s.subject]:true}))}} style={{display:'block',width:'100%',textAlign:'left'}}><b style={{fontSize:13}}>{s.subject}</b><div style={{fontSize:11,opacity:.58,marginTop:3}}>{s.marked?s.exactLevel?`Matéria inteira · nível ${s.exactLevel}`:`${s.marked} conteúdos ajustados`:'Ainda não marcada'}</div></button>
