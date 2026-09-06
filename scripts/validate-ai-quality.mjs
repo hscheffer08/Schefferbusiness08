@@ -12,13 +12,17 @@ const areas=new Set(cases.map(c=>c.area));if(areas.size<6)throw new Error('A bat
 const behaviors=new Set(cases.map(c=>c.expectedBehavior));for(const b of ['answer','abstain','uncertain','verify','challenge'])if(!behaviors.has(b))throw new Error(`Comportamento não testado: ${b}.`);
 
 const tutorRoute=fs.readFileSync(new URL('../api/education-tutor.ts',import.meta.url),'utf8');
+const tutorV3=fs.readFileSync(new URL('../api/education-tutor-v3.ts',import.meta.url),'utf8');
 const tutor=fs.readFileSync(new URL('../api/education-tutor-v2.ts',import.meta.url),'utf8');
+const twin=fs.readFileSync(new URL('../src/lib/study-twin-engine.ts',import.meta.url),'utf8');
 const premium=fs.readFileSync(new URL('../api/education-tutor-premium.ts',import.meta.url),'utf8');
 const analyzerRoute=fs.readFileSync(new URL('../api/analyze-question.ts',import.meta.url),'utf8');
 const analyzer=fs.readFileSync(new URL('../api/analyze-question-v2.ts',import.meta.url),'utf8');
 const tutorUi=fs.readFileSync(new URL('../src/components/AIEducationTutor.tsx',import.meta.url),'utf8');
 
-if(!tutorRoute.includes("export { default } from './education-tutor-v2.js'"))throw new Error('A rota principal precisa usar a IA v2.');
+if(!tutorRoute.includes("export { default } from './education-tutor-v3.js'"))throw new Error('A rota principal precisa usar a IA v3 com gêmeo.');
+for(const marker of ['student_practice_attempts','student_skill_diagnostics','student_exam_preferences','melhor rendimento medido','prioridade observada','confiança','Método indicado','dificuldades declaradas'])if(!tutorV3.includes(marker))throw new Error(`Tutor v3 sem evidência obrigatória do gêmeo: ${marker}.`);
+for(const marker of ['Beta(2,2)','focusScore','minutesPerWeek','successCriterion','declaredDifficulty','dominantError','evidenceScore'])if(!twin.includes(marker))throw new Error(`Gêmeo sem proteção analítica: ${marker}.`);
 for(const marker of ['gpt-5.6-luna','adversarial-review','external-verification','unexpectedScript','agrees_with_preliminary','self_check_passed','uncertainty_reason','confidenceLabel','answerable','rankPractice','EXEMPLOS RECUPERADOS','adminUnlimited','premiumUnlimited','web_verified===true','needsBetterImage','student_seen_questions','source_exam_year','source_question_number','limit=1500','provenanceAware','seenQuestionAware'])if(!tutor.includes(marker))throw new Error(`Tutor v2 sem proteção obrigatória: ${marker}.`);
 for(const exam of ['enem','fuvest','cmmg','insper','link'])if(!tutor.includes(`${exam}:`))throw new Error(`Tutor v2 sem perfil explícito: ${exam}.`);
 if(!premium.includes("export { default } from './education-tutor.js'"))throw new Error('A rota Premium precisa reutilizar o tutor principal.');
@@ -33,4 +37,4 @@ const requiredSubjects={enem:['Humanas','Linguagens','Matemática','Natureza','R
 for(const [exam,subjects] of Object.entries(requiredSubjects))for(const subject of subjects)if(Number(coverage.exams[exam][subject]||0)<3)throw new Error(`Cobertura insuficiente: ${exam} / ${subject}.`);
 for(const key of ['allActiveItemsHaveAnswerKey','allActiveItemsHaveExplanation','allActiveItemsHaveSourceBasis'])if(coverage.quality?.[key]!==true)throw new Error(`Falha de qualidade na base: ${key}.`);
 const coveredSubjects=Object.values(coverage.exams).reduce((total,exam)=>total+Object.keys(exam).length,0);
-console.log(`Qualidade da IA v2 validada: ${cases.length} casos difíceis, ${coveredSubjects} áreas ENEM/CMMG, 5 perfis de prova e ${behaviors.size} comportamentos epistemológicos.`);
+console.log(`Qualidade da IA v3 validada: ${cases.length} casos difíceis, gêmeo baseado em evidências, ${coveredSubjects} áreas ENEM/CMMG e 5 perfis de prova.`);
