@@ -1,8 +1,10 @@
+import fs from 'node:fs';
 import { getExamModel, isSupportedInstitutionCourse } from '../src/lib/exam-models.ts';
 import { getExamSkillCatalog } from '../src/lib/exam-skill-catalog.ts';
 import { getMilestones, buildRoadmap } from '../src/lib/admissions-roadmap.ts';
 
 const assert=(name,ok,detail='')=>{if(!ok){console.error(`FAIL ${name}${detail?` — ${detail}`:''}`);process.exitCode=1;return}console.log(`PASS ${name}`)};
+const questionWorkspace=fs.readFileSync('src/components/OfficialQuestionWorkspace.tsx','utf8');
 
 const ibmec=getExamModel('Ibmec','Administração');
 assert('Ibmec has its own exam profile',ibmec.examId==='ibmec');
@@ -12,6 +14,7 @@ assert('Ibmec supported courses are constrained',isSupportedInstitutionCourse('I
 const ibmecCatalog=getExamSkillCatalog('ibmec','Administração');
 assert('Ibmec catalog includes English and dynamics',ibmecCatalog.subjects.some(s=>s.subject==='Língua Inglesa')&&ibmecCatalog.subjects.some(s=>s.area==='Dinâmica'));
 assert('Ibmec roadmap has dedicated milestones',getMilestones('ibmec','Administração').some(m=>m.label.includes('Ibmec')));
+assert('Ibmec is exposed in global question bank',questionWorkspace.includes("{id:'ibmec',label:'Ibmec'"));
 
 const einstein=getExamModel('Faculdade Israelita de Ciências da Saúde Albert Einstein','Medicina');
 assert('Einstein has its own exam profile',einstein.examId==='einstein');
@@ -25,6 +28,7 @@ assert('Einstein supported courses include Biomedical Engineering',isSupportedIn
 const einsteinCatalog=getExamSkillCatalog('einstein','Medicina');
 assert('Einstein catalog includes discursive preparation and MME',einsteinCatalog.subjects.some(s=>s.area==='Dissertativas')&&einsteinCatalog.subjects.some(s=>s.area==='MME'));
 assert('Einstein Medicine roadmap reaches MME milestone',getMilestones('einstein','Medicina').some(m=>m.label.includes('MME')));
+assert('Einstein is exposed in global question bank',questionWorkspace.includes("{id:'einstein',label:'Einstein'"));
 
 const priorities=einstein.metrics.map(metric=>({metric,current:Math.round(metric.defaultValue*.8),goal:Math.max(1,Math.round(metric.max*.8)),missing:Math.max(1,Math.round(metric.max*.2)),score:metric.key==='Natureza'?1:.25,accuracy:null}));
 const questions=Array.from({length:100},(_,i)=>({id:i+1,exam_id:'einstein',area:['Linguagens','Humanas','Natureza','Matemática'][i%4],skill_name:'Treino adaptado',prompt:`Questão ${i+1}`,difficulty:3}));
