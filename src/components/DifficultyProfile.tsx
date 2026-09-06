@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BrainCircuit, Check, ChevronDown, ChevronUp, Save, Search, Sparkles, Target, Trophy, Activity, Clock3 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getExamSkillCatalog, topicKey, type DifficultyLevel, type DifficultySelection } from '@/lib/exam-skill-catalog';
@@ -6,7 +6,7 @@ import { countGranularTopics, expandStudyCatalog } from '@/lib/granular-study-to
 import { buildStudyTwin, type TwinAttempt, type TwinDiagnostic, type TwinPriority } from '@/lib/study-twin-engine';
 import type { ExamId } from '@/lib/exam-models';
 
-export default function DifficultyProfile({examId,course,value,onChange}:{examId:ExamId;course:string;value:DifficultySelection;onChange:(next:DifficultySelection)=>void}){
+export default function DifficultyProfile({examId,course,value,onChange,weeklyHours}:{examId:ExamId;course:string;value:DifficultySelection;onChange:(next:DifficultySelection)=>void;weeklyHours:number}){
  const baseCatalog=useMemo(()=>getExamSkillCatalog(examId,course),[examId,course]);
  const catalog=useMemo(()=>expandStudyCatalog(baseCatalog),[baseCatalog]);
  const[open,setOpen]=useState<Record<string,boolean>>({});
@@ -16,7 +16,6 @@ export default function DifficultyProfile({examId,course,value,onChange}:{examId
  const[msg,setMsg]=useState('');
  const[twinAttempts,setTwinAttempts]=useState<TwinAttempt[]>([]);
  const[twinDiagnostics,setTwinDiagnostics]=useState<TwinDiagnostic[]>([]);
- const[twinHours,setTwinHours]=useState(9);
  const[twinLoading,setTwinLoading]=useState(true);
  const selected=Object.keys(value).length;
  const totalTopics=countGranularTopics(baseCatalog);
@@ -33,24 +32,23 @@ export default function DifficultyProfile({examId,course,value,onChange}:{examId
  const openSubject=(subject:string)=>{setStarted(true);setOpen(v=>({...v,[subject]:true}));setMsg('')};
  const selectedDetails=useMemo(()=>catalog.subjects.flatMap(s=>s.topics.map(topic=>({subject:s.subject,area:s.area,topic,key:topicKey(s.subject,topic),level:value[topicKey(s.subject,topic)]??0}))).filter(x=>x.level>0).sort((a,b)=>b.level-a.level||a.topic.localeCompare(b.topic,'pt-BR')),[catalog,value]);
 
- const refreshTwin=async()=>{
+ const refreshTwin=useCallback(async()=>{
    try{
      if(!supabase){setTwinLoading(false);return}
      const{data:userData}=await supabase.auth.getUser();const user=userData.user;if(!user){setTwinLoading(false);return}
-     const[{data:attempts},{data:diagnostics},{data:pref}]=await Promise.all([
+     const[{data:attempts},{data:diagnostics}]=await Promise.all([
        supabase.from('student_practice_attempts').select('exam_id,area,skill_name,correct,created_at,duration_seconds').eq('user_id',user.id).eq('exam_id',examId).order('created_at',{ascending:false}).limit(240),
        supabase.from('student_skill_diagnostics').select('area,skill_code,error_type,created_at,diagnosis').eq('user_id',user.id).eq('exam_id',examId).order('created_at',{ascending:false}).limit(80),
-       supabase.from('student_exam_preferences').select('weekly_hours').eq('user_id',user.id).eq('exam_id',examId).maybeSingle(),
      ]);
-     setTwinAttempts((attempts??[]) as TwinAttempt[]);setTwinDiagnostics((diagnostics??[]) as TwinDiagnostic[]);if(pref?.weekly_hours)setTwinHours(Number(pref.weekly_hours));
+     setTwinAttempts((attempts??[]) as TwinAttempt[]);setTwinDiagnostics((diagnostics??[]) as TwinDiagnostic[]);
    }finally{setTwinLoading(false)}
- };
- useEffect(()=>{setTwinLoading(true);refreshTwin();const handler=()=>refreshTwin();window.addEventListener('conectae:diagnostic-saved',handler);return()=>window.removeEventListener('conectae:diagnostic-saved',handler)},[examId]);
+ },[examId]);
+ useEffect(()=>{setTwinLoading(true);void refreshTwin();const handler=()=>void refreshTwin();window.addEventListener('conectae:diagnostic-saved',handler);return()=>window.removeEventListener('conectae:diagnostic-saved',handler)},[refreshTwin]);
  const twinPriorities=useMemo<TwinPriority[]>(()=>{
    const areas=Array.from(new Set(catalog.subjects.map(s=>s.area)));
    return areas.map(area=>({metric:{key:area,label:area,max:100,unit:'pontos'},current:0,goal:0,missing:0,score:1,accuracy:null}));
  },[catalog]);
- const twin=useMemo(()=>buildStudyTwin({examId,priorities:twinPriorities,attempts:twinAttempts,diagnostics:twinDiagnostics,difficultyTopics:value,weeklyHours:twinHours}),[examId,twinPriorities,twinAttempts,twinDiagnostics,value,twinHours]);
+ const twin=useMemo(()=>buildStudyTwin({examId,priorities:twinPriorities,attempts:twinAttempts,diagnostics:twinDiagnostics,difficultyTopics:value,weeklyHours}),[examId,twinPriorities,twinAttempts,twinDiagnostics,value,weeklyHours]);
 
  const save=async()=>{
    if(!selectedDetails.length){setStarted(true);setMsg('Escolha pelo menos um conteúdo específico antes de criar o gêmeo. Ex.: Matemática → função quadrática; Física → MRUV.');return}
@@ -85,7 +83,7 @@ export default function DifficultyProfile({examId,course,value,onChange}:{examId
    {!twinLoading&&<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:8,marginTop:12}}>
     <div style={{border:'1px solid rgba(113,147,198,.18)',borderRadius:12,padding:11}}><div style={{fontSize:11,opacity:.58}}>AMOSTRA MEDIDA</div><b>{twin.measuredAttempts} respostas</b><div style={{fontSize:11,opacity:.65,marginTop:2}}>{twin.measuredSkills} habilidades observadas</div></div>
     <div style={{border:'1px solid rgba(113,147,198,.18)',borderRadius:12,padding:11}}><div style={{fontSize:11,opacity:.58}}>MELHOR RENDIMENTO</div><b>{twin.strongest?.label||'Ainda medindo'}</b><div style={{fontSize:11,opacity:.65,marginTop:2}}>{twin.strongest?`${twin.strongest.correct}/${twin.strongest.attempts} acertos · confiança ${twin.strongest.confidence}`:'Responda mais questões para confirmar'}</div></div>
-    <div style={{border:'1px solid rgba(113,147,198,.18)',borderRadius:12,padding:11}}><div style={{fontSize:11,opacity:.58}}>HORAS DISPONÍVEIS</div><b>{twinHours}h/semana</b><div style={{fontSize:11,opacity:.65,marginTop:2}}>o gêmeo redistribui, não inventa horas</div></div>
+    <div style={{border:'1px solid rgba(113,147,198,.18)',borderRadius:12,padding:11}}><div style={{fontSize:11,opacity:.58}}>HORAS DISPONÍVEIS</div><b>{weeklyHours}h/semana</b><div style={{fontSize:11,opacity:.65,marginTop:2}}>sincronizado com o plano salvo; o gêmeo redistribui, não inventa horas</div></div>
    </div>}
   </div>
 
