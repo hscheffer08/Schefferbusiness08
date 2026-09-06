@@ -72,7 +72,6 @@ function pageLines(items:any[]){
 export function isQuestionMarker(line:string,n:number){
   const s=normalize(line).replace(/[^A-Z0-9 ]+/g,' ');
   return new RegExp(`\\bQUESTAO\\s+0*${n}\\b`).test(s)
-    ||new RegExp(`^0*${n}\\s*$`).test(s)
     ||new RegExp(`^\\s*0*${n}\\s*[.)-]\\s+\\S`,'i').test(line);
 }
 

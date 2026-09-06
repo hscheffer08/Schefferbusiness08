@@ -23,6 +23,7 @@ assert.equal(isEnemInteractiveQuestion(2023,34),false);
 
 assert.equal(isQuestionMarker('01. Considerando o texto anterior, responda.',1),true);
 assert.equal(isQuestionMarker('QUESTÃO 135',135),true);
+assert.equal(isQuestionMarker('1',1),false);
 assert.equal(isQuestionMarker('10 palavras no parágrafo',10),false);
 const cmmg=splitOptions(['Assinale a alternativa CORRETA.','A) primeira','B) segunda','C) terceira','D) quarta']);
 assert.equal(cmmg?.prompt,'Assinale a alternativa CORRETA.');
