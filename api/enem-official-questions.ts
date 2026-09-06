@@ -1,6 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import {isEnemInteractiveQuestion} from '../src/lib/enem-official-availability.ts';
-
 type EnemAlternative={letter?:string;text?:string;file?:string|null;isCorrect?:boolean};
 type EnemQuestion={index?:number;year?:number;language?:string|null;context?:string|null;files?:string[];correctAlternative?:string|null;alternativesIntroduction?:string|null;alternatives?:EnemAlternative[]};
 
@@ -35,7 +33,6 @@ export default async function handler(req:any,res:any){
   if(req.method!=='GET')return res.status(405).json({error:'Método não permitido.'});
   const year=n(req.query?.year,2019,2023,2023);const questionNumber=n(req.query?.question,1,180,1);
   if(!SUPPORTED_YEARS.has(year))return res.status(400).json({error:'Edição ainda não disponível no acervo interativo.'});
-  if(!isEnemInteractiveQuestion(year,questionNumber))return res.status(404).json({found:false,error:'Esta questão não passou pela validação de integridade do acervo interativo.'});
   try{
     const settled=await Promise.allSettled(PAGE_OFFSETS.map(offset=>fetchPage(year,offset)));
     const rows=settled.flatMap(result=>result.status==='fulfilled'?result.value:[]);
