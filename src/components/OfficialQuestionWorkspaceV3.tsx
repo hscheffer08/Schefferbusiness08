@@ -16,7 +16,7 @@ const EXAMS:ExamCfg[]=[
   {id:'fuvest',label:'FUVEST',areas:[]},{id:'insper',label:'Insper',areas:[]},{id:'link',label:'Link',areas:[]},
 ];
 const LETTERS=['A','B','C','D','E'] as const;
-function option(source:Extracted|Practice|null,l:typeof LETTERS[number]){return source?.[`option_${l.toLowerCase()}` as keyof (Extracted&Practice)] as string|null||null}
+function option(source:any,l:typeof LETTERS[number]){return source?.[`option_${l.toLowerCase()}`] as string|null||null}
 const sleep=(ms:number)=>new Promise(r=>setTimeout(r,ms));
 
 export default function OfficialQuestionWorkspaceV3(){
