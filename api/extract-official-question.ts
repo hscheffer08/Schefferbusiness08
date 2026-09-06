@@ -1,7 +1,6 @@
 import { generateText } from 'ai';
 
-const MODEL='google/gemini-3.5-flash';
-const FALLBACKS=['google/gemini-3.7-flash','google/gemini-3.5-flash-lite'];
+const MODELS=['google/gemini-2.5-flash-lite','google/gemini-2.5-flash'] as const;
 
 function allowedUrl(raw:unknown){
   try{
@@ -16,6 +15,27 @@ function parseJson(raw:string){
 }
 const reply=(res:any,status:number,body:any)=>{res.setHeader('Cache-Control','no-store');return res.status(status).json(body)};
 
+async function runModel(args:{prompt:string;sourceUrl:string;maxOutputTokens:number;timeoutMs:number;exam:string;tag:string}){
+  const errors:string[]=[];
+  for(const model of MODELS){
+    try{
+      const out=await generateText({
+        model,
+        messages:[{role:'user',content:[{type:'text',text:args.prompt},{type:'file',mediaType:'application/pdf',data:args.sourceUrl}]}],
+        maxOutputTokens:args.maxOutputTokens,
+        abortSignal:AbortSignal.timeout(args.timeoutMs),
+        providerOptions:{gateway:{tags:[args.tag,`exam:${args.exam.toLowerCase()||'unknown'}`]}}
+      } as any);
+      if(String(out.text||'').trim())return out;
+      errors.push(`${model}: resposta vazia`);
+    }catch(error:any){
+      errors.push(`${model}: ${String(error?.message||error).slice(0,220)}`);
+      console.warn('official-question model attempt failed',model,error?.message||error);
+    }
+  }
+  throw new Error(`Todos os modelos falharam: ${errors.join(' | ')}`);
+}
+
 export default async function handler(req:any,res:any){
   if(req.method!=='POST')return reply(res,405,{error:'Método não permitido.'});
   try{
@@ -26,17 +46,9 @@ export default async function handler(req:any,res:any){
     const year=Number(req.body?.year)||null;
     if(!sourceUrl||!questionNumber)return reply(res,400,{error:'Fonte oficial ou número da questão inválido.'});
 
-    const gatewayUser=`official-bank:${exam.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,40)||'exam'}`;
-
     if(mode==='answer'){
       const prompt=`Leia APENAS o gabarito oficial anexado. Localize a questão ${questionNumber}${year?` da edição ${year}`:''}${exam?` de ${exam}`:''}. Retorne somente JSON válido no formato {"correct_option":"A|B|C|D|E|null","confidence":0.0}. Não invente resposta: se a numeração não puder ser localizada com segurança, use null.`;
-      const out=await generateText({
-        model:MODEL,
-        messages:[{role:'user',content:[{type:'text',text:prompt},{type:'file',mediaType:'application/pdf',data:sourceUrl}]}],
-        maxOutputTokens:300,
-        abortSignal:AbortSignal.timeout(45000),
-        providerOptions:{gateway:{models:FALLBACKS,user:gatewayUser,tags:['feature:official-question-answer',`exam:${exam.toLowerCase()||'unknown'}`]}}
-      } as any);
+      const out=await runModel({prompt,sourceUrl,maxOutputTokens:300,timeoutMs:45000,exam,tag:'feature:official-question-answer'});
       const parsed=parseJson(String(out.text||''));
       const option=/^[A-E]$/.test(String(parsed.correct_option||'').toUpperCase())?String(parsed.correct_option).toUpperCase():null;
       return reply(res,200,{correct_option:option,confidence:Math.max(0,Math.min(.99,Number(parsed.confidence)||0)),source:'official-answer-key'});
@@ -53,15 +65,10 @@ Regras obrigatórias:
 6) Não inclua resposta correta, comentário ou solução.
 
 Retorne APENAS JSON válido: {"found":true,"prompt":"...","option_a":"...","option_b":"...","option_c":"...","option_d":"...","option_e":"...","needs_source_image":false,"image_note":null,"confidence":0.0}.`;
-    const out=await generateText({
-      model:MODEL,
-      messages:[{role:'user',content:[{type:'text',text:prompt},{type:'file',mediaType:'application/pdf',data:sourceUrl}]}],
-      maxOutputTokens:2600,
-      abortSignal:AbortSignal.timeout(60000),
-      providerOptions:{gateway:{models:FALLBACKS,user:gatewayUser,tags:['feature:official-question-extract',`exam:${exam.toLowerCase()||'unknown'}`]}}
-    } as any);
+    const out=await runModel({prompt,sourceUrl,maxOutputTokens:2600,timeoutMs:60000,exam,tag:'feature:official-question-extract'});
     const p=parseJson(String(out.text||''));
-    const found=p.found!==false&&String(p.prompt||'').trim().length>10;
+    const optionCount=['option_a','option_b','option_c','option_d','option_e'].filter((key)=>String(p[key]||'').trim()).length;
+    const found=p.found!==false&&String(p.prompt||'').trim().length>10&&optionCount>=2;
     return reply(res,200,{
       found,
       prompt:found?String(p.prompt||'').trim():'',
@@ -77,6 +84,6 @@ Retorne APENAS JSON válido: {"found":true,"prompt":"...","option_a":"...","opti
     });
   }catch(error:any){
     console.error('extract-official-question failed',error?.message||error);
-    return reply(res,500,{error:'Não consegui abrir essa questão oficial agora. Tente novamente.'});
+    return reply(res,503,{error:'A questão oficial está temporariamente indisponível. Tente novamente em alguns segundos.'});
   }
 }
