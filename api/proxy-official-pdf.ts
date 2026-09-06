@@ -2,7 +2,7 @@ function allowed(raw: unknown) {
   try {
     const url = new URL(String(raw || ''));
     if (url.protocol !== 'https:') return '';
-    if (!['download.inep.gov.br', 'vestibular.cmmg.edu.br'].includes(url.hostname)) return '';
+    if (!['download.inep.gov.br', 'vestibular.cmmg.edu.br', 'www.fuvest.br'].includes(url.hostname)) return '';
     if (!/\.pdf$/i.test(url.pathname)) return '';
     return url.toString();
   } catch {
