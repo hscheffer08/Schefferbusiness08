@@ -1,4 +1,4 @@
-export type ExamId = 'enem' | 'fuvest' | 'insper' | 'link' | 'cmmg';
+export type ExamId = 'enem' | 'fuvest' | 'insper' | 'link' | 'cmmg' | 'ibmec' | 'einstein';
 
 export type ExamMetric = {
   key: string;
@@ -50,6 +50,23 @@ const INSPER_METRICS: ExamMetric[] = [
   { key: 'Humanas', label: 'Ciências Humanas', max: 15, defaultValue: 9, unit: 'acertos' },
   { key: 'Natureza', label: 'Ciências da Natureza', max: 15, defaultValue: 9, unit: 'acertos' },
   { key: 'Redação', label: 'Redação dissertativo-argumentativa', max: 100, defaultValue: 65, unit: 'desempenho' },
+];
+
+const IBMEC_METRICS: ExamMetric[] = [
+  { key: 'Linguagens', label: 'Português + Literatura + Inglês', max: 25, defaultValue: 15, unit: 'acertos' },
+  { key: 'Matemática', label: 'Matemática e Raciocínio Lógico', max: 15, defaultValue: 9, unit: 'acertos' },
+  { key: 'Humanas', label: 'História + Geografia', max: 10, defaultValue: 6, unit: 'acertos' },
+  { key: 'Redação', label: 'Redação', max: 100, defaultValue: 65, unit: 'desempenho' },
+  { key: 'Dinâmica', label: 'Dinâmica / competências socioemocionais', max: 100, defaultValue: 65, unit: 'desempenho' },
+];
+
+const EINSTEIN_BASE_METRICS: ExamMetric[] = [
+  { key: 'Linguagens', label: 'Português (10) + Inglês (5)', max: 15, defaultValue: 9, unit: 'acertos', phase: 'prova escrita' },
+  { key: 'Humanas', label: 'História (5) + Geografia (5)', max: 10, defaultValue: 6, unit: 'acertos', phase: 'prova escrita' },
+  { key: 'Natureza', label: 'Biologia + Química + Física', max: 15, defaultValue: 9, unit: 'acertos', phase: 'prova escrita' },
+  { key: 'Matemática', label: 'Matemática', max: 10, defaultValue: 6, unit: 'acertos', phase: 'prova escrita' },
+  { key: 'Dissertativas', label: '5 questões analítico-dissertativas', max: 30, defaultValue: 18, unit: 'pontos', phase: 'prova escrita' },
+  { key: 'Redação', label: 'Redação', max: 20, defaultValue: 12, unit: 'pontos', phase: 'prova escrita' },
 ];
 
 const LINK_METRICS: ExamMetric[] = [
@@ -105,6 +122,8 @@ const FUVEST_SECOND_PHASE: Record<string, string[]> = {
 };
 
 const CMMG_EFFPO_COURSES = ['Enfermagem', 'Fisioterapia', 'Fonoaudiologia', 'Odontologia', 'Psicologia'];
+const IBMEC_VERIFIED_COURSES = new Set(['Administração','Análise e Desenvolvimento de Sistemas','Arquitetura e Urbanismo','Ciências Contábeis','Ciências Econômicas','Publicidade e Propaganda','Direito','Engenharia Civil','Engenharia de Computação','Engenharia de Produção','Engenharia de Software','Relações Internacionais']);
+const EINSTEIN_VERIFIED_COURSES = new Set(['Administração','Enfermagem','Engenharia Biomédica','Fisioterapia','Medicina','Nutrição','Odontologia','Psicologia']);
 
 const UFMG_VERIFIED_COURSES = new Set([
   'Administração', 'Agronomia', 'Arquitetura e Urbanismo', 'Biomedicina', 'Ciência da Computação',
@@ -122,6 +141,8 @@ export const supportedFuvestCourse = (course: string) => Boolean(FUVEST_SECOND_P
 export function getExamId(university: string): ExamId {
   const name = university.toLowerCase();
   if (name.includes('ciências médicas') || name.includes('ciencias medicas')) return 'cmmg';
+  if (name.includes('albert einstein') || name.includes('israelita de ciências da saúde') || name.includes('israelita de ciencias da saude')) return 'einstein';
+  if (name.includes('ibmec')) return 'ibmec';
   if (name.includes('insper')) return 'insper';
   if (name.includes('link school')) return 'link';
   if (name === 'usp' || name.includes('universidade de são paulo') || name.includes('universidade de sao paulo')) return 'fuvest';
@@ -149,6 +170,29 @@ export function getExamModel(university: string, course: string): ExamModel {
       metrics: CMMG_MEDICINA_METRICS,
       allowedQuestionAreas: ['Língua Portuguesa', 'Literatura', 'Inglês', 'Linguagens', 'Biologia', 'Física', 'Química', 'Matemática', 'Redação'],
       officialSource: 'https://vestibular.cmmg.edu.br/wp-content/uploads/2026/07/Manual-do-Candidato-Medicina-1_2027.pdf',
+    };
+  }
+
+  if (examId === 'einstein') {
+    const medicine = course === 'Medicina';
+    return {
+      examId,
+      title: `Vestibular Unificado Einstein 2027 — ${course}`,
+      structure: `Prova escrita em 11/10/2026, com 50 objetivas (Português 10, Inglês 5, História 5, Geografia 5, Biologia 5, Química 5, Física 5 e Matemática 10), 5 questões analítico-dissertativas e 1 redação.${medicine?' Para Medicina, há uma 2ª fase com Múltiplas Minientrevistas (MME).':''}`,
+      metrics: medicine ? [...EINSTEIN_BASE_METRICS,{key:'MME',label:'Múltiplas Minientrevistas (MME)',max:100,defaultValue:65,unit:'desempenho',phase:'2ª fase'}] : EINSTEIN_BASE_METRICS,
+      allowedQuestionAreas: ['Linguagens','Língua Portuguesa','Inglês','Humanas','História','Geografia','Natureza','Biologia','Química','Física','Matemática','Dissertativas','Redação','MME'],
+      officialSource: 'https://www.vunesp.com.br/FEAE2602',
+    };
+  }
+
+  if (examId === 'ibmec') {
+    return {
+      examId,
+      title: `Vestibular Ibmec 2027.1 — ${course}`,
+      structure: 'Vestibular com 50 questões objetivas e redação, seguido por dinâmica/avaliação de competências conforme a unidade e o processo vigente. A prova objetiva trabalha Língua Portuguesa, Literatura, Língua Inglesa, Matemática e Raciocínio Lógico, História e Geografia. O Ibmec também oferece ingresso via ENEM e certificações internacionais.',
+      metrics: IBMEC_METRICS,
+      allowedQuestionAreas: ['Linguagens','Língua Portuguesa','Literatura','Inglês','Matemática','Humanas','História','Geografia','Redação','Dinâmica'],
+      officialSource: 'https://www.ibmec.br/estude-no-ibmec/formas-de-ingresso/vestibular',
     };
   }
 
@@ -213,6 +257,8 @@ export function isSupportedInstitutionCourse(university: string, course: string)
   if (university === 'UFMG') return UFMG_VERIFIED_COURSES.has(course);
   if (university === 'USP') return supportedFuvestCourse(course);
   if (university === 'Faculdade Ciências Médicas de Minas Gerais') return course === 'Medicina' || CMMG_EFFPO_COURSES.includes(course);
+  if (university === 'Faculdade Israelita de Ciências da Saúde Albert Einstein') return EINSTEIN_VERIFIED_COURSES.has(course);
+  if (university === 'Ibmec') return IBMEC_VERIFIED_COURSES.has(course);
   if (university === 'Link School of Business') return course === 'Administração';
   if (university === 'Insper') return ['Administração', 'Ciências Econômicas', 'Direito', 'Ciência da Computação', 'Engenharia de Computação', 'Engenharia de Produção', 'Engenharia Mecânica', 'Engenharia Mecatrônica'].includes(course);
   return false;
