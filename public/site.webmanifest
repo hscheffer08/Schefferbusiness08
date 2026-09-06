@@ -1,0 +1,12 @@
+{
+  "name": "Conectaê — Curso de Aprovação",
+  "short_name": "Conectaê",
+  "description": "Plano adaptativo para ENEM e vestibulares com questões, simulados, redação e diagnóstico de dificuldades.",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#020817",
+  "theme_color": "#020817",
+  "categories": ["education", "productivity"]
+}
