@@ -20,6 +20,20 @@ import './admissions-planner-v8.css';
 type MainView='inicio'|'plano'|'treinar'|'mais';
 type TrainingView='hub'|'questoes'|'simulados'|'fases'|'visual'|'redacao';
 type MoreView='hub'|'estrategia'|'metas'|'dados';
+type FeatureCard<T extends string>=[T,string,string,typeof Home,boolean];
+
+const trainingCards:FeatureCard<TrainingView>[]=[
+  ['questoes','Questões','Pratique por matéria e conteúdo no banco de questões.',BookOpenCheck,false],
+  ['simulados','Simulados e correção','Faça provas e transforme erros em prioridades.',BarChart3,true],
+  ['fases','Outras fases','Entrevista, oral, PREP, SPRINT e etapas específicas.',Mic2,true],
+  ['visual','Questões por foto','Envie uma questão ou dificuldade visual para a IA.',ScanLine,true],
+  ['redacao','Redação','Treine texto e acompanhe a evolução dentro do Curso.',FileText,true],
+];
+const moreCards:FeatureCard<MoreView>[]=[
+  ['estrategia','Estratégia','Descubra o próximo melhor movimento do seu plano.',BrainCircuit,true],
+  ['metas','Metas de aprovação','Veja distância até a meta e referências por vestibular.',Target,true],
+  ['dados','Fontes e dados','Entenda de onde vêm notas de corte, estruturas e referências.',BookOpenCheck,false],
+];
 
 function PremiumBadge(){return <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-[#31588e] bg-[#0b2856] px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-[.08em] text-[#9fc1ff]"><Sparkles size={10}/>Premium</span>}
 
@@ -34,11 +48,9 @@ function Gate({ onBack }: { onBack: () => void }) {
 
   useEffect(()=>{
     if(view!=='plano')return;
-    let stopped=false;
-    let tries=0;
+    let stopped=false; let tries=0;
     const activate=()=>{
-      if(stopped||tries>=50)return;
-      tries+=1;
+      if(stopped||tries>=50)return; tries+=1;
       const buttons=Array.from(document.querySelectorAll<HTMLButtonElement>('#curso-planner .plan6-tab'));
       const target=buttons.find(button=>button.textContent?.trim()===plannerTab);
       if(target){
@@ -47,8 +59,7 @@ function Gate({ onBack }: { onBack: () => void }) {
       }
       window.setTimeout(activate,75);
     };
-    activate();
-    return()=>{stopped=true};
+    activate(); return()=>{stopped=true};
   },[view,plannerTab]);
 
   if (loading) return <div className="min-h-screen bg-[#020817] flex items-center justify-center text-[#72a5ff]"><Loader2 className="w-8 h-8 animate-spin" /></div>;
@@ -67,44 +78,17 @@ function Gate({ onBack }: { onBack: () => void }) {
   const openTraining=(next:TrainingView='hub')=>{setTrainingView(next);setView('treinar');window.scrollTo({top:0})};
   const openMore=(next:MoreView='hub')=>{setMoreView(next);setView('mais');window.scrollTo({top:0})};
   const switchMain=(next:MainView)=>{if(next==='plano')setPlannerTab('Plano');setView(next);if(next==='treinar')setTrainingView('hub');if(next==='mais')setMoreView('hub');window.scrollTo({top:0,behavior:'smooth'})};
-
   const topNav:[MainView,string,typeof Home][]=[['inicio','Início',Home],['plano','Plano',Target],['treinar','Treinar',BookOpenCheck],['mais','Mais',LayoutGrid]];
 
   return <div className="min-h-screen bg-[#020817] text-white">
-    <header className="sticky top-0 z-[92] border-b border-[#173765] bg-[#020817]/95 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-[1180px] items-center gap-2 px-3 py-2.5 md:px-6">
-        <button type="button" onClick={()=>switchMain('inicio')} className="mr-1 flex shrink-0 items-center gap-2 rounded-xl px-1.5 py-1 font-extrabold"><span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#246cff] text-sm">C</span><span className="hidden lg:block">Curso</span></button>
-        <nav className="hidden min-w-0 flex-1 items-center gap-1 md:flex">{topNav.map(([id,label,Icon])=><button key={id} type="button" onClick={()=>switchMain(id)} className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition ${view===id?'bg-[#0b2856] text-white':'text-[#9fb5d4] hover:bg-[#081d40] hover:text-white'}`}><Icon size={14}/>{label}</button>)}</nav>
-        <div className="min-w-0 flex-1 md:hidden"><div className="truncate text-sm font-extrabold">{view==='inicio'?'Meu Curso':view==='plano'?'Meu plano':view==='treinar'?'Treinar':'Mais recursos'}</div></div>
-        <button type="button" onClick={signOut} className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-[#234576] bg-[#071a38] px-3 py-2 text-xs font-bold text-white" aria-label="Sair da conta"><LogOut className="w-4 h-4" /><span className="hidden md:inline">Sair</span></button>
-      </div>
-    </header>
+    <header className="sticky top-0 z-[92] border-b border-[#173765] bg-[#020817]/95 backdrop-blur-xl"><div className="mx-auto flex max-w-[1180px] items-center gap-2 px-3 py-2.5 md:px-6"><button type="button" onClick={()=>switchMain('inicio')} className="mr-1 flex shrink-0 items-center gap-2 rounded-xl px-1.5 py-1 font-extrabold"><span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#246cff] text-sm">C</span><span className="hidden lg:block">Curso</span></button><nav className="hidden min-w-0 flex-1 items-center gap-1 md:flex">{topNav.map(([id,label,Icon])=><button key={id} type="button" onClick={()=>switchMain(id)} className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition ${view===id?'bg-[#0b2856] text-white':'text-[#9fb5d4] hover:bg-[#081d40] hover:text-white'}`}><Icon size={14}/>{label}</button>)}</nav><div className="min-w-0 flex-1 md:hidden"><div className="truncate text-sm font-extrabold">{view==='inicio'?'Meu Curso':view==='plano'?'Meu plano':view==='treinar'?'Treinar':'Mais recursos'}</div></div><button type="button" onClick={signOut} className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-[#234576] bg-[#071a38] px-3 py-2 text-xs font-bold text-white" aria-label="Sair da conta"><LogOut className="w-4 h-4" /><span className="hidden md:inline">Sair</span></button></div></header>
 
     {view==='inicio'&&<CourseDashboard onOpenPlan={()=>openPlanner('Plano')} onOpenTwin={()=>openPlanner('Plano')} onOpenNotes={()=>openPlanner('Hoje')} onOpenTraining={()=>openTraining('hub')}/>} 
-
     {view==='plano'&&<section id="curso-planner" className="[&_.plan6-bottomnav]:!hidden"><AdmissionsPlannerV11 onBack={()=>switchMain('inicio')} /></section>}
 
-    {view==='treinar'&&<main className="mx-auto w-full max-w-5xl px-4 pb-28 pt-5 md:px-6 md:pb-12 md:pt-8">
-      {trainingView==='hub'?<><div className="mb-5"><div className="text-[11px] font-extrabold uppercase tracking-[.1em] text-[#72a5ff]">Treinar</div><h1 className="mt-2 text-3xl font-extrabold tracking-[-.04em]">Escolha o tipo de treino.</h1><p className="mt-2 text-sm text-[#9fb5d4]">Questões continuam abertas. Recursos avançados mostram uma prévia e podem ser liberados por 14 dias grátis, sem cartão.</p></div><div className="grid gap-3 md:grid-cols-2">{[
-        ['questoes','Questões','Pratique por matéria e conteúdo no banco de questões.',BookOpenCheck,false],['simulados','Simulados e correção','Faça provas e transforme erros em prioridades.',BarChart3,true],['fases','Outras fases','Entrevista, oral, PREP, SPRINT e etapas específicas.',Mic2,true],['visual','Questões por foto','Envie uma questão ou dificuldade visual para a IA.',ScanLine,true],['redacao','Redação','Treine texto e acompanhe a evolução dentro do Curso.',FileText,true]
-      ].map(([id,title,text,Icon,premium])=><button key={String(id)} type="button" onClick={()=>openTraining(id as TrainingView)} className={`relative flex min-h-[116px] items-center gap-4 overflow-hidden rounded-[20px] border p-4 text-left transition ${premium?'border-[#244b86] bg-[linear-gradient(135deg,#071a38,#091d41)] hover:border-[#4777bd]':'border-[#173765] bg-[#06152f] hover:border-[#31588e]'}`}><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#0b2856] text-[#72a5ff]"><Icon size={21}/></span><span><strong className="block text-lg">{String(title)}{premium&&<PremiumBadge/>}</strong><span className="mt-1 block text-xs leading-relaxed text-[#8ea6c9]">{String(text)}</span></span></button>)}</div></>:<><button type="button" onClick={()=>setTrainingView('hub')} className="mb-4 inline-flex items-center gap-1.5 text-xs font-extrabold text-[#8bb8ff]"><ChevronLeft size={15}/>Todos os treinos</button>
-        {trainingView==='questoes'&&<EmbeddedQuestionBank/>}
-        {trainingView==='simulados'&&<PremiumFeatureGate feature="Simulados e correção inteligente" description="Veja a prova completa, corrija seus erros e transforme o resultado em prioridades automáticas do plano."><OfficialExamReviewV2/></PremiumFeatureGate>}
-        {trainingView==='fases'&&<PremiumFeatureGate feature="Treino das fases decisivas" description="Treine entrevista, oral, PREP, SPRINT e etapas específicas com estrutura orientada para cada processo seletivo."><PhaseTrainingLab/></PremiumFeatureGate>}
-        {trainingView==='visual'&&<PremiumFeatureGate feature="Diagnóstico por foto com IA" description="Envie uma questão, identifique exatamente o conteúdo que está travando você e leve o diagnóstico para o seu plano."><EnemVisualPractice/></PremiumFeatureGate>}
-        {trainingView==='redacao'&&<PremiumFeatureGate feature="Redação com acompanhamento" description="Treine redações, acompanhe evolução e use o desempenho para ajustar sua estratégia de estudo."><EssayPractice/></PremiumFeatureGate>}
-      </>}
-    </main>}
+    {view==='treinar'&&<main className="mx-auto w-full max-w-5xl px-4 pb-28 pt-5 md:px-6 md:pb-12 md:pt-8">{trainingView==='hub'?<><div className="mb-5"><div className="text-[11px] font-extrabold uppercase tracking-[.1em] text-[#72a5ff]">Treinar</div><h1 className="mt-2 text-3xl font-extrabold tracking-[-.04em]">Escolha o tipo de treino.</h1><p className="mt-2 text-sm text-[#9fb5d4]">Questões continuam abertas. Recursos avançados mostram uma prévia e podem ser liberados por 14 dias grátis, sem cartão.</p></div><div className="grid gap-3 md:grid-cols-2">{trainingCards.map(([id,title,text,Icon,premium])=><button key={id} type="button" onClick={()=>openTraining(id)} className={`relative flex min-h-[116px] items-center gap-4 overflow-hidden rounded-[20px] border p-4 text-left transition ${premium?'border-[#244b86] bg-[linear-gradient(135deg,#071a38,#091d41)] hover:border-[#4777bd]':'border-[#173765] bg-[#06152f] hover:border-[#31588e]'}`}><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#0b2856] text-[#72a5ff]"><Icon size={21}/></span><span><strong className="block text-lg">{title}{premium&&<PremiumBadge/>}</strong><span className="mt-1 block text-xs leading-relaxed text-[#8ea6c9]">{text}</span></span></button>)}</div></>:<><button type="button" onClick={()=>setTrainingView('hub')} className="mb-4 inline-flex items-center gap-1.5 text-xs font-extrabold text-[#8bb8ff]"><ChevronLeft size={15}/>Todos os treinos</button>{trainingView==='questoes'&&<EmbeddedQuestionBank/>}{trainingView==='simulados'&&<PremiumFeatureGate feature="Simulados e correção inteligente" description="Veja a prova completa, corrija seus erros e transforme o resultado em prioridades automáticas do plano."><OfficialExamReviewV2/></PremiumFeatureGate>}{trainingView==='fases'&&<PremiumFeatureGate feature="Treino das fases decisivas" description="Treine entrevista, oral, PREP, SPRINT e etapas específicas com estrutura orientada para cada processo seletivo."><PhaseTrainingLab/></PremiumFeatureGate>}{trainingView==='visual'&&<PremiumFeatureGate feature="Diagnóstico por foto com IA" description="Envie uma questão, identifique exatamente o conteúdo que está travando você e leve o diagnóstico para o seu plano."><EnemVisualPractice/></PremiumFeatureGate>}{trainingView==='redacao'&&<PremiumFeatureGate feature="Redação com acompanhamento" description="Treine redações, acompanhe evolução e use o desempenho para ajustar sua estratégia de estudo."><EssayPractice/></PremiumFeatureGate>}</>}</main>}
 
-    {view==='mais'&&<main className="mx-auto w-full max-w-5xl px-4 pb-28 pt-5 md:px-6 md:pb-12 md:pt-8">
-      {moreView==='hub'?<><div className="mb-5"><div className="text-[11px] font-extrabold uppercase tracking-[.1em] text-[#72a5ff]">Mais recursos</div><h1 className="mt-2 text-3xl font-extrabold tracking-[-.04em]">Tudo tem um lugar claro.</h1><p className="mt-2 text-sm text-[#9fb5d4]">Os recursos mais avançados ficam identificados como Premium; você pode testá-los por 14 dias sem cartão.</p></div><div className="grid gap-3 md:grid-cols-2">{[
-        ['estrategia','Estratégia','Descubra o próximo melhor movimento do seu plano.',BrainCircuit,true],['metas','Metas de aprovação','Veja distância até a meta e referências por vestibular.',Target,true],['dados','Fontes e dados','Entenda de onde vêm notas de corte, estruturas e referências.',BookOpenCheck,false]
-      ].map(([id,title,text,Icon,premium])=><button key={String(id)} type="button" onClick={()=>openMore(id as MoreView)} className={`flex min-h-[116px] items-center gap-4 rounded-[20px] border p-4 text-left transition ${premium?'border-[#244b86] bg-[linear-gradient(135deg,#071a38,#091d41)] hover:border-[#4777bd]':'border-[#173765] bg-[#06152f] hover:border-[#31588e]'}`}><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#0b2856] text-[#72a5ff]"><Icon size={21}/></span><span><strong className="block text-lg">{String(title)}{premium&&<PremiumBadge/>}</strong><span className="mt-1 block text-xs leading-relaxed text-[#8ea6c9]">{String(text)}</span></span></button>)}</div></>:<><button type="button" onClick={()=>setMoreView('hub')} className="mb-4 inline-flex items-center gap-1.5 text-xs font-extrabold text-[#8bb8ff]"><ChevronLeft size={15}/>Mais recursos</button>
-        {moreView==='estrategia'&&<PremiumFeatureGate feature="Estratégia personalizada" description="Transforme seu histórico, suas dificuldades e suas metas em um próximo movimento claro dentro do curso."><StudentStrategyCenter/></PremiumFeatureGate>}
-        {moreView==='metas'&&<PremiumFeatureGate feature="Metas inteligentes de aprovação" description="Veja a distância real até a meta e ajuste seu plano usando referências do vestibular e do curso desejado."><AdmissionsTargetIntelligence/></PremiumFeatureGate>}
-        {moreView==='dados'&&<CourseDataProof/>}
-      </>}
-    </main>}
+    {view==='mais'&&<main className="mx-auto w-full max-w-5xl px-4 pb-28 pt-5 md:px-6 md:pb-12 md:pt-8">{moreView==='hub'?<><div className="mb-5"><div className="text-[11px] font-extrabold uppercase tracking-[.1em] text-[#72a5ff]">Mais recursos</div><h1 className="mt-2 text-3xl font-extrabold tracking-[-.04em]">Tudo tem um lugar claro.</h1><p className="mt-2 text-sm text-[#9fb5d4]">Os recursos mais avançados ficam identificados como Premium; você pode testá-los por 14 dias sem cartão.</p></div><div className="grid gap-3 md:grid-cols-2">{moreCards.map(([id,title,text,Icon,premium])=><button key={id} type="button" onClick={()=>openMore(id)} className={`flex min-h-[116px] items-center gap-4 rounded-[20px] border p-4 text-left transition ${premium?'border-[#244b86] bg-[linear-gradient(135deg,#071a38,#091d41)] hover:border-[#4777bd]':'border-[#173765] bg-[#06152f] hover:border-[#31588e]'}`}><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#0b2856] text-[#72a5ff]"><Icon size={21}/></span><span><strong className="block text-lg">{title}{premium&&<PremiumBadge/>}</strong><span className="mt-1 block text-xs leading-relaxed text-[#8ea6c9]">{text}</span></span></button>)}</div></>:<><button type="button" onClick={()=>setMoreView('hub')} className="mb-4 inline-flex items-center gap-1.5 text-xs font-extrabold text-[#8bb8ff]"><ChevronLeft size={15}/>Mais recursos</button>{moreView==='estrategia'&&<PremiumFeatureGate feature="Estratégia personalizada" description="Transforme seu histórico, suas dificuldades e suas metas em um próximo movimento claro dentro do curso."><StudentStrategyCenter/></PremiumFeatureGate>}{moreView==='metas'&&<PremiumFeatureGate feature="Metas inteligentes de aprovação" description="Veja a distância real até a meta e ajuste seu plano usando referências do vestibular e do curso desejado."><AdmissionsTargetIntelligence/></PremiumFeatureGate>}{moreView==='dados'&&<CourseDataProof/>}</>}</main>}
 
     <nav className="fixed inset-x-0 bottom-0 z-[95] border-t border-[#173765] bg-[#020817]/97 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl md:hidden"><div className="mx-auto grid max-w-md grid-cols-4 gap-1">{topNav.map(([id,label,Icon])=><button key={id} type="button" onClick={()=>switchMain(id)} className={`flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-extrabold ${view===id?'bg-[#0b2856] text-white':'text-[#839abb]'}`}><Icon size={18}/><span>{label}</span></button>)}</div></nav>
     <AIEducationTutor />
