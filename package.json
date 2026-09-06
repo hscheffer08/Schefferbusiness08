@@ -15,7 +15,7 @@
     "validate:professional-match": "node scripts/validate-professional-match.mjs",
     "validate:course-intelligence": "node scripts/validate-course-intelligence.mjs",
     "validate:adaptive-planner": "node scripts/validate-adaptive-planner.mjs",
-    "validate:adaptive-integration": "node --experimental-strip-types scripts/validate-adaptive-integration.mjs",
+    "validate:adaptive-integration": "node --experimental-strip-types --experimental-loader ./scripts/alias-loader.mjs scripts/validate-adaptive-integration.mjs",
     "validate:ai-quality": "node scripts/validate-ai-quality.mjs",
     "validate:official-questions": "node --experimental-strip-types scripts/validate-official-questions.mjs"
   },
