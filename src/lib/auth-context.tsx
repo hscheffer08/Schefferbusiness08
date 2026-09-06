@@ -4,7 +4,8 @@ import { supabase } from '@/lib/supabase';
 import type { UserProfile } from '@/types';
 
 const PROFILE_SELECT = 'id, display_name, school_year, city, state, age_range, onboarding_completed, created_at';
-const CANONICAL_ORIGIN = 'https://businessschoolfit.vercel.app';
+// IDNA/punycode form of conectaê.app keeps auth redirect URLs ASCII-safe.
+const CANONICAL_ORIGIN = 'https://xn--conecta-pya.app';
 const PLANNER_REDIRECT = `${CANONICAL_ORIGIN}/?planner=aprovacao`;
 
 interface AuthState {
