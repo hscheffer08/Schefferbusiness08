@@ -1,1 +1,1 @@
-export { default } from '@/components/OfficialQuestionWorkspaceV2';
+export { default } from '@/components/OfficialQuestionWorkspaceV3';
