@@ -27,7 +27,7 @@ function Gate({ onBack }: { onBack: () => void }) {
   const [view,setView]=useState<MainView>('inicio');
   const [trainingView,setTrainingView]=useState<TrainingView>('hub');
   const [moreView,setMoreView]=useState<MoreView>('hub');
-  const [plannerTab,setPlannerTab]=useState<'Hoje'|'Plano'|'Questões'|'Prova'>('Hoje');
+  const [plannerTab,setPlannerTab]=useState<'Hoje'|'Plano'|'Questões'|'Prova'>('Plano');
 
   useEffect(()=>{
     if(view!=='plano')return;
@@ -63,7 +63,7 @@ function Gate({ onBack }: { onBack: () => void }) {
   const openPlanner=(tab:'Hoje'|'Plano'|'Questões'|'Prova')=>{setPlannerTab(tab);setView('plano')};
   const openTraining=(next:TrainingView='hub')=>{setTrainingView(next);setView('treinar');window.scrollTo({top:0})};
   const openMore=(next:MoreView='hub')=>{setMoreView(next);setView('mais');window.scrollTo({top:0})};
-  const switchMain=(next:MainView)=>{setView(next);if(next==='treinar')setTrainingView('hub');if(next==='mais')setMoreView('hub');window.scrollTo({top:0,behavior:'smooth'})};
+  const switchMain=(next:MainView)=>{if(next==='plano')setPlannerTab('Plano');setView(next);if(next==='treinar')setTrainingView('hub');if(next==='mais')setMoreView('hub');window.scrollTo({top:0,behavior:'smooth'})};
 
   const topNav:[MainView,string,typeof Home][]=[['inicio','Início',Home],['plano','Plano',Target],['treinar','Treinar',BookOpenCheck],['mais','Mais',LayoutGrid]];
 
