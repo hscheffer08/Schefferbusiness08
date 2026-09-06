@@ -1,7 +1,7 @@
 type RawAlt={letter?:string;text?:string;file?:string|null;isCorrect?:boolean};
 type RawQuestion={title?:string;index?:number;discipline?:string;language?:string|null;year?:number;context?:string|null;files?:string[];correctAlternative?:string;alternativesIntroduction?:string;alternatives?:RawAlt[]};
 
-const YEARS=[2023,2022];
+const YEARS=[2023,2022,2021];
 const OFFSETS=[0,50,100,150];
 const AREA_MAP:Record<string,string>={
   'linguagens':'Linguagens',
@@ -61,8 +61,12 @@ export default async function handler(req:any,res:any){
     for(const area of AREAS){byArea[area].sort((a,b)=>b.year-a.year||a.number-b.number);byArea[area]=byArea[area].slice(0,60)}
     const questions=AREAS.flatMap(a=>byArea[a]); const counts=Object.fromEntries(AREAS.map(a=>[a,byArea[a].length]));
     const guaranteed=AREAS.every(a=>counts[a]>=50);
+    const malformed=questions.filter(q=>!q.prompt&&!q.context||q.alternatives?.length!==5||!/^[A-E]$/.test(q.correctOption)).length;
+    const duplicates=questions.length-new Set(questions.map(q=>q.id)).size;
+    const summary={guaranteed,counts,total:questions.length,years:YEARS,malformed,duplicates};
     res.setHeader('Cache-Control','public, s-maxage=21600, stale-while-revalidate=86400');
-    return res.status(guaranteed?200:503).json({guaranteed,counts,questions,years:YEARS});
+    if(String(req.query?.summary||'')==='1')return res.status(guaranteed&&malformed===0&&duplicates===0?200:503).json(summary);
+    return res.status(guaranteed&&malformed===0&&duplicates===0?200:503).json({...summary,questions});
   }catch(error:any){
     console.error('enem-official-pool failed',error?.message||error);
     return res.status(502).json({error:'Não consegui montar o banco oficial do ENEM.',detail:String(error?.message||error).slice(0,300)});
