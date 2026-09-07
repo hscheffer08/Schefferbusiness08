@@ -1,5 +1,11 @@
 {
   "rewrites": [
+    { "source": "/treino-entrevista", "destination": "/treino-entrevista/index.html" },
+    { "source": "/como-funciona", "destination": "/como-funciona/index.html" },
+    { "source": "/metodologia", "destination": "/metodologia/index.html" },
+    { "source": "/faq", "destination": "/faq/index.html" },
+    { "source": "/privacidade", "destination": "/privacidade/index.html" },
+    { "source": "/termos", "destination": "/termos/index.html" },
     { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ],
   "headers": [
