@@ -6,7 +6,17 @@ import type { UserProfile } from '@/types';
 const PROFILE_SELECT = 'id, display_name, school_year, city, state, age_range, onboarding_completed, created_at';
 // IDNA/punycode form of conectaê.app keeps auth redirect URLs ASCII-safe.
 const CANONICAL_ORIGIN = 'https://xn--conecta-pya.app';
-const PLANNER_REDIRECT = `${CANONICAL_ORIGIN}/?planner=aprovacao`;
+const PASSWORD_RECOVERY_REDIRECT = `${CANONICAL_ORIGIN}/?auth=recovery`;
+
+function currentAuthReturnUrl(): string {
+  if (typeof window === 'undefined') return CANONICAL_ORIGIN;
+  const current = new URL(window.location.href);
+  current.searchParams.delete('auth');
+  current.searchParams.delete('code');
+  const safePath = current.pathname.startsWith('/') ? current.pathname : '/';
+  const safeSearch = current.searchParams.toString();
+  return `${CANONICAL_ORIGIN}${safePath}${safeSearch ? `?${safeSearch}` : ''}`;
+}
 
 interface AuthState {
   user: User | null;
@@ -17,6 +27,7 @@ interface AuthState {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
+  updatePassword: (password: string) => Promise<{ error: string | null }>;
   updateDisplayName: (name: string) => Promise<{ error: string | null }>;
   updateProfile: (fields: Partial<UserProfile>) => Promise<{ error: string | null }>;
   deleteAccount: () => Promise<{ error: string | null }>;
@@ -76,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: normalizedEmail,
       password,
       options: {
-        emailRedirectTo: PLANNER_REDIRECT,
+        emailRedirectTo: currentAuthReturnUrl(),
         data: { display_name: displayName.trim() },
       },
     });
@@ -107,11 +118,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resetPassword = useCallback(async (email: string) => {
     if (!supabase) return { error: 'Cliente não inicializado' };
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: PLANNER_REDIRECT });
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: PASSWORD_RECOVERY_REDIRECT });
     if (error) {
       console.error('resetPassword failed', error);
       const friendly = genericAuthError(error.message);
       return { error: friendly === 'E-mail ou senha inválidos.' ? 'Não foi possível enviar o link de recuperação agora. Tente novamente em instantes.' : friendly };
+    }
+    return { error: null };
+  }, []);
+
+  const updatePassword = useCallback(async (password: string) => {
+    if (!supabase) return { error: 'Cliente não inicializado' };
+    if (password.length < 6) return { error: 'A senha deve ter pelo menos 6 caracteres.' };
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) {
+      console.error('updatePassword failed', error);
+      return { error: 'Não foi possível atualizar sua senha. Abra novamente o link de recuperação ou solicite outro.' };
     }
     return { error: null };
   }, []);
@@ -141,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = useCallback(async () => { if (user) await loadProfile(user.id); }, [user, loadProfile]);
 
-  return <AuthContext.Provider value={{ user, session, profile, loading, signUp, signIn, signOut, resetPassword, updateDisplayName, updateProfile, deleteAccount, refreshProfile }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, session, profile, loading, signUp, signIn, signOut, resetPassword, updatePassword, updateDisplayName, updateProfile, deleteAccount, refreshProfile }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
