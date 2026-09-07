@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run lint && npm run validate:planner-auth && npm run validate:ai-quality && npm run validate:catalog && npm run validate:questionnaires && npm run validate:professional-match && npm run validate:course-intelligence && npm run validate:adaptive-planner && npm run validate:adaptive-integration && npm run validate:new-institutions && npm run validate:official-questions && npm run typecheck && vite build",
+    "build": "npm run lint && npm run validate:planner-auth && npm run validate:ai-quality && npm run validate:catalog && npm run validate:questionnaires && npm run validate:professional-match && npm run validate:course-intelligence && npm run validate:adaptive-planner && npm run validate:adaptive-integration && npm run validate:new-institutions && npm run validate:official-questions && npm run typecheck && vite build && node scripts/generate-static-route-html.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
+    "smoke:browser": "node scripts/smoke-browser.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "validate:planner-auth": "node scripts/validate-planner-auth.mjs",
     "validate:catalog": "node scripts/validate-catalog.mjs",
