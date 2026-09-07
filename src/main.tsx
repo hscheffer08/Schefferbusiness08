@@ -22,8 +22,11 @@ const DiscoveryHub = lazy(() => import('./components/DiscoveryHub.tsx'));
 const AreaMatchPortal = lazy(() => import('./components/AreaMatchPortal.tsx'));
 const VocationalDemoPremium = lazy(() => import('./components/VocationalDemoPremium.tsx'));
 const OfficialVestibularBankPage = lazy(() => import('./components/OfficialVestibularBankPage.tsx'));
+const InterviewCoachPage = lazy(() => import('./components/InterviewCoachPage.tsx'));
 
 const params = new URLSearchParams(window.location.search);
+const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
+const interviewOpen = pathname === '/treino-entrevista';
 const plannerOpen = params.get('planner') === 'aprovacao';
 const experienceMode = params.get('experience');
 const legacyCollegeExperienceOpen =
@@ -67,7 +70,9 @@ const loadingFallback = (
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Suspense fallback={loadingFallback}>
-      {plannerOpen ? (
+      {interviewOpen ? (
+        <InterviewCoachPage />
+      ) : plannerOpen ? (
         <>
           <AdmissionsPlannerGate onBack={closePlanner} />
           <PlannerDefaultTabMount />
