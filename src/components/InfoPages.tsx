@@ -148,7 +148,7 @@ function Privacy() {
       <h1 className="text-3xl font-bold tracking-tight mb-6">Política de Privacidade</h1>
       <Section title="Coleta de dados">
         <p>O Conectaê coleta apenas os dados necessários para calcular seu match de perfil: nome, e-mail, ano escolar, cidade, estado, faixa etária e respostas do questionário.</p>
-        <p>Não coletamos dados sensíveis desnecessários. Nunca compartilhamos seus dados com terceiros.</p>
+        <p>Não vendemos seus dados. O compartilhamento com instituições de ensino só ocorre nas hipóteses descritas abaixo e mediante o consentimento aplicável.</p>
       </Section>
       <Section title="Armazenamento e segurança">
         <p>Seus dados são armazenados no Supabase com criptografia e protegidos por Row Level Security (RLS). Cada usuário só pode acessar seus próprios dados — nenhum usuário pode ver dados de outro.</p>
