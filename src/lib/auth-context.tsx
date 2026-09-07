@@ -24,6 +24,7 @@ interface AuthState {
   profile: UserProfile | null;
   loading: boolean;
   signUp: (email: string, password: string, displayName: string) => Promise<{ error: string | null; needsConfirmation?: boolean }>;
+  resendConfirmation: (email: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
@@ -42,8 +43,12 @@ function genericAuthError(raw: string): string {
   if (m.includes('rate limit') || m.includes('too many')) return 'Muitas tentativas. Aguarde alguns instantes e tente novamente.';
   if ((m.includes('already') && m.includes('registered')) || m.includes('user already registered')) return 'Este e-mail já possui uma conta. Entre ou recupere sua senha.';
   if (m.includes('invalid email')) return 'Digite um e-mail válido.';
-  if (m.includes('password') && (m.includes('short') || m.includes('least'))) return 'A senha deve ter pelo menos 6 caracteres.';
+  if (m.includes('password') && (m.includes('short') || m.includes('least'))) return 'A senha não atende aos requisitos mínimos de segurança.';
   return 'E-mail ou senha inválidos.';
+}
+
+function metadataDisplayName(user: User | null | undefined): string {
+  return String(user?.user_metadata?.display_name ?? '').trim().slice(0, 120);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -52,30 +57,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadProfile = useCallback(async (uid: string) => {
+  const loadProfile = useCallback(async (authUser: User) => {
     if (!supabase) return;
-    const { data, error } = await supabase.from('user_profiles').select(PROFILE_SELECT).eq('id', uid).maybeSingle();
-    if (error) return;
-    if (data) setProfile(data as UserProfile);
-    else {
-      const { data: newProfile } = await supabase.from('user_profiles').insert({ id: uid }).select(PROFILE_SELECT).maybeSingle();
-      if (newProfile) setProfile(newProfile as UserProfile);
+    const fallbackName = metadataDisplayName(authUser);
+    const { data, error } = await supabase.from('user_profiles').select(PROFILE_SELECT).eq('id', authUser.id).maybeSingle();
+    if (error) {
+      console.error('loadProfile failed', error);
+      return;
     }
+
+    if (data) {
+      const currentName = String(data.display_name ?? '').trim();
+      if (!currentName && fallbackName) {
+        const { data: updated, error: updateError } = await supabase
+          .from('user_profiles')
+          .update({ display_name: fallbackName })
+          .eq('id', authUser.id)
+          .select(PROFILE_SELECT)
+          .maybeSingle();
+        if (!updateError && updated) {
+          setProfile(updated as UserProfile);
+          return;
+        }
+        if (updateError) console.error('profile name backfill failed', updateError);
+      }
+      setProfile(data as UserProfile);
+      return;
+    }
+
+    const { data: newProfile, error: insertError } = await supabase
+      .from('user_profiles')
+      .insert({ id: authUser.id, ...(fallbackName ? { display_name: fallbackName } : {}) })
+      .select(PROFILE_SELECT)
+      .maybeSingle();
+    if (insertError) {
+      console.error('profile insert after auth failed', insertError);
+      return;
+    }
+    if (newProfile) setProfile(newProfile as UserProfile);
   }, []);
 
   useEffect(() => {
     if (!supabase) { setLoading(false); return; }
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s); setUser(s?.user ?? null);
-      if (s?.user) loadProfile(s.user.id).finally(() => setLoading(false));
+      if (s?.user) loadProfile(s.user).finally(() => setLoading(false));
       else setLoading(false);
     });
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, s) => {
-      (async () => {
-        setSession(s); setUser(s?.user ?? null);
-        if (s?.user) await loadProfile(s.user.id);
-        else setProfile(null);
-      })();
+      setSession(s);
+      setUser(s?.user ?? null);
+      if (s?.user) {
+        void loadProfile(s.user);
+      } else {
+        setProfile(null);
+      }
     });
     return () => authListener.subscription.unsubscribe();
   }, [loadProfile]);
@@ -83,12 +119,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = useCallback(async (email: string, password: string, displayName: string) => {
     if (!supabase) return { error: 'Cliente não inicializado' };
     const normalizedEmail = email.trim().toLowerCase();
+    const cleanName = displayName.trim().replace(/\s+/g, ' ').slice(0, 120);
+    if (cleanName.length < 2) return { error: 'Digite seu nome.' };
     const { data, error } = await supabase.auth.signUp({
       email: normalizedEmail,
       password,
       options: {
         emailRedirectTo: currentAuthReturnUrl(),
-        data: { display_name: displayName.trim() },
+        data: { display_name: cleanName },
       },
     });
     if (error) {
@@ -96,11 +134,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('signUp failed', error);
       return { error: friendly === 'E-mail ou senha inválidos.' ? 'Não foi possível criar a conta agora. Confira os dados e tente novamente.' : friendly };
     }
-    if (data.user) {
-      const { error: profileError } = await supabase.from('user_profiles').upsert({ id: data.user.id, display_name: displayName.trim() });
-      if (profileError) console.error('profile upsert after signUp failed', profileError);
+
+    // With email confirmation enabled there is no authenticated session yet, so RLS correctly
+    // blocks profile writes. The profile is created/backfilled by loadProfile after confirmation.
+    if (data.session && data.user) {
+      await loadProfile(data.user);
     }
     return { error: null, needsConfirmation: !data.session };
+  }, [loadProfile]);
+
+  const resendConfirmation = useCallback(async (email: string) => {
+    if (!supabase) return { error: 'Cliente não inicializado' };
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) return { error: 'Digite seu e-mail.' };
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: normalizedEmail,
+      options: { emailRedirectTo: currentAuthReturnUrl() },
+    });
+    if (error) {
+      console.error('resend confirmation failed', error);
+      const friendly = genericAuthError(error.message);
+      return { error: friendly === 'E-mail ou senha inválidos.' ? 'Não foi possível reenviar a confirmação agora. Tente novamente em instantes.' : friendly };
+    }
+    return { error: null };
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
@@ -129,7 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updatePassword = useCallback(async (password: string) => {
     if (!supabase) return { error: 'Cliente não inicializado' };
-    if (password.length < 6) return { error: 'A senha deve ter pelo menos 6 caracteres.' };
+    if (password.length < 8) return { error: 'A senha deve ter pelo menos 8 caracteres.' };
     const { error } = await supabase.auth.updateUser({ password });
     if (error) {
       console.error('updatePassword failed', error);
@@ -140,9 +197,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateDisplayName = useCallback(async (name: string) => {
     if (!supabase || !user) return { error: 'Não autenticado' };
-    const { error } = await supabase.from('user_profiles').update({ display_name: name }).eq('id', user.id);
+    const cleanName = name.trim().replace(/\s+/g, ' ').slice(0, 120);
+    if (cleanName.length < 2) return { error: 'Digite um nome válido.' };
+    const { error } = await supabase.from('user_profiles').update({ display_name: cleanName }).eq('id', user.id);
     if (error) { console.error('updateDisplayName failed', error); return { error: 'Não foi possível salvar seu nome. Tente novamente.' }; }
-    setProfile((prev) => prev ? { ...prev, display_name: name } : prev);
+    setProfile((prev) => prev ? { ...prev, display_name: cleanName } : prev);
     return { error: null };
   }, [user]);
 
@@ -161,9 +220,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut(); setProfile(null); return { error: null };
   }, [user]);
 
-  const refreshProfile = useCallback(async () => { if (user) await loadProfile(user.id); }, [user, loadProfile]);
+  const refreshProfile = useCallback(async () => { if (user) await loadProfile(user); }, [user, loadProfile]);
 
-  return <AuthContext.Provider value={{ user, session, profile, loading, signUp, signIn, signOut, resetPassword, updatePassword, updateDisplayName, updateProfile, deleteAccount, refreshProfile }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, session, profile, loading, signUp, resendConfirmation, signIn, signOut, resetPassword, updatePassword, updateDisplayName, updateProfile, deleteAccount, refreshProfile }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
