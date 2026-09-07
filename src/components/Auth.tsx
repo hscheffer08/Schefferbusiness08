@@ -9,13 +9,14 @@ interface AuthProps {
   onPrivacy: () => void;
   onTerms: () => void;
   compact?: boolean;
+  initialMode?: Mode;
 }
 
-type Mode = 'login' | 'signup' | 'reset';
+type Mode = 'login' | 'signup' | 'reset' | 'update';
 
-export default function Auth({ onBack, onSuccess, onPrivacy, onTerms, compact = false }: AuthProps) {
-  const { signIn, signUp, resetPassword } = useAuth();
-  const [mode, setMode] = useState<Mode>('login');
+export default function Auth({ onBack, onSuccess, onPrivacy, onTerms, compact = false, initialMode = 'login' }: AuthProps) {
+  const { signIn, signUp, resetPassword, updatePassword } = useAuth();
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -51,10 +52,22 @@ export default function Auth({ onBack, onSuccess, onPrivacy, onTerms, compact = 
           onSuccess();
         }
       }
-    } else {
+    } else if (mode === 'reset') {
       const { error: err } = await resetPassword(email);
       if (err) setError(err);
-      else setSuccess('Se houver uma conta com esse e-mail, enviamos um link de recuperação que volta para o Conectaê.');
+      else setSuccess('Se houver uma conta com esse e-mail, enviamos um link de recuperação. Ao abrir o link, você poderá definir uma nova senha no Conectaê.');
+    } else {
+      if (password.length < 6) {
+        setError('A nova senha deve ter pelo menos 6 caracteres.');
+        setLoading(false);
+        return;
+      }
+      const { error: err } = await updatePassword(password);
+      if (err) setError(err);
+      else {
+        setPassword('');
+        setSuccess('Senha atualizada com sucesso. Você já pode continuar usando sua conta.');
+      }
     }
     setLoading(false);
   };
@@ -67,8 +80,8 @@ export default function Auth({ onBack, onSuccess, onPrivacy, onTerms, compact = 
           <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] rounded-full bg-accent-500/8 blur-[120px]" />
         </div>
         <header className="relative z-10 px-6 py-6 md:px-12">
-          <button onClick={onBack} className="flex items-center gap-2 text-ink-400 hover:text-ink-100 transition-colors text-sm font-medium">
-            <ArrowLeft className="w-4 h-4" /> Voltar ao início
+          <button onClick={mode === 'update' ? onSuccess : onBack} className="flex items-center gap-2 text-ink-400 hover:text-ink-100 transition-colors text-sm font-medium">
+            <ArrowLeft className="w-4 h-4" /> {mode === 'update' ? 'Voltar ao site' : 'Voltar ao início'}
           </button>
         </header>
       </>}
@@ -83,11 +96,13 @@ export default function Auth({ onBack, onSuccess, onPrivacy, onTerms, compact = 
               {mode === 'login' && 'Entrar na sua conta'}
               {mode === 'signup' && 'Criar sua conta'}
               {mode === 'reset' && 'Recuperar senha'}
+              {mode === 'update' && 'Definir nova senha'}
             </h1>
             <p className="text-sm text-ink-400">
               {mode === 'login' && 'Acesse seu plano, histórico e evolução'}
               {mode === 'signup' && 'Salve seus resultados e acompanhe seu progresso'}
               {mode === 'reset' && 'Enviaremos um link para seu e-mail'}
+              {mode === 'update' && 'Escolha uma nova senha para sua conta'}
             </p>
           </div>
 
@@ -97,13 +112,17 @@ export default function Auth({ onBack, onSuccess, onPrivacy, onTerms, compact = 
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'signup' && <div><label className="block text-xs font-medium text-ink-400 mb-1.5">Nome</label><div className="relative"><UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" /><input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Seu nome" required className="w-full pl-11 pr-4 py-3 rounded-xl bg-ink-800/50 border border-ink-700 text-ink-100 placeholder-ink-600 focus:outline-none focus:border-brand-500 focus:bg-ink-800 transition-colors" /></div></div>}
 
-            <div><label className="block text-xs font-medium text-ink-400 mb-1.5">E-mail</label><div className="relative"><Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" /><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" required autoComplete="email" className="w-full pl-11 pr-4 py-3 rounded-xl bg-ink-800/50 border border-ink-700 text-ink-100 placeholder-ink-600 focus:outline-none focus:border-brand-500 focus:bg-ink-800 transition-colors" /></div></div>
+            {mode !== 'update' && <div><label className="block text-xs font-medium text-ink-400 mb-1.5">E-mail</label><div className="relative"><Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" /><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" required autoComplete="email" className="w-full pl-11 pr-4 py-3 rounded-xl bg-ink-800/50 border border-ink-700 text-ink-100 placeholder-ink-600 focus:outline-none focus:border-brand-500 focus:bg-ink-800 transition-colors" /></div></div>}
 
-            {mode !== 'reset' && <div><label className="block text-xs font-medium text-ink-400 mb-1.5">Senha</label><div className="relative"><Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" /><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required autoComplete={mode === 'login' ? 'current-password' : 'new-password'} className="w-full pl-11 pr-4 py-3 rounded-xl bg-ink-800/50 border border-ink-700 text-ink-100 placeholder-ink-600 focus:outline-none focus:border-brand-500 focus:bg-ink-800 transition-colors" /></div></div>}
+            {mode !== 'reset' && <div><label className="block text-xs font-medium text-ink-400 mb-1.5">{mode === 'update' ? 'Nova senha' : 'Senha'}</label><div className="relative"><Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" /><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required autoComplete={mode === 'login' ? 'current-password' : 'new-password'} className="w-full pl-11 pr-4 py-3 rounded-xl bg-ink-800/50 border border-ink-700 text-ink-100 placeholder-ink-600 focus:outline-none focus:border-brand-500 focus:bg-ink-800 transition-colors" /></div></div>}
 
-            <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-ink-950 font-semibold transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>{mode === 'login' && 'Entrar'}{mode === 'signup' && 'Criar conta'}{mode === 'reset' && 'Enviar link de recuperação'}</>}
-            </button>
+            {mode === 'update' && success ? (
+              <button type="button" onClick={onSuccess} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-ink-950 font-semibold transition-all">Continuar no Conectaê</button>
+            ) : (
+              <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-ink-950 font-semibold transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>{mode === 'login' && 'Entrar'}{mode === 'signup' && 'Criar conta'}{mode === 'reset' && 'Enviar link de recuperação'}{mode === 'update' && 'Salvar nova senha'}</>}
+              </button>
+            )}
           </form>
 
           {mode === 'signup' && <p className="mt-4 text-center text-xs leading-relaxed text-ink-500">Ao criar sua conta, você concorda com os <button type="button" onClick={onTerms} className="text-brand-400 hover:text-brand-300">Termos de Uso</button> e confirma que leu a <button type="button" onClick={onPrivacy} className="text-brand-400 hover:text-brand-300">Política de Privacidade</button>.</p>}
