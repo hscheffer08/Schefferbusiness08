@@ -14,7 +14,6 @@ const UsCountryMarker = lazy(() => import('./lib/us-country-marker.tsx'));
 const UsEnglishMode = lazy(() => import('./lib/us-english-mode.tsx'));
 const UsReferralPromoMount = lazy(() => import('./lib/us-referral-promo-mount.tsx'));
 const VocationalDemoMount = lazy(() => import('./lib/vocational-demo-mount.tsx'));
-const ExpandedHomeMount = lazy(() => import('./lib/expanded-home-mount.tsx'));
 const AccountControlsMount = lazy(() => import('./lib/account-controls-mount.tsx'));
 const BalancedAreaResultsMount = lazy(() => import('./lib/balanced-area-results-mount.tsx'));
 const PremiumDemoMount = lazy(() => import('./lib/premium-demo-mount.tsx'));
@@ -150,7 +149,6 @@ createRoot(document.getElementById('root')!).render(
           <UsEnglishMode />
           <UsReferralPromoMount />
           <VocationalDemoMount />
-          <ExpandedHomeMount />
           <AdmissionsPlannerEntryMount />
           <BalancedAreaResultsMount />
           <PremiumDemoMount />
