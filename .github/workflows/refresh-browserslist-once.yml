@@ -1,0 +1,41 @@
+name: Refresh Browserslist once
+
+on:
+  push:
+    paths:
+      - '.github/workflows/refresh-browserslist-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Refresh caniuse-lite database
+        run: npx --yes update-browserslist-db@latest
+
+      - name: Commit refreshed lockfile
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "Browserslist database is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "chore: update Browserslist database"
+          git push
