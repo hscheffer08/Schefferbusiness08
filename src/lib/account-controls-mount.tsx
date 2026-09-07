@@ -11,22 +11,39 @@ type InfoPage = 'privacy' | 'terms' | null;
 
 function AccountControls() {
   const { user, profile, signOut, loading } = useAuth();
-  const [showAuth, setShowAuth] = useState(false);
+  const params = new URLSearchParams(window.location.search);
+  const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
+  const recoveryRequested = params.get('auth') === 'recovery';
+  const [showAuth, setShowAuth] = useState(recoveryRequested);
   const [showAdmin, setShowAdmin] = useState(false);
   const [showB2B, setShowB2B] = useState(false);
   const [showJourney, setShowJourney] = useState(false);
   const [infoPage, setInfoPage] = useState<InfoPage>(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('modo') === 'business') return null;
+  const standaloneExperience =
+    pathname !== '/' ||
+    params.has('planner') ||
+    params.has('experience') ||
+    params.has('modo') ||
+    params.has('questionario') ||
+    params.has('ref');
+
+  const finishAuth = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('auth');
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+    setShowAuth(false);
+  };
+
+  if (standaloneExperience && !recoveryRequested) return null;
   const isAdmin = user?.app_metadata?.role === 'admin';
 
   if (showAdmin) return <div className="fixed inset-0 z-[140] overflow-y-auto bg-ink-950"><Admin onBack={() => setShowAdmin(false)} /></div>;
   if (showB2B) return <div className="fixed inset-0 z-[140] overflow-y-auto bg-ink-950"><B2BInsights onBack={() => setShowB2B(false)} /></div>;
   if (showJourney) return <div className="fixed inset-0 z-[140] overflow-y-auto bg-ink-950"><MyJourney onBack={() => setShowJourney(false)} /></div>;
   if (infoPage) return <div className="fixed inset-0 z-[140] overflow-y-auto bg-ink-950"><InfoPages page={infoPage} onBack={() => setInfoPage(null)} /></div>;
-  if (showAuth) return <div className="fixed inset-0 z-[140] overflow-y-auto bg-ink-950"><Auth onBack={() => setShowAuth(false)} onSuccess={() => setShowAuth(false)} onPrivacy={() => { setShowAuth(false); setInfoPage('privacy'); }} onTerms={() => { setShowAuth(false); setInfoPage('terms'); }} /></div>;
+  if (showAuth) return <div className="fixed inset-0 z-[140] overflow-y-auto bg-ink-950"><Auth initialMode={recoveryRequested ? 'update' : 'login'} onBack={() => setShowAuth(false)} onSuccess={finishAuth} onPrivacy={() => { setShowAuth(false); setInfoPage('privacy'); }} onTerms={() => { setShowAuth(false); setInfoPage('terms'); }} /></div>;
   if (loading) return null;
 
   return <div className="fixed top-4 right-5 md:right-10 z-[85] flex items-center gap-2">
