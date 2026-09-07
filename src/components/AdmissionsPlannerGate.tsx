@@ -10,7 +10,7 @@ import './admissions-planner-v8.css';
 const AdmissionsTargetIntelligence=lazy(()=>import('@/components/AdmissionsTargetIntelligence'));
 const EssayPractice=lazy(()=>import('@/components/EssayPractice'));
 const EnemVisualPractice=lazy(()=>import('@/components/EnemVisualPractice'));
-const OfficialExamReviewV2=lazy(()=>import('@/components/OfficialExamReviewV2'));
+const OfficialExamReviewV2=lazy(()=>import('@/components/SimulationAndReview'));
 const CourseDataProof=lazy(()=>import('@/components/CourseDataProof'));
 const AIEducationTutor=lazy(()=>import('@/components/AIEducationTutor'));
 const PhaseTrainingLab=lazy(()=>import('@/components/PhaseTrainingLab'));
