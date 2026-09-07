@@ -23,6 +23,7 @@ const AreaMatchPortal = lazy(() => import('./components/AreaMatchPortal.tsx'));
 const VocationalDemoPremium = lazy(() => import('./components/VocationalDemoPremium.tsx'));
 const OfficialVestibularBankPage = lazy(() => import('./components/OfficialVestibularBankPage.tsx'));
 const InterviewCoachPage = lazy(() => import('./components/InterviewCoachPage.tsx'));
+const InfoPages = lazy(() => import('./components/InfoPages.tsx'));
 
 const params = new URLSearchParams(window.location.search);
 const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
@@ -33,6 +34,54 @@ const legacyCollegeExperienceOpen =
   params.get('modo') === 'business' ||
   params.get('questionario') === 'faculdades' ||
   params.has('ref');
+
+type InfoPage = 'howitworks' | 'methodology' | 'faq' | 'privacy' | 'terms';
+const infoPageByPath: Record<string, InfoPage> = {
+  '/como-funciona': 'howitworks',
+  '/metodologia': 'methodology',
+  '/faq': 'faq',
+  '/privacidade': 'privacy',
+  '/termos': 'terms',
+};
+const infoPage = infoPageByPath[pathname] ?? null;
+
+function updateMeta(title: string, description: string, canonicalPath: string) {
+  document.title = title;
+  const descriptionMeta = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+  if (descriptionMeta) descriptionMeta.content = description;
+  const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+  const canonicalUrl = `https://xn--conecta-pya.app${canonicalPath}`;
+  if (canonical) canonical.href = canonicalUrl;
+  const values: Array<[string, string]> = [
+    ['meta[property="og:title"]', title],
+    ['meta[property="og:description"]', description],
+    ['meta[property="og:url"]', canonicalUrl],
+    ['meta[name="twitter:title"]', title],
+    ['meta[name="twitter:description"]', description],
+  ];
+  for (const [selector, value] of values) {
+    const element = document.querySelector<HTMLMetaElement>(selector);
+    if (element) element.content = value;
+  }
+}
+
+if (interviewOpen) {
+  updateMeta(
+    'Treino de entrevista para Insper e Link | Conectaê',
+    'Pratique entrevistas de admissão para Insper e Link com 10 perguntas adaptativas, feedback por competência e plano de melhoria.',
+    '/treino-entrevista',
+  );
+} else if (infoPage) {
+  const meta: Record<InfoPage, [string, string]> = {
+    howitworks: ['Como funciona | Conectaê', 'Entenda como o Conectaê calcula compatibilidade de perfil com faculdades.'],
+    methodology: ['Metodologia | Conectaê', 'Conheça os critérios e a metodologia usados no match de faculdades do Conectaê.'],
+    faq: ['Perguntas frequentes | Conectaê', 'Respostas sobre conta, privacidade, match e funcionamento do Conectaê.'],
+    privacy: ['Política de Privacidade | Conectaê', 'Saiba como o Conectaê trata, protege e compartilha dados mediante consentimento.'],
+    terms: ['Termos de Uso | Conectaê', 'Consulte os termos de uso da plataforma Conectaê.'],
+  };
+  const [title, description] = meta[infoPage];
+  updateMeta(title, description, pathname);
+}
 
 function navigateExperience(experience: string | null) {
   const url = new URL(window.location.href);
@@ -67,10 +116,14 @@ const loadingFallback = (
   </div>
 );
 
+const unknownPath = pathname !== '/' && !interviewOpen && !infoPage;
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Suspense fallback={loadingFallback}>
-      {interviewOpen ? (
+      {infoPage ? (
+        <InfoPages page={infoPage} onBack={() => window.location.assign('/')} />
+      ) : interviewOpen ? (
         <InterviewCoachPage />
       ) : plannerOpen ? (
         <>
@@ -102,6 +155,15 @@ createRoot(document.getElementById('root')!).render(
           <BalancedAreaResultsMount />
           <PremiumDemoMount />
         </>
+      ) : unknownPath ? (
+        <div className="min-h-screen bg-[#020817] text-white flex items-center justify-center px-6">
+          <div className="max-w-md text-center">
+            <div className="text-sm font-black uppercase tracking-[.15em] text-[#72a5ff]">Página não encontrada</div>
+            <h1 className="mt-3 text-4xl font-black">Esse endereço não existe.</h1>
+            <p className="mt-3 text-[#9fb5d4]">Volte para o início e continue pelo menu principal do Conectaê.</p>
+            <button onClick={() => window.location.assign('/')} className="mt-6 rounded-xl bg-[#246cff] px-5 py-3 text-sm font-black">Ir para o início</button>
+          </div>
+        </div>
       ) : (
         <CourseHome />
       )}
