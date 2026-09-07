@@ -14,12 +14,15 @@ export default function VocationalDemoMount() {
         setOpen(true);
       }
     };
+    const openVocational = () => setOpen(true);
     const closeVocational = () => setOpen(false);
 
     document.addEventListener('click', handleClick);
+    window.addEventListener('conectae:open-vocational', openVocational);
     window.addEventListener('conectae:close-vocational', closeVocational);
     return () => {
       document.removeEventListener('click', handleClick);
+      window.removeEventListener('conectae:open-vocational', openVocational);
       window.removeEventListener('conectae:close-vocational', closeVocational);
     };
   }, []);
