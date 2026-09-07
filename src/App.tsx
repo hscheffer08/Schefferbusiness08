@@ -14,7 +14,7 @@ import ConsentStep from '@/components/ConsentStep';
 import FacultyQuestionnaireHub from '@/components/FacultyQuestionnaireHub';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import type { AnswerMap, Screen, MatchResult, QuizMode, CountryCode } from '@/types';
-import { saveSession, saveMatchHistory, clearProgress, getSharingConsent, validateReferralCode, createReferral, updateReferralStatus, findReferralByUser, type DatabaseData } from '@/lib/api';
+import { saveSession, clearProgress, getSharingConsent, validateReferralCode, createReferral, updateReferralStatus, findReferralByUser, type DatabaseData } from '@/lib/api';
 import { loadDatabaseDataSafe } from '@/lib/safe-database';
 import { calculateMatches, getQuizScoreBonus } from '@/lib/matching-engine';
 import { exportFullQuizToFacultyProfile } from '@/lib/faculty-profile';
@@ -148,7 +148,6 @@ function AppContent() {
       saveSession(quizAnswers, consent).catch(() => {});
 
       if (user) {
-        saveMatchHistory(results).catch(() => {});
         clearProgress().catch(() => {});
         findReferralByUser(user.id).then((ref) => {
           if (ref && !ref.quiz_completed) {
@@ -279,6 +278,18 @@ function AppContent() {
     setScreen('quiz');
   };
 
+  const handleHomeNavigate = (destination: Parameters<typeof Home>[0]['onNavigate'] extends (screen: infer T) => void ? T : never) => {
+    if (destination === 'faculty-questionnaire') {
+      handleFacultyQuestionnaireAccess();
+      return;
+    }
+    if (destination === 'vocational-demo') {
+      window.dispatchEvent(new CustomEvent('conectae:open-vocational'));
+      return;
+    }
+    setScreen(destination);
+  };
+
   if (!dbData && !error) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -296,7 +307,7 @@ function AppContent() {
         onStart={handleStart}
         onProfile={() => setScreen(user ? 'profile' : 'auth')}
         onAuth={() => setScreen('auth')}
-        onNavigate={(s) => s === 'faculty-questionnaire' ? handleFacultyQuestionnaireAccess() : setScreen(s)}
+        onNavigate={handleHomeNavigate}
       />
     );
 
@@ -388,7 +399,7 @@ function AppContent() {
   }
 
   if (screen === 'compare')
-    return <Comparator dbData={marketData} matchResults={matchResults} onBack={() => setScreen('results')} />;
+    return <Comparator dbData={marketData} matchResults={matchResults} onBack={() => setScreen(matchResults.length > 0 ? 'results' : 'home')} />;
 
   if (screen === 'detail' && selectedUniversityId) {
     const university = dbData.universities.find((u) => u.university_id === selectedUniversityId);
@@ -419,7 +430,7 @@ function AppContent() {
       onStart={handleStart}
       onProfile={() => setScreen(user ? 'profile' : 'auth')}
       onAuth={() => setScreen('auth')}
-      onNavigate={(s) => s === 'faculty-questionnaire' ? handleFacultyQuestionnaireAccess() : setScreen(s)}
+      onNavigate={handleHomeNavigate}
     />
   );
 }
