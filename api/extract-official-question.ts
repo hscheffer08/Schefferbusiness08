@@ -55,6 +55,17 @@ async function runModel(args:{prompt:string;sourceUrl:string;maxOutputTokens:num
   throw new Error(`Todos os provedores falharam: ${errors.join(' | ')}`);
 }
 
+async function runJson(args:{prompt:string;sourceUrl:string;maxOutputTokens:number;timeoutMs:number;exam:string;tag:string}){
+  let lastError:unknown=null;
+  for(let attempt=0;attempt<2;attempt++){
+    try{
+      const out=await runModel({...args,prompt:attempt?`${args.prompt}\nA resposta anterior ficou com JSON inválido. Gere novamente, sem quebras de linha dentro das strings e sem texto fora do objeto JSON.`:args.prompt});
+      return parseJson(String(out.text||''));
+    }catch(error){lastError=error;console.warn('official-question JSON attempt failed',attempt+1,error instanceof Error?error.message:error)}
+  }
+  throw lastError;
+}
+
 export default async function handler(req:any,res:any){
   if(!['GET','POST'].includes(req.method))return reply(res,405,{error:'Método não permitido.'});
   try{
@@ -68,8 +79,7 @@ export default async function handler(req:any,res:any){
 
     if(mode==='answer'){
       const prompt=`Leia APENAS o gabarito oficial anexado. Localize a questão ${questionNumber}${year?` da edição ${year}`:''}${exam?` de ${exam}`:''}. Retorne somente JSON válido no formato {"correct_option":"A|B|C|D|E|null","confidence":0.0}. Não invente resposta: se a numeração não puder ser localizada com segurança, use null.`;
-      const out=await runModel({prompt,sourceUrl,maxOutputTokens:300,timeoutMs:45000,exam,tag:'feature:official-question-answer'});
-      const parsed=parseJson(String(out.text||''));
+      const parsed=await runJson({prompt,sourceUrl,maxOutputTokens:300,timeoutMs:45000,exam,tag:'feature:official-question-answer'});
       const option=/^[A-E]$/.test(String(parsed.correct_option||'').toUpperCase())?String(parsed.correct_option).toUpperCase():null;
       return reply(res,200,{correct_option:option,confidence:Math.max(0,Math.min(.99,Number(parsed.confidence)||0)),source:'official-answer-key'});
     }
@@ -85,8 +95,7 @@ Regras obrigatórias:
 6) Não inclua resposta correta, comentário ou solução.
 
 Retorne APENAS JSON válido: {"found":true,"prompt":"...","option_a":"...","option_b":"...","option_c":"...","option_d":"...","option_e":"...","needs_source_image":false,"image_note":null,"confidence":0.0}.`;
-    const out=await runModel({prompt,sourceUrl,maxOutputTokens:2600,timeoutMs:60000,exam,tag:'feature:official-question-extract'});
-    const p=parseJson(String(out.text||''));
+    const p=await runJson({prompt,sourceUrl,maxOutputTokens:2600,timeoutMs:60000,exam,tag:'feature:official-question-extract'});
     const optionCount=['option_a','option_b','option_c','option_d','option_e'].filter((key)=>String(p[key]||'').trim()).length;
     const found=p.found!==false&&String(p.prompt||'').trim().length>10&&optionCount>=2;
     return reply(res,200,{

@@ -34,6 +34,7 @@ assert.equal(cmmg?.opts.D,'quarta');
 const workspace=await readFile(new URL('../src/components/OfficialQuestionWorkspaceV3.tsx',import.meta.url),'utf8');
 const publicPage=await readFile(new URL('../src/components/OfficialVestibularBankPage.tsx',import.meta.url),'utf8');
 const pdfClient=await readFile(new URL('../src/lib/official-pdf-client.ts',import.meta.url),'utf8');
+const extractionApi=await readFile(new URL('../api/extract-official-question.ts',import.meta.url),'utf8');
 assert.match(workspace,/\.range\(from,from\+499\)/);
 assert.match(workspace,/isEnemInteractiveQuestion\(q\.year,q\.question_number\)/);
 assert.match(publicPage,/OfficialQuestionWorkspaceV3/);
@@ -46,5 +47,6 @@ assert.ok(pdfClient.indexOf('/api/proxy-official-pdf')<pdfClient.indexOf('SUPABA
 assert.match(pdfClient,/start=\$\{offset\}&end=\$\{end\}/);
 assert.match(pdfClient,/URLSearchParams/);
 assert.match(workspace,/download\\\.inep\\\.gov\\\.br/);
+assert.match(extractionApi,/for\(let attempt=0;attempt<2;attempt\+\+\)/);
 
 console.log('Official question validation passed: ENEM 2019-2025, CMMG numbering/options, subject filters, full pagination, answer hiding and local proxy priority.');
