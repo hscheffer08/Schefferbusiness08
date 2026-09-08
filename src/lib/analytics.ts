@@ -80,9 +80,10 @@ function getPageMetadata(extra?: Record<string, unknown>): Record<string, unknow
 }
 
 async function resolveAuthenticatedUserId(): Promise<string | null> {
-  if (!supabase) return null;
+  const client = supabase;
+  if (!client) return null;
   try {
-    const { data } = await supabase.auth.getSession();
+    const { data } = await client.auth.getSession();
     return data.session?.user?.id ?? null;
   } catch {
     return null;
@@ -94,14 +95,16 @@ export function trackEvent(
   metadata?: Record<string, unknown>,
   userId?: string | null
 ): void {
-  if (!supabase) return;
+  const client = supabase;
+  if (!client) return;
+
   const sessionId = getAnonSessionId();
   const visitorId = getAnonVisitorId();
 
   const write = async () => {
     const resolvedUserId = userId === undefined ? await resolveAuthenticatedUserId() : userId;
     try {
-      await supabase.from('analytics_events').insert({
+      await client.from('analytics_events').insert({
         event_type: eventType,
         user_id: resolvedUserId ?? null,
         session_id: sessionId,
