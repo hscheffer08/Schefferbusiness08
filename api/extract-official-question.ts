@@ -14,7 +14,7 @@ function parseJson(raw:string){
   const a=s.indexOf('{'),b=s.lastIndexOf('}');
   return JSON.parse(a>=0&&b>a?s.slice(a,b+1):s);
 }
-const reply=(res:any,status:number,body:any)=>{res.setHeader('Cache-Control','no-store');return res.status(status).json(body)};
+const reply=(res:any,status:number,body:any)=>{res.setHeader('Cache-Control',status===200?'public, s-maxage=2592000, stale-while-revalidate=7776000':'no-store');return res.status(status).json(body)};
 
 async function generateOnce(model:any,args:{prompt:string;sourceUrl:string;maxOutputTokens:number;timeoutMs:number;exam:string;tag:string},gateway=false){
   return generateText({

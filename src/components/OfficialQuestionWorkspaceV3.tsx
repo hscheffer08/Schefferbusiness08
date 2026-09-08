@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, ExternalLink, Loader2, RotateCcw, Search, X, XCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { extractOfficialAnswer, extractOfficialQuestion } from '@/lib/official-pdf-client';
+import { extractOfficialAnswer, extractOfficialAnswerRemotely, extractOfficialQuestion, extractOfficialQuestionRemotely } from '@/lib/official-pdf-client';
 import { isEnemInteractiveQuestion } from '@/lib/enem-official-availability';
 
 type ExamId='enem'|'cmmg'|'fuvest'|'insper'|'link';
@@ -123,6 +123,7 @@ export default function OfficialQuestionWorkspaceV3(){
         try{const response=await fetch(`/api/enem-official-questions?year=${q.year}&question=${q.question_number}`);const data=await response.json();if(response.ok&&data.found)value=data as Extracted}catch(error){console.warn('structured ENEM extraction failed',error)}
       }
       if(!value&&q.source_pdf_url&&/\.pdf(?:$|\?)/i.test(q.source_pdf_url)){try{const d=await extractOfficialQuestion(q.source_pdf_url,q.question_number);if(d.found)value=d}catch(e){console.warn('deterministic official extraction failed',e)}}
+      if(!value&&q.source_pdf_url&&/\.pdf(?:$|\?)/i.test(q.source_pdf_url)){try{const d=await extractOfficialQuestionRemotely(q.source_pdf_url,q.question_number,q.vestibular,q.year);if(d.found)value=d}catch(e){console.warn('remote official extraction failed',e)}}
       if(!value)throw new Error('Não foi possível reconstruir a questão a partir da fonte oficial.');
       setExtracted(value);try{sessionStorage.setItem(key,JSON.stringify(value))}catch{}
     }catch(e:any){setExtractError(e?.message||'Não consegui carregar essa questão oficial agora.')}finally{setExtracting(false)}
@@ -133,6 +134,7 @@ export default function OfficialQuestionWorkspaceV3(){
   async function submitOfficial(){if(!activeOfficial||!selected||submitted)return;setAnswering(true);try{
     let ans=extracted?.correct_option?.toUpperCase()||activeOfficial.correct_option?.toUpperCase()||null;
     if(!ans&&activeOfficial.answer_key_url){try{ans=await extractOfficialAnswer(activeOfficial.answer_key_url,activeOfficial.question_number)}catch(e){console.warn('deterministic answer extraction failed',e)}}
+    if(!ans&&activeOfficial.answer_key_url&&/\.pdf(?:$|\?)/i.test(activeOfficial.answer_key_url)){try{ans=await extractOfficialAnswerRemotely(activeOfficial.answer_key_url,activeOfficial.question_number,activeOfficial.vestibular,activeOfficial.year)}catch(e){console.warn('remote answer extraction failed',e)}}
     setCorrect(ans);setSubmitted(true);
   }finally{setAnswering(false)}}
   function submitPractice(){if(!activePractice||!selected||submitted)return;setCorrect(activePractice.correct_option?.toUpperCase()||null);setSubmitted(true)}

@@ -39,7 +39,10 @@ assert.match(workspace,/isEnemInteractiveQuestion\(q\.year,q\.question_number\)/
 assert.match(publicPage,/OfficialQuestionWorkspaceV3/);
 assert.doesNotMatch(publicPage,/OfficialVestibularBank\/>/);
 assert.match(workspace,/extracted\?\.correct_option/);
+assert.match(workspace,/extractOfficialQuestionRemotely/);
+assert.match(workspace,/extractOfficialAnswerRemotely/);
 assert.doesNotMatch(workspace,/filter\(x=>x\.area===q\.area\)\.length\)<60/);
 assert.ok(pdfClient.indexOf('/api/proxy-official-pdf')<pdfClient.indexOf('SUPABASE_PDF_PROXY}?url='));
+assert.match(pdfClient,/start=\$\{offset\}&end=\$\{end\}/);
 
 console.log('Official question validation passed: ENEM 2019-2025, CMMG numbering/options, subject filters, full pagination, answer hiding and local proxy priority.');

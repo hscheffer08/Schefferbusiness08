@@ -34,12 +34,31 @@ function clean(s:string){return s.replace(/\s+/g,' ').trim()}
 function normalize(s:string){return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase()}
 
 async function fetchPdfBytes(sourceUrl:string){
-  const urls=[
-    `/api/proxy-official-pdf?url=${encodeURIComponent(sourceUrl)}`,
-    `${SUPABASE_PDF_PROXY}?url=${encodeURIComponent(sourceUrl)}`,
-  ];
   let last='';
-  for(const proxied of urls){
+  try{
+    const parts:Uint8Array[]=[];
+    const chunkSize=2*1024*1024;
+    let offset=0,total=Infinity;
+    while(offset<total){
+      const end=offset+chunkSize-1;
+      const response=await fetch(`/api/proxy-official-pdf?url=${encodeURIComponent(sourceUrl)}&start=${offset}&end=${end}`,{cache:'force-cache'});
+      if(!response.ok){last=`HTTP ${response.status}`;break}
+      const bytes=new Uint8Array(await response.arrayBuffer());
+      const size=Number(response.headers.get('x-pdf-size'));
+      if(Number.isFinite(size)&&size>0)total=size;
+      if(!bytes.byteLength){last='arquivo vazio';break}
+      parts.push(bytes);offset+=bytes.byteLength;
+      if(bytes.byteLength<chunkSize&&total===Infinity)total=offset;
+      if(offset>30*1024*1024)throw new Error('PDF oficial grande demais');
+    }
+    if(parts.length&&offset>=total){
+      const merged=new Uint8Array(offset);let cursor=0;
+      for(const part of parts){merged.set(part,cursor);cursor+=part.byteLength}
+      return merged.buffer;
+    }
+  }catch(error:any){last=String(error?.message||error)}
+
+  for(const proxied of [`${SUPABASE_PDF_PROXY}?url=${encodeURIComponent(sourceUrl)}`]){
     try{
       const response=await fetch(proxied,{cache:'force-cache'});
       if(!response.ok){last=`HTTP ${response.status}`;continue;}
@@ -49,6 +68,25 @@ async function fetchPdfBytes(sourceUrl:string){
     }catch(error:any){last=String(error?.message||error)}
   }
   throw new Error(`Não consegui acessar o PDF oficial${last?`: ${last}`:''}.`);
+}
+
+async function callExtractionApi(body:Record<string,unknown>){
+  const response=await fetch('/api/extract-official-question',{
+    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(String(data?.error||`HTTP ${response.status}`));
+  return data;
+}
+
+export async function extractOfficialQuestionRemotely(sourceUrl:string,questionNumber:number,exam:string,year:number):Promise<ParsedQuestion>{
+  return callExtractionApi({mode:'question',sourceUrl,questionNumber,exam,year}) as Promise<ParsedQuestion>;
+}
+
+export async function extractOfficialAnswerRemotely(sourceUrl:string,questionNumber:number,exam:string,year:number):Promise<string|null>{
+  const data=await callExtractionApi({mode:'answer',sourceUrl,questionNumber,exam,year});
+  const answer=String(data?.correct_option||'').toUpperCase();
+  return /^[A-E]$/.test(answer)?answer:null;
 }
 
 async function loadPdf(sourceUrl:string){
