@@ -27,6 +27,7 @@ const AreaMatchPortal = lazy(() => import('./components/AreaMatchPortal.tsx'));
 const VocationalDemoPremium = lazy(() => import('./components/VocationalDemoPremium.tsx'));
 const OfficialVestibularBankPage = lazy(() => import('./components/OfficialVestibularBankPage.tsx'));
 const UFMGCourseArea = lazy(() => import('./components/UFMGCourseArea.tsx'));
+const UFMGDirectOfficialEnhancer = lazy(() => import('./components/UFMGDirectOfficialEnhancer.tsx'));
 const InterviewCoachPage = lazy(() => import('./components/InterviewCoachPage.tsx'));
 const InfoPages = lazy(() => import('./components/InfoPages.tsx'));
 
@@ -195,6 +196,7 @@ createRoot(document.getElementById('root')!).render(
         <CourseHome />
       )}
       <AccountControlsMount />
+      <UFMGDirectOfficialEnhancer />
     </Suspense>
     <AlphabeticalSelectOrder />
     <Analytics />
