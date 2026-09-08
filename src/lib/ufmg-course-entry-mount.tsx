@@ -47,7 +47,7 @@ export default function UFMGCourseEntryMount(){
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-2"><strong className="text-lg font-extrabold tracking-[-.02em]">Seriado UFMG</strong><span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-[.08em] text-emerald-200">Área separada</span></span>
         <span className="mt-1 block text-xs leading-relaxed text-[#a9bddc]">1º, 2º e 3º anos separados • conteúdo oficial por componente • questões próprias de cada ano.</span>
-        <span className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-bold text-[#8fb2e3]"><span className="inline-flex items-center gap-1"><BookOpenCheck size={12}/>13 componentes</span><span className="inline-flex items-center gap-1"><ListChecks size={12}/>78 questões autorais • 26 por etapa</span></span>
+        <span className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-bold text-[#8fb2e3]"><span className="inline-flex items-center gap-1"><BookOpenCheck size={12}/>13 módulos de conteúdo (Inglês/Espanhol)</span><span className="inline-flex items-center gap-1"><ListChecks size={12}/>78 questões autorais • 26 por etapa</span></span>
       </span>
       <ArrowRight className="shrink-0 text-[#72a5ff]" size={20}/>
     </button>,
