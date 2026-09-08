@@ -56,13 +56,14 @@ async function runModel(args:{prompt:string;sourceUrl:string;maxOutputTokens:num
 }
 
 export default async function handler(req:any,res:any){
-  if(req.method!=='POST')return reply(res,405,{error:'Método não permitido.'});
+  if(!['GET','POST'].includes(req.method))return reply(res,405,{error:'Método não permitido.'});
   try{
-    const mode=String(req.body?.mode||'question');
-    const sourceUrl=allowedUrl(req.body?.sourceUrl);
-    const questionNumber=Math.max(1,Math.min(250,Number(req.body?.questionNumber)||0));
-    const exam=String(req.body?.exam||'').slice(0,80);
-    const year=Number(req.body?.year)||null;
+    const input=req.method==='GET'?req.query:req.body;
+    const mode=String(input?.mode||'question');
+    const sourceUrl=allowedUrl(input?.sourceUrl);
+    const questionNumber=Math.max(1,Math.min(250,Number(input?.questionNumber)||0));
+    const exam=String(input?.exam||'').slice(0,80);
+    const year=Number(input?.year)||null;
     if(!sourceUrl||!questionNumber)return reply(res,400,{error:'Fonte oficial ou número da questão inválido.'});
 
     if(mode==='answer'){

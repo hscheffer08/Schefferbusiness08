@@ -71,9 +71,8 @@ async function fetchPdfBytes(sourceUrl:string){
 }
 
 async function callExtractionApi(body:Record<string,unknown>){
-  const response=await fetch('/api/extract-official-question',{
-    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),
-  });
+  const params=new URLSearchParams(Object.entries(body).filter(([,value])=>value!==null&&value!==undefined).map(([key,value])=>[key,String(value)]));
+  const response=await fetch(`/api/extract-official-question?${params.toString()}`,{cache:'force-cache'});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(String(data?.error||`HTTP ${response.status}`));
   return data;

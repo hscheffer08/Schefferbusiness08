@@ -122,7 +122,7 @@ export default function OfficialQuestionWorkspaceV3(){
       if(!value&&q.series_id==='enem'){
         try{const response=await fetch(`/api/enem-official-questions?year=${q.year}&question=${q.question_number}`);const data=await response.json();if(response.ok&&data.found)value=data as Extracted}catch(error){console.warn('structured ENEM extraction failed',error)}
       }
-      if(!value&&q.source_pdf_url&&/\.pdf(?:$|\?)/i.test(q.source_pdf_url)){try{const d=await extractOfficialQuestion(q.source_pdf_url,q.question_number);if(d.found)value=d}catch(e){console.warn('deterministic official extraction failed',e)}}
+      if(!value&&q.source_pdf_url&&/\.pdf(?:$|\?)/i.test(q.source_pdf_url)&&!/^https:\/\/download\.inep\.gov\.br\//i.test(q.source_pdf_url)){try{const d=await extractOfficialQuestion(q.source_pdf_url,q.question_number);if(d.found)value=d}catch(e){console.warn('deterministic official extraction failed',e)}}
       if(!value&&q.source_pdf_url&&/\.pdf(?:$|\?)/i.test(q.source_pdf_url)){try{const d=await extractOfficialQuestionRemotely(q.source_pdf_url,q.question_number,q.vestibular,q.year);if(d.found)value=d}catch(e){console.warn('remote official extraction failed',e)}}
       if(!value)throw new Error('Não foi possível reconstruir a questão a partir da fonte oficial.');
       setExtracted(value);try{sessionStorage.setItem(key,JSON.stringify(value))}catch{}
@@ -133,7 +133,7 @@ export default function OfficialQuestionWorkspaceV3(){
 
   async function submitOfficial(){if(!activeOfficial||!selected||submitted)return;setAnswering(true);try{
     let ans=extracted?.correct_option?.toUpperCase()||activeOfficial.correct_option?.toUpperCase()||null;
-    if(!ans&&activeOfficial.answer_key_url){try{ans=await extractOfficialAnswer(activeOfficial.answer_key_url,activeOfficial.question_number)}catch(e){console.warn('deterministic answer extraction failed',e)}}
+    if(!ans&&activeOfficial.answer_key_url&&!/^https:\/\/download\.inep\.gov\.br\//i.test(activeOfficial.answer_key_url)){try{ans=await extractOfficialAnswer(activeOfficial.answer_key_url,activeOfficial.question_number)}catch(e){console.warn('deterministic answer extraction failed',e)}}
     if(!ans&&activeOfficial.answer_key_url&&/\.pdf(?:$|\?)/i.test(activeOfficial.answer_key_url)){try{ans=await extractOfficialAnswerRemotely(activeOfficial.answer_key_url,activeOfficial.question_number,activeOfficial.vestibular,activeOfficial.year)}catch(e){console.warn('remote answer extraction failed',e)}}
     setCorrect(ans);setSubmitted(true);
   }finally{setAnswering(false)}}

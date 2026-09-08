@@ -44,5 +44,7 @@ assert.match(workspace,/extractOfficialAnswerRemotely/);
 assert.doesNotMatch(workspace,/filter\(x=>x\.area===q\.area\)\.length\)<60/);
 assert.ok(pdfClient.indexOf('/api/proxy-official-pdf')<pdfClient.indexOf('SUPABASE_PDF_PROXY}?url='));
 assert.match(pdfClient,/start=\$\{offset\}&end=\$\{end\}/);
+assert.match(pdfClient,/URLSearchParams/);
+assert.match(workspace,/download\\\.inep\\\.gov\\\.br/);
 
 console.log('Official question validation passed: ENEM 2019-2025, CMMG numbering/options, subject filters, full pagination, answer hiding and local proxy priority.');
