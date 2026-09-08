@@ -25,6 +25,7 @@ const DiscoveryHub = lazy(() => import('./components/DiscoveryHub.tsx'));
 const AreaMatchPortal = lazy(() => import('./components/AreaMatchPortal.tsx'));
 const VocationalDemoPremium = lazy(() => import('./components/VocationalDemoPremium.tsx'));
 const OfficialVestibularBankPage = lazy(() => import('./components/OfficialVestibularBankPage.tsx'));
+const UFMGSeriadoHub = lazy(() => import('./components/UFMGSeriadoHub.tsx'));
 const InterviewCoachPage = lazy(() => import('./components/InterviewCoachPage.tsx'));
 const InfoPages = lazy(() => import('./components/InfoPages.tsx'));
 
@@ -73,6 +74,12 @@ if (interviewOpen) {
     'Treino de entrevista para Insper e Link | Conectaê',
     'Pratique entrevistas de admissão para Insper e Link com 10 perguntas adaptativas, feedback por competência e plano de melhoria.',
     '/treino-entrevista',
+  );
+} else if (experienceMode === 'ufmg-seriado') {
+  updateMeta(
+    'Seriado UFMG: prova oficial, questões e plano | Conectaê',
+    'Treine para o Seriado UFMG com a prova oficial 2025, gabarito interativo, questões autorais, conteúdos, obras indicadas e plano de estudo.',
+    '/?experience=ufmg-seriado',
   );
 } else if (infoPage) {
   const meta: Record<InfoPage, [string, string]> = {
@@ -133,6 +140,8 @@ createRoot(document.getElementById('root')!).render(
           <AdmissionsPlannerGate onBack={closePlanner} />
           <PlannerDefaultTabMount />
         </>
+      ) : experienceMode === 'ufmg-seriado' ? (
+        <UFMGSeriadoHub onBack={() => navigateExperience(null)} />
       ) : experienceMode === 'vestibulares-oficiais' ? (
         <OfficialVestibularBankPage onBack={() => navigateExperience(null)} />
       ) : experienceMode === 'faculdades' || experienceMode === 'descoberta' ? (
