@@ -14,6 +14,7 @@ const App = lazy(() => import('./App.tsx'));
 const AdmissionsPlannerGate = lazy(() => import('./components/AdmissionsPlannerGate.tsx'));
 const PlannerDefaultTabMount = lazy(() => import('./lib/planner-default-tab-mount.tsx'));
 const AdmissionsPlannerEntryMount = lazy(() => import('./lib/admissions-planner-entry-mount.tsx'));
+const UFMGCourseEntryMount = lazy(() => import('./lib/ufmg-course-entry-mount.tsx'));
 const UsCountryMarker = lazy(() => import('./lib/us-country-marker.tsx'));
 const UsEnglishMode = lazy(() => import('./lib/us-english-mode.tsx'));
 const UsReferralPromoMount = lazy(() => import('./lib/us-referral-promo-mount.tsx'));
@@ -26,6 +27,7 @@ const AreaMatchPortal = lazy(() => import('./components/AreaMatchPortal.tsx'));
 const VocationalDemoPremium = lazy(() => import('./components/VocationalDemoPremium.tsx'));
 const OfficialVestibularBankPage = lazy(() => import('./components/OfficialVestibularBankPage.tsx'));
 const UFMGSeriadoHub = lazy(() => import('./components/UFMGSeriadoHub.tsx'));
+const UFMGCourseArea = lazy(() => import('./components/UFMGCourseArea.tsx'));
 const InterviewCoachPage = lazy(() => import('./components/InterviewCoachPage.tsx'));
 const InfoPages = lazy(() => import('./components/InfoPages.tsx'));
 
@@ -33,6 +35,7 @@ const params = new URLSearchParams(window.location.search);
 const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
 const interviewOpen = pathname === '/treino-entrevista';
 const plannerOpen = params.get('planner') === 'aprovacao';
+const courseArea = params.get('courseArea');
 const experienceMode = params.get('experience');
 const legacyCollegeExperienceOpen =
   params.get('modo') === 'business' ||
@@ -75,11 +78,11 @@ if (interviewOpen) {
     'Pratique entrevistas de admissão para Insper e Link com 10 perguntas adaptativas, feedback por competência e plano de melhoria.',
     '/treino-entrevista',
   );
-} else if (experienceMode === 'ufmg-seriado') {
+} else if (courseArea === 'ufmg' || experienceMode === 'ufmg-seriado') {
   updateMeta(
-    'Seriado UFMG: prova oficial, questões e plano | Conectaê',
-    'Treine para o Seriado UFMG com a prova oficial 2025, gabarito interativo, questões autorais, conteúdos, obras indicadas e plano de estudo.',
-    '/?experience=ufmg-seriado',
+    'Seriado UFMG: conteúdo por ano e questões | Conectaê',
+    'Estude para o Seriado UFMG em uma área separada do Curso, com conteúdos específicos do 1º, 2º e 3º anos e questões por componente curricular.',
+    '/?planner=aprovacao&courseArea=ufmg',
   );
 } else if (infoPage) {
   const meta: Record<InfoPage, [string, string]> = {
@@ -96,6 +99,7 @@ if (interviewOpen) {
 function navigateExperience(experience: string | null) {
   const url = new URL(window.location.href);
   url.searchParams.delete('planner');
+  url.searchParams.delete('courseArea');
   url.searchParams.delete('modo');
   url.searchParams.delete('questionario');
   if (experience) url.searchParams.set('experience', experience);
@@ -106,6 +110,15 @@ function navigateExperience(experience: string | null) {
 const closePlanner = () => {
   const url = new URL(window.location.href);
   url.searchParams.delete('planner');
+  url.searchParams.delete('courseArea');
+  url.searchParams.delete('experience');
+  window.location.assign(`${url.pathname}${url.search}${url.hash}`);
+};
+
+const backToCourse = () => {
+  const url = new URL(window.location.href);
+  url.searchParams.set('planner', 'aprovacao');
+  url.searchParams.delete('courseArea');
   url.searchParams.delete('experience');
   window.location.assign(`${url.pathname}${url.search}${url.hash}`);
 };
@@ -113,6 +126,7 @@ const closePlanner = () => {
 const openPlanner = () => {
   const url = new URL(window.location.href);
   url.searchParams.set('planner', 'aprovacao');
+  url.searchParams.delete('courseArea');
   url.searchParams.delete('experience');
   window.location.assign(`${url.pathname}${url.search}${url.hash}`);
 };
@@ -136,10 +150,15 @@ createRoot(document.getElementById('root')!).render(
       ) : interviewOpen ? (
         <InterviewCoachPage />
       ) : plannerOpen ? (
-        <>
-          <AdmissionsPlannerGate onBack={closePlanner} />
-          <PlannerDefaultTabMount />
-        </>
+        courseArea === 'ufmg' ? (
+          <UFMGCourseArea onBack={backToCourse} />
+        ) : (
+          <>
+            <AdmissionsPlannerGate onBack={closePlanner} />
+            <PlannerDefaultTabMount />
+            <UFMGCourseEntryMount />
+          </>
+        )
       ) : experienceMode === 'ufmg-seriado' ? (
         <UFMGSeriadoHub onBack={() => navigateExperience(null)} />
       ) : experienceMode === 'vestibulares-oficiais' ? (
