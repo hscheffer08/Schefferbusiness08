@@ -23,10 +23,6 @@ jobs:
           cache: npm
       - name: Patch Admin panel
         run: python scripts/patch-admin-impact.py
-      - name: Install dependencies
-        run: npm ci
-      - name: Build
-        run: npm run build
       - name: Commit generated integration
         run: |
           git config user.name "github-actions[bot]"
@@ -38,3 +34,7 @@ jobs:
             git commit -m "Integrate admin impact dashboard"
             git push origin admin-impact-dashboard
           fi
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
