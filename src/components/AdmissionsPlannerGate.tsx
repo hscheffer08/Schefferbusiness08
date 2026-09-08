@@ -26,7 +26,7 @@ const ToolFallback=()=> <div className="grid min-h-[240px] place-items-center te
 
 function Gate({ onBack }: { onBack: () => void }) {
   const { user, loading } = useAuth();
-  const [accessConfirmed, setAccessConfirmed] = useState(false);
+  const [accessConfirmed, setAccessConfirmed] = useState(true);
   const [switchingAccount, setSwitchingAccount] = useState(false);
   const [view,setView]=useState<MainView>('inicio');
   const [trainingView,setTrainingView]=useState<TrainingView>('hub');
