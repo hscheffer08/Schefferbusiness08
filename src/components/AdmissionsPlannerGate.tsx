@@ -20,6 +20,7 @@ const EmbeddedQuestionBank=lazy(()=>import('@/components/EmbeddedQuestionBank'))
 type MainView='inicio'|'plano'|'treinar'|'mais';
 type TrainingView='hub'|'questoes'|'simulados'|'fases'|'visual'|'redacao';
 type MoreView='hub'|'estrategia'|'metas'|'dados';
+type PlannerFocus='course'|'university'|'scores'|null;
 
 const ToolFallback=()=> <div className="grid min-h-[240px] place-items-center text-[#72a5ff]"><Loader2 className="animate-spin" /></div>;
 
@@ -31,11 +32,28 @@ function Gate({ onBack }: { onBack: () => void }) {
   const [trainingView,setTrainingView]=useState<TrainingView>('hub');
   const [moreView,setMoreView]=useState<MoreView>('hub');
   const [plannerTab,setPlannerTab]=useState<'Hoje'|'Plano'|'Questões'|'Prova'>('Plano');
+  const [plannerFocus,setPlannerFocus]=useState<PlannerFocus>(null);
 
   useEffect(()=>{
     if(view!=='plano')return;
     let stopped=false;
     let tries=0;
+    const finishNavigation=()=>{
+      window.setTimeout(()=>{
+        if(stopped)return;
+        const id=plannerFocus==='course'?'course-target-course':plannerFocus==='university'?'course-target-university':plannerFocus==='scores'?'planner-scores':null;
+        const destination=id?document.getElementById(id):null;
+        if(destination){
+          destination.scrollIntoView({behavior:'smooth',block:'start'});
+          destination.classList.remove('course-focus-pulse');
+          void destination.getBoundingClientRect();
+          destination.classList.add('course-focus-pulse');
+          window.setTimeout(()=>destination.classList.remove('course-focus-pulse'),1400);
+        }else{
+          window.scrollTo({top:0,behavior:'smooth'});
+        }
+      },120);
+    };
     const activate=()=>{
       if(stopped||tries>=50)return;
       tries+=1;
@@ -43,13 +61,13 @@ function Gate({ onBack }: { onBack: () => void }) {
       const target=buttons.find(button=>button.textContent?.trim()===plannerTab);
       if(target){
         if(!target.classList.contains('active'))target.click();
-        if(target.classList.contains('active')){window.scrollTo({top:0,behavior:'smooth'});return;}
+        if(target.classList.contains('active')){finishNavigation();return;}
       }
       window.setTimeout(activate,75);
     };
     activate();
     return()=>{stopped=true};
-  },[view,plannerTab]);
+  },[view,plannerTab,plannerFocus]);
 
   if (loading) return <div className="min-h-screen bg-[#020817] flex items-center justify-center text-[#72a5ff]"><Loader2 className="w-8 h-8 animate-spin" /></div>;
 
@@ -63,10 +81,10 @@ function Gate({ onBack }: { onBack: () => void }) {
 
   if (!accessConfirmed) return <div className="min-h-screen bg-[radial-gradient(circle_at_60%_0%,rgba(36,108,255,.14),transparent_35%),linear-gradient(180deg,#020817,#041027)] text-white flex items-center justify-center px-5 py-10"><div className="w-full max-w-lg rounded-[24px] border border-[#173765] bg-[#06152f] p-6 md:p-8 shadow-2xl"><div className="inline-flex items-center gap-2 text-xs font-extrabold text-[#72a5ff]"><UserCheck size={16}/>CURSO DE APROVAÇÃO</div><h1 className="mt-3 text-3xl md:text-4xl font-extrabold tracking-[-.04em]">Continue de onde você parou.</h1><p className="mt-3 text-sm leading-relaxed text-[#a9bddc]">Ao entrar, você vê primeiro seu curso, faculdade, últimas notas e gêmeo de estudos.</p><div className="mt-5 rounded-2xl border border-[#234576] bg-[#081a38] p-4"><div className="text-xs text-[#839ab9]">Conta conectada</div><div className="mt-1 break-all font-bold">{user.email}</div></div><button type="button" onClick={()=>setAccessConfirmed(true)} className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#246cff] px-4 text-sm font-extrabold"><LogIn size={17}/>Entrar no meu Curso</button><button type="button" onClick={useAnotherAccount} disabled={switchingAccount} className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#234576] bg-[#081a38] px-4 text-sm font-bold disabled:opacity-50">{switchingAccount?<Loader2 size={16} className="animate-spin"/>:<LogOut size={16}/>}Entrar com outra conta</button><button type="button" onClick={onBack} className="mt-3 w-full text-xs font-bold text-[#8da5c5]">Voltar à página inicial</button></div></div>;
 
-  const openPlanner=(tab:'Hoje'|'Plano'|'Questões'|'Prova')=>{setPlannerTab(tab);setView('plano')};
+  const openPlanner=(tab:'Hoje'|'Plano'|'Questões'|'Prova',focus:PlannerFocus=null)=>{setPlannerFocus(focus);setPlannerTab(tab);setView('plano')};
   const openTraining=(next:TrainingView='hub')=>{setTrainingView(next);setView('treinar');window.scrollTo({top:0})};
   const openMore=(next:MoreView='hub')=>{setMoreView(next);setView('mais');window.scrollTo({top:0})};
-  const switchMain=(next:MainView)=>{if(next==='plano')setPlannerTab('Plano');setView(next);if(next==='treinar')setTrainingView('hub');if(next==='mais')setMoreView('hub');window.scrollTo({top:0,behavior:'smooth'})};
+  const switchMain=(next:MainView)=>{setPlannerFocus(null);if(next==='plano')setPlannerTab('Plano');setView(next);if(next==='treinar')setTrainingView('hub');if(next==='mais')setMoreView('hub');window.scrollTo({top:0,behavior:'smooth'})};
 
   const topNav:[MainView,string,typeof Home][]=[['inicio','Início',Home],['plano','Plano',Target],['treinar','Treinar',BookOpenCheck],['mais','Mais',LayoutGrid]];
 
@@ -80,7 +98,7 @@ function Gate({ onBack }: { onBack: () => void }) {
       </div>
     </header>
 
-    {view==='inicio'&&<CourseDashboard onOpenPlan={()=>openPlanner('Plano')} onOpenTwin={()=>openPlanner('Plano')} onOpenNotes={()=>openPlanner('Hoje')} onOpenTraining={()=>openTraining('hub')}/>} 
+    {view==='inicio'&&<CourseDashboard onOpenPlan={()=>openPlanner('Plano')} onOpenTwin={()=>openPlanner('Plano')} onOpenNotes={()=>openPlanner('Hoje','scores')} onOpenCourse={()=>openPlanner('Hoje','course')} onOpenUniversity={()=>openPlanner('Hoje','university')} onOpenTraining={()=>openTraining('hub')}/>} 
 
     {view==='plano'&&<section id="curso-planner" className="[&_.plan6-bottomnav]:!hidden"><AdmissionsPlannerV11 onBack={()=>switchMain('inicio')} /></section>}
 
@@ -96,8 +114,8 @@ function Gate({ onBack }: { onBack: () => void }) {
       ].map(([id,title,text,Icon])=><button key={String(id)} type="button" onClick={()=>openMore(id as MoreView)} className="flex min-h-[116px] items-center gap-4 rounded-[20px] border border-[#173765] bg-[#06152f] p-4 text-left transition hover:border-[#31588e]"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#0b2856] text-[#72a5ff]"><Icon size={21}/></span><span><strong className="block text-lg">{String(title)}</strong><span className="mt-1 block text-xs leading-relaxed text-[#8ea6c9]">{String(text)}</span></span></button>)}</div></>:<><button type="button" onClick={()=>setMoreView('hub')} className="mb-4 inline-flex items-center gap-1.5 text-xs font-extrabold text-[#8bb8ff]"><ChevronLeft size={15}/>Mais recursos</button><Suspense fallback={<ToolFallback/>}>{moreView==='estrategia'&&<StudentStrategyCenter/>}{moreView==='metas'&&<AdmissionsTargetIntelligence/>}{moreView==='dados'&&<CourseDataProof/>}</Suspense></>}
     </main>}
 
-    <nav className="fixed inset-x-0 bottom-0 z-[95] border-t border-[#173765] bg-[#020817]/97 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl md:hidden"><div className="mx-auto grid max-w-md grid-cols-4 gap-1">{topNav.map(([id,label,Icon])=><button key={id} type="button" onClick={()=>switchMain(id)} className={`flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-extrabold ${view===id?'bg-[#0b2856] text-white':'text-[#839abb]'}`}><Icon size={18}/><span>{label}</span></button>)}</div></nav>
-    <Suspense fallback={null}><AIEducationTutor /></Suspense>
+    <nav aria-label="Navegação principal do Curso" className="course-mobile-nav fixed inset-x-0 bottom-0 z-[95] border-t border-[#173765] bg-[#020817]/97 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-xl md:hidden"><div className="course-mobile-nav-grid mx-auto max-w-md gap-1" style={{display:'grid',gridTemplateColumns:'repeat(4,minmax(0,1fr))'}}>{topNav.map(([id,label,Icon])=><button key={id} type="button" onClick={()=>switchMain(id)} className={`flex min-h-[54px] min-w-0 w-full touch-manipulation flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-extrabold transition active:scale-[.97] ${view===id?'bg-[#0b2856] text-white':'text-[#839abb]'}`}><Icon size={18}/><span>{label}</span></button>)}</div></nav>
+    <Suspense fallback={null}><AIEducationTutor mobileDocked /></Suspense>
   </div>;
 }
 
