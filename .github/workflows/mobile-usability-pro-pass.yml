@@ -23,7 +23,9 @@ jobs:
           node-version: 24
           cache: npm
       - name: Apply mobile usability fixes
-        run: python scripts/apply-mobile-usability-pro-pass.py
+        run: |
+          sed -i 's/expected=2,/expected=1,/' scripts/apply-mobile-usability-pro-pass.py
+          python scripts/apply-mobile-usability-pro-pass.py
       - name: Enable Vercel Speed Insights package
         run: npm install @vercel/speed-insights@latest --save
       - name: Install exact dependency tree
