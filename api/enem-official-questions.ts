@@ -31,8 +31,10 @@ async function fetchPage(year:number,offset:number){
 
 export default async function handler(req:any,res:any){
   if(req.method!=='GET')return res.status(405).json({error:'Método não permitido.'});
-  const year=n(req.query?.year,2019,2023,2023);const questionNumber=n(req.query?.question,1,180,1);
-  if(!SUPPORTED_YEARS.has(year))return res.status(400).json({error:'Edição ainda não disponível no acervo interativo.'});
+  const requestedYear=Number(req.query?.year);
+  const year=Number.isFinite(requestedYear)?Math.trunc(requestedYear):2023;
+  const questionNumber=n(req.query?.question,1,180,1);
+  if(!SUPPORTED_YEARS.has(year))return res.status(400).json({found:false,error:'Esta edição usa a extração direta do PDF oficial.'});
   try{
     const settled=await Promise.allSettled(PAGE_OFFSETS.map(offset=>fetchPage(year,offset)));
     const rows=settled.flatMap(result=>result.status==='fulfilled'?result.value:[]);
