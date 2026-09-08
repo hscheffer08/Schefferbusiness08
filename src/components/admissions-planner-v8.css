@@ -1,4 +1,4 @@
-.plan6-score-control{display:grid;grid-template-columns:38px minmax(150px,1fr) 76px 38px;align-items:center;gap:10px;margin-top:10px}.plan6-score-control>button{height:38px;width:38px;border-radius:10px;border:1px solid rgba(255,212,94,.25);background:#171105;color:#fffaf0;display:grid;place-items:center;cursor:pointer}.plan6-score-control>button:hover{border-color:#ffd45e;background:#171105}.plan6-score-control .plan6-slider{margin:0}.plan6-score-number{height:38px;width:76px;border-radius:10px;border:1px solid rgba(255,212,94,.25);background:#0b0904;color:#fffaf0;text-align:center;font-weight:800;outline:none}.plan6-score-number:focus{border-color:#ffd45e;box-shadow:0 0 0 3px rgba(255,212,94,.12)}.plan6-score-number::-webkit-inner-spin-button,.plan6-score-number::-webkit-outer-spin-button{opacity:.7}.plan6-statmeta b{color:#fffaf0}.plan6-statvalue{min-width:170px}.plan6-statvalue::before{content:'Até a meta'}.plan6-mark{font-size:0}.plan6-mark::after{content:'C';font-size:0}
+.plan6-score-control{display:grid;grid-template-columns:38px minmax(150px,1fr) 76px 38px;align-items:center;gap:10px;margin-top:10px}.plan6-score-control>button{height:38px;width:38px;border-radius:10px;border:1px solid rgba(131,171,230,.25);background:#081d40;color:#fff;display:grid;place-items:center;cursor:pointer}.plan6-score-control>button:hover{border-color:#4b8cff;background:#0b2856}.plan6-score-control .plan6-slider{margin:0}.plan6-score-number{height:38px;width:76px;border-radius:10px;border:1px solid rgba(131,171,230,.25);background:#061832;color:#fff;text-align:center;font-weight:800;outline:none}.plan6-score-number:focus{border-color:#4b8cff;box-shadow:0 0 0 3px rgba(36,108,255,.12)}.plan6-score-number::-webkit-inner-spin-button,.plan6-score-number::-webkit-outer-spin-button{opacity:.7}.plan6-statmeta b{color:#fff}.plan6-statvalue{min-width:170px}.plan6-statvalue::before{content:'Até a meta'}.plan6-mark{font-size:0}.plan6-mark::after{content:'C';font-size:0}
 @media(max-width:640px){.plan6-score-control{grid-template-columns:38px minmax(90px,1fr) 66px 38px;gap:7px}.plan6-score-number{width:66px}.plan6-statvalue{min-width:0}.plan6-score-control>button{height:40px;width:38px}}
 
 /* Mobile: one navigation system only. The Course shell owns navigation;
@@ -17,12 +17,12 @@
 
 
 /* Course mobile usability hardening */
-@keyframes course-focus-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,212,94,0)}35%{box-shadow:0 0 0 4px rgba(255,212,94,.22)}}
+@keyframes course-focus-pulse{0%,100%{box-shadow:0 0 0 0 rgba(75,140,255,0)}35%{box-shadow:0 0 0 4px rgba(75,140,255,.22)}}
 .course-focus-pulse{animation:course-focus-pulse 1.25s ease-out}
 @media(max-width:767px){
   #curso-planner #course-target-course,#curso-planner #course-target-university,#curso-planner #planner-scores{scroll-margin-top:78px}
-  #curso-planner .plan6-selectors{margin:4px 0 10px!important;padding:14px!important;border:1px solid rgba(255,212,94,.25)!important;border-radius:18px!important;background:linear-gradient(180deg,rgba(23,17,5,.68),rgba(11,9,4,.88))!important;gap:12px!important}
-  #curso-planner .plan6-field label{margin-bottom:6px!important;font-size:12px!important;color:#ffd45e!important}
+  #curso-planner .plan6-selectors{margin:4px 0 10px!important;padding:14px!important;border:1px solid rgba(75,140,255,.25)!important;border-radius:18px!important;background:linear-gradient(180deg,rgba(11,40,86,.68),rgba(6,21,48,.88))!important;gap:12px!important}
+  #curso-planner .plan6-field label{margin-bottom:6px!important;font-size:12px!important;color:#9dbcf0!important}
   #curso-planner .plan6-field select{min-height:52px!important;font-size:16px!important;padding-left:13px!important;padding-right:36px!important;touch-action:manipulation}
   #curso-planner .plan6-save{min-height:52px!important;font-size:13px!important;line-height:1.25!important;padding:0 14px!important}
   .course-mobile-nav{min-height:64px;overflow:visible}

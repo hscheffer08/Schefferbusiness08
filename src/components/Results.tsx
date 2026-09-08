@@ -341,9 +341,9 @@ export default function Results({
       {/* Optional export from the full questionnaire to the faculty profile */}
       {quizMode === 'full' && facultyExportAvailable && (
         <section className="relative z-10 px-6 md:px-12 max-w-4xl mx-auto mb-8">
-          <div className="glass rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 md:p-6">
+          <div className="glass rounded-2xl border border-violet-500/30 bg-violet-500/5 p-5 md:p-6">
             <div className="flex flex-col md:flex-row md:items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-amber-500/15 text-amber-300 flex items-center justify-center flex-shrink-0">
+              <div className="w-12 h-12 rounded-xl bg-violet-500/15 text-violet-300 flex items-center justify-center flex-shrink-0">
                 <FolderSync className="w-6 h-6" />
               </div>
               <div className="flex-1">
@@ -352,13 +352,13 @@ export default function Results({
                   Exporte notas, idiomas, extracurriculares, conquistas, projetos e experiências que você acabou de preencher. Você poderá revisar tudo antes de autorizar qualquer compartilhamento.
                 </p>
                 {facultyExportStatus === 'error' && (
-                  <p role="alert" className="text-amber-300 text-xs mt-2">Não foi possível exportar agora. Tente novamente.</p>
+                  <p role="alert" className="text-red-300 text-xs mt-2">Não foi possível exportar agora. Tente novamente.</p>
                 )}
               </div>
               <button
                 onClick={facultyExportStatus === 'success' ? onOpenFacultyProfile : onExportToFaculty}
                 disabled={facultyExportStatus === 'exporting'}
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-white text-sm font-semibold transition-all disabled:opacity-60 flex-shrink-0"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-violet-500 hover:bg-violet-400 text-white text-sm font-semibold transition-all disabled:opacity-60 flex-shrink-0"
               >
                 {facultyExportStatus === 'exporting' ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Exportando...</>
@@ -503,7 +503,7 @@ export default function Results({
                   onClick={() => handleFeedback('negative')}
                   className={`flex items-center gap-2 px-5 py-3 rounded-xl border transition-all ${
                     feedbackRating === 'negative'
-                      ? 'bg-amber-500/20 border-amber-500 text-amber-300'
+                      ? 'bg-red-500/20 border-red-500 text-red-300'
                       : 'bg-ink-800 border-ink-700 text-ink-300 hover:border-ink-600'
                   }`}
                 >
@@ -572,30 +572,30 @@ export default function Results({
 }
 
 const FIREWORK_PARTICLES = [
-  { left: '18%', top: '26%', x: '-88px', y: '-62px', color: '#ffd45e', delay: '0s' },
-  { left: '18%', top: '26%', x: '-106px', y: '8px', color: '#ffd45e', delay: '0.02s' },
-  { left: '18%', top: '26%', x: '-62px', y: '72px', color: '#ffd45e', delay: '0.04s' },
-  { left: '18%', top: '26%', x: '4px', y: '92px', color: '#ffd45e', delay: '0.06s' },
-  { left: '18%', top: '26%', x: '68px', y: '58px', color: '#e0aa18', delay: '0.08s' },
-  { left: '18%', top: '26%', x: '86px', y: '-18px', color: '#ffd45e', delay: '0.1s' },
-  { left: '18%', top: '26%', x: '42px', y: '-82px', color: '#ffd45e', delay: '0.12s' },
-  { left: '18%', top: '26%', x: '-28px', y: '-98px', color: '#ffd45e', delay: '0.14s' },
-  { left: '50%', top: '12%', x: '-96px', y: '-34px', color: '#ffd45e', delay: '0.18s' },
-  { left: '50%', top: '12%', x: '-78px', y: '48px', color: '#ffd45e', delay: '0.2s' },
-  { left: '50%', top: '12%', x: '-12px', y: '88px', color: '#ffd45e', delay: '0.22s' },
-  { left: '50%', top: '12%', x: '62px', y: '64px', color: '#e0aa18', delay: '0.24s' },
-  { left: '50%', top: '12%', x: '102px', y: '-2px', color: '#ffd45e', delay: '0.26s' },
-  { left: '50%', top: '12%', x: '62px', y: '-72px', color: '#ffd45e', delay: '0.28s' },
-  { left: '50%', top: '12%', x: '-8px', y: '-98px', color: '#ffd45e', delay: '0.3s' },
-  { left: '50%', top: '12%', x: '-74px', y: '-76px', color: '#ffd45e', delay: '0.32s' },
-  { left: '82%', top: '26%', x: '-82px', y: '-24px', color: '#e0aa18', delay: '0.36s' },
-  { left: '82%', top: '26%', x: '-58px', y: '64px', color: '#ffd45e', delay: '0.38s' },
-  { left: '82%', top: '26%', x: '8px', y: '94px', color: '#ffd45e', delay: '0.4s' },
-  { left: '82%', top: '26%', x: '72px', y: '56px', color: '#ffd45e', delay: '0.42s' },
-  { left: '82%', top: '26%', x: '104px', y: '-10px', color: '#ffd45e', delay: '0.44s' },
-  { left: '82%', top: '26%', x: '66px', y: '-76px', color: '#ffd45e', delay: '0.46s' },
-  { left: '82%', top: '26%', x: '2px', y: '-100px', color: '#ffd45e', delay: '0.48s' },
-  { left: '82%', top: '26%', x: '-62px', y: '-78px', color: '#ffd45e', delay: '0.5s' },
+  { left: '18%', top: '26%', x: '-88px', y: '-62px', color: '#60a5fa', delay: '0s' },
+  { left: '18%', top: '26%', x: '-106px', y: '8px', color: '#22d3ee', delay: '0.02s' },
+  { left: '18%', top: '26%', x: '-62px', y: '72px', color: '#fbbf24', delay: '0.04s' },
+  { left: '18%', top: '26%', x: '4px', y: '92px', color: '#a78bfa', delay: '0.06s' },
+  { left: '18%', top: '26%', x: '68px', y: '58px', color: '#34d399', delay: '0.08s' },
+  { left: '18%', top: '26%', x: '86px', y: '-18px', color: '#fb7185', delay: '0.1s' },
+  { left: '18%', top: '26%', x: '42px', y: '-82px', color: '#fbbf24', delay: '0.12s' },
+  { left: '18%', top: '26%', x: '-28px', y: '-98px', color: '#22d3ee', delay: '0.14s' },
+  { left: '50%', top: '12%', x: '-96px', y: '-34px', color: '#fbbf24', delay: '0.18s' },
+  { left: '50%', top: '12%', x: '-78px', y: '48px', color: '#fb7185', delay: '0.2s' },
+  { left: '50%', top: '12%', x: '-12px', y: '88px', color: '#60a5fa', delay: '0.22s' },
+  { left: '50%', top: '12%', x: '62px', y: '64px', color: '#34d399', delay: '0.24s' },
+  { left: '50%', top: '12%', x: '102px', y: '-2px', color: '#a78bfa', delay: '0.26s' },
+  { left: '50%', top: '12%', x: '62px', y: '-72px', color: '#22d3ee', delay: '0.28s' },
+  { left: '50%', top: '12%', x: '-8px', y: '-98px', color: '#fb7185', delay: '0.3s' },
+  { left: '50%', top: '12%', x: '-74px', y: '-76px', color: '#60a5fa', delay: '0.32s' },
+  { left: '82%', top: '26%', x: '-82px', y: '-24px', color: '#34d399', delay: '0.36s' },
+  { left: '82%', top: '26%', x: '-58px', y: '64px', color: '#fbbf24', delay: '0.38s' },
+  { left: '82%', top: '26%', x: '8px', y: '94px', color: '#22d3ee', delay: '0.4s' },
+  { left: '82%', top: '26%', x: '72px', y: '56px', color: '#fb7185', delay: '0.42s' },
+  { left: '82%', top: '26%', x: '104px', y: '-10px', color: '#60a5fa', delay: '0.44s' },
+  { left: '82%', top: '26%', x: '66px', y: '-76px', color: '#a78bfa', delay: '0.46s' },
+  { left: '82%', top: '26%', x: '2px', y: '-100px', color: '#fbbf24', delay: '0.48s' },
+  { left: '82%', top: '26%', x: '-62px', y: '-78px', color: '#22d3ee', delay: '0.5s' },
 ] as const;
 
 function FirstPlaceFireworks() {
@@ -628,7 +628,7 @@ function ScoreRing({ score }: { score: number }) {
   return (
     <div className="relative w-32 h-32">
       <svg className="w-32 h-32 -rotate-90" viewBox="0 0 120 120">
-        <circle cx="60" cy="60" r={radius} fill="none" stroke="rgba(255,250,240,0.1)" strokeWidth="8" />
+        <circle cx="60" cy="60" r={radius} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="8" />
         <circle
           cx="60"
           cy="60"
@@ -643,8 +643,8 @@ function ScoreRing({ score }: { score: number }) {
         />
         <defs>
           <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#ffd45e" />
-            <stop offset="100%" stopColor="#ffd45e" />
+            <stop offset="0%" stopColor="#60a5fa" />
+            <stop offset="100%" stopColor="#22d3ee" />
           </linearGradient>
         </defs>
       </svg>

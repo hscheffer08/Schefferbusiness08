@@ -379,7 +379,7 @@ function SliderInput({ question, value, onChange }: { question: Question; value:
           onChange={(e) => onChange(e.target.value)}
           className="w-full h-2 rounded-full appearance-none cursor-pointer slider-thumb"
           style={{
-            background: `linear-gradient(to right, #ffd45e 0%, #ffd45e ${pct}%, #171105 ${pct}%, #171105 100%)`,
+            background: `linear-gradient(to right, #3b82f6 0%, #22d3ee ${pct}%, #1a1f3d ${pct}%, #1a1f3d 100%)`,
           }}
         />
       </div>

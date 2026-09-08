@@ -177,10 +177,10 @@ export default function ReferralAdmin() {
                     <tr key={referral.id} className="border-b border-ink-800/50">
                       <td className="py-2 px-2 text-ink-300">{referral.referred_user_name ?? 'Anônimo'}</td>
                       <td className="py-2 px-2 text-center">
-                        {referral.quiz_started ? <Check className="w-3.5 h-3.5 text-amber-400 mx-auto" /> : <span className="text-ink-600">—</span>}
+                        {referral.quiz_started ? <Check className="w-3.5 h-3.5 text-green-400 mx-auto" /> : <span className="text-ink-600">—</span>}
                       </td>
                       <td className="py-2 px-2 text-center">
-                        {referral.quiz_completed ? <Check className="w-3.5 h-3.5 text-amber-400 mx-auto" /> : <span className="text-ink-600">—</span>}
+                        {referral.quiz_completed ? <Check className="w-3.5 h-3.5 text-green-400 mx-auto" /> : <span className="text-ink-600">—</span>}
                       </td>
                       <td className="py-2 px-2 text-center">
                         {referral.is_valid ? <Check className="w-3.5 h-3.5 text-brand-400 mx-auto" /> : <span className="text-ink-600">—</span>}

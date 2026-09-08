@@ -75,17 +75,17 @@ export default function WeeklyPlanExperience({week:w,examId,formatDate,onOpenQue
         <h2 style={{marginBottom:5}}>Missão: {w.focusLabel}</h2>
         <p style={{marginBottom:0}}>{w.phase} · <b>{w.topic}</b></p>
       </div>
-      <div style={{display:'grid',gap:5,justifyItems:'end'}}><div className="plan6-statvalue">{w.hours}h exatas</div><div style={{fontSize:12,fontWeight:800,color:pct===100?'#ffd45e':'#ffd45e'}}>{progressLoading?'Carregando progresso…':`${doneCount}/${sessionKeys.length} blocos concluídos`}</div></div>
+      <div style={{display:'grid',gap:5,justifyItems:'end'}}><div className="plan6-statvalue">{w.hours}h exatas</div><div style={{fontSize:12,fontWeight:800,color:pct===100?'#9ee6b5':'#72a5ff'}}>{progressLoading?'Carregando progresso…':`${doneCount}/${sessionKeys.length} blocos concluídos`}</div></div>
     </div>
 
     {progressError&&<div className="plan6-message" style={{marginTop:10}}>{progressError}</div>}
-    <div style={{height:7,borderRadius:999,background:'#171105',overflow:'hidden',marginTop:14}} aria-label={`${pct}% da missão semanal concluída`}><div style={{height:'100%',width:`${pct}%`,background:pct===100?'#ffd45e':'#ffd45e',transition:'width .25s ease'}}/></div>
+    <div style={{height:7,borderRadius:999,background:'#0b2349',overflow:'hidden',marginTop:14}} aria-label={`${pct}% da missão semanal concluída`}><div style={{height:'100%',width:`${pct}%`,background:pct===100?'#6ee7a0':'#72a5ff',transition:'width .25s ease'}}/></div>
     {pct===100&&<div className="plan6-message" style={{marginTop:10}}><b>Semana concluída.</b> Seu próximo resultado e seus erros vão recalibrar as prioridades seguintes.</div>}
 
     <div className="plan6-grid" style={{marginTop:18}}>
       <div className="plan6-callout blue span7" style={{margin:0}}>
         <strong><ListChecks size={15} style={{display:'inline',marginRight:7}}/>O que estudar nesta semana</strong>
-        <div style={{display:'grid',gap:9,marginTop:12}}>{w.studyChecklist.map((item,index)=><div key={`${w.week}-study-${index}`} style={{display:'flex',gap:9,alignItems:'flex-start',fontSize:13,lineHeight:1.5,color:'#ffd45e'}}><span style={{display:'grid',placeItems:'center',flex:'0 0 auto',width:22,height:22,borderRadius:999,background:'#241904',color:'#ffd45e',fontWeight:900,fontSize:11}}>{index+1}</span><span>{item}</span></div>)}</div>
+        <div style={{display:'grid',gap:9,marginTop:12}}>{w.studyChecklist.map((item,index)=><div key={`${w.week}-study-${index}`} style={{display:'flex',gap:9,alignItems:'flex-start',fontSize:13,lineHeight:1.5,color:'#d5e3f7'}}><span style={{display:'grid',placeItems:'center',flex:'0 0 auto',width:22,height:22,borderRadius:999,background:'#173765',color:'#9fc0ff',fontWeight:900,fontSize:11}}>{index+1}</span><span>{item}</span></div>)}</div>
       </div>
       <div className="plan6-callout span5" style={{margin:0}}>
         <strong><Target size={15} style={{display:'inline',marginRight:7}}/>Competências para treinar</strong>
@@ -100,10 +100,10 @@ export default function WeeklyPlanExperience({week:w,examId,formatDate,onOpenQue
     </div>
 
     <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:12,marginTop:14}}>
-      {w.sessionPlan.map((s,i)=>{const isDone=completed.includes(s.label);return <div key={`${w.week}-${s.label}`} className="plan6-callout" style={{margin:0,opacity:isDone?.78:1,borderColor:isDone?'rgba(255,212,94,.45)':undefined}}>
-        <strong style={{display:'flex',alignItems:'center',gap:7}}><span style={{display:'grid',placeItems:'center',width:24,height:24,borderRadius:999,background:isDone?'#241904':'#241904'}}>{isDone?<Check size={14}/>:i+1}</span>{s.label}</strong>
+      {w.sessionPlan.map((s,i)=>{const isDone=completed.includes(s.label);return <div key={`${w.week}-${s.label}`} className="plan6-callout" style={{margin:0,opacity:isDone?.78:1,borderColor:isDone?'rgba(110,231,160,.45)':undefined}}>
+        <strong style={{display:'flex',alignItems:'center',gap:7}}><span style={{display:'grid',placeItems:'center',width:24,height:24,borderRadius:999,background:isDone?'#175c39':'#173765'}}>{isDone?<Check size={14}/>:i+1}</span>{s.label}</strong>
         <p style={{marginBottom:7}}>{s.task}</p>
-        <div style={{display:'flex',alignItems:'center',gap:6,fontSize:12,fontWeight:800,color:'#ffd45e'}}><Clock3 size={13}/>{s.minutes} min</div>
+        <div style={{display:'flex',alignItems:'center',gap:6,fontSize:12,fontWeight:800,color:'#72a5ff'}}><Clock3 size={13}/>{s.minutes} min</div>
         <p style={{fontSize:12,opacity:.72,marginTop:8,marginBottom:10}}><b>Prova de conclusão:</b> {s.proof}</p>
         <button type="button" className={`plan6-btn ${isDone?'':'primary'}`} disabled={Boolean(savingKey)||progressLoading} onClick={()=>toggleSession(s.label)}>{savingKey===s.label?<Loader2 size={14} className="animate-spin"/>:isDone?<CheckCircle2 size={14}/>:<Check size={14}/>} {isDone?'Concluído — desfazer':'Marcar como concluído'}</button>
       </div>})}
@@ -129,15 +129,15 @@ export default function WeeklyPlanExperience({week:w,examId,formatDate,onOpenQue
       </div>
     </div>
 
-    <details style={{marginTop:14,border:'1px solid #241904',borderRadius:16,padding:'12px 14px',background:'#0b0904'}} open={w.week===1}>
+    <details style={{marginTop:14,border:'1px solid #173765',borderRadius:16,padding:'12px 14px',background:'#06152f'}} open={w.week===1}>
       <summary style={{cursor:'pointer',fontWeight:800}}>O que precisa estar pronto até domingo</summary>
-      <div style={{display:'grid',gap:8,marginTop:12}}>{w.successCriteria.map(c=><div key={c} style={{display:'flex',gap:8,alignItems:'flex-start',fontSize:13,color:'#e0aa18'}}><CheckCircle2 size={16} style={{marginTop:1,flex:'0 0 auto',color:'#ffd45e'}}/>{c}</div>)}</div>
+      <div style={{display:'grid',gap:8,marginTop:12}}>{w.successCriteria.map(c=><div key={c} style={{display:'flex',gap:8,alignItems:'flex-start',fontSize:13,color:'#b8cae4'}}><CheckCircle2 size={16} style={{marginTop:1,flex:'0 0 auto',color:'#72a5ff'}}/>{c}</div>)}</div>
     </details>
 
-    {videoOpen&&w.videoEmbedUrl&&<div role="dialog" aria-modal="true" style={{position:'fixed',inset:0,zIndex:120,background:'rgba(5,5,5,.82)',display:'grid',placeItems:'center',padding:18}} onClick={()=>setVideoOpen(false)}>
-      <div style={{width:'min(960px,100%)',background:'#0b0904',border:'1px solid #241904',borderRadius:18,padding:12}} onClick={e=>e.stopPropagation()}>
-        <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',padding:'4px 4px 10px'}}><strong>{w.videoTitle}</strong><button type="button" aria-label="Fechar vídeo" onClick={()=>setVideoOpen(false)} style={{display:'grid',placeItems:'center',width:36,height:36,borderRadius:10,border:'1px solid #241904',background:'#0b0904',color:'white'}}><X size={18}/></button></div>
-        <div style={{position:'relative',paddingTop:'56.25%',overflow:'hidden',borderRadius:12,background:'#050505'}}><iframe title={w.videoTitle} src={`${w.videoEmbedUrl}?rel=0`} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen style={{position:'absolute',inset:0,width:'100%',height:'100%',border:0}}/></div>
+    {videoOpen&&w.videoEmbedUrl&&<div role="dialog" aria-modal="true" style={{position:'fixed',inset:0,zIndex:120,background:'rgba(0,0,0,.82)',display:'grid',placeItems:'center',padding:18}} onClick={()=>setVideoOpen(false)}>
+      <div style={{width:'min(960px,100%)',background:'#06152f',border:'1px solid #234576',borderRadius:18,padding:12}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',padding:'4px 4px 10px'}}><strong>{w.videoTitle}</strong><button type="button" aria-label="Fechar vídeo" onClick={()=>setVideoOpen(false)} style={{display:'grid',placeItems:'center',width:36,height:36,borderRadius:10,border:'1px solid #234576',background:'#081a38',color:'white'}}><X size={18}/></button></div>
+        <div style={{position:'relative',paddingTop:'56.25%',overflow:'hidden',borderRadius:12,background:'#000'}}><iframe title={w.videoTitle} src={`${w.videoEmbedUrl}?rel=0`} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen style={{position:'absolute',inset:0,width:'100%',height:'100%',border:0}}/></div>
       </div>
     </div>}
   </section>;

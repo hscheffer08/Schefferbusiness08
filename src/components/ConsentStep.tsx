@@ -144,13 +144,13 @@ export default function ConsentStep({ onComplete, onSkip }: ConsentStepProps) {
           {/* What gets shared */}
           <div className="glass rounded-2xl border border-ink-800 p-5 md:p-6 mb-4">
             <h2 className="text-sm font-semibold text-ink-300 mb-3 flex items-center gap-1.5">
-              <Check className="w-4 h-4 text-amber-400" />
+              <Check className="w-4 h-4 text-green-400" />
               O que pode ser compartilhado
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
               {SHARED_DATA_ITEMS.map((item) => (
                 <div key={item} className="flex items-center gap-2 text-sm text-ink-400">
-                  <div className="w-1 h-1 rounded-full bg-amber-400 flex-shrink-0" />
+                  <div className="w-1 h-1 rounded-full bg-green-400 flex-shrink-0" />
                   {item}
                 </div>
               ))}
@@ -160,13 +160,13 @@ export default function ConsentStep({ onComplete, onSkip }: ConsentStepProps) {
           {/* What does NOT get shared */}
           <div className="glass rounded-2xl border border-ink-800 p-5 md:p-6 mb-6">
             <h2 className="text-sm font-semibold text-ink-300 mb-3 flex items-center gap-1.5">
-              <X className="w-4 h-4 text-amber-400" />
+              <X className="w-4 h-4 text-red-400" />
               O que nunca será compartilhado
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
               {NOT_SHARED_ITEMS.map((item) => (
                 <div key={item} className="flex items-center gap-2 text-sm text-ink-500">
-                  <div className="w-1 h-1 rounded-full bg-amber-400 flex-shrink-0" />
+                  <div className="w-1 h-1 rounded-full bg-red-400 flex-shrink-0" />
                   {item}
                 </div>
               ))}
@@ -291,7 +291,7 @@ export default function ConsentStep({ onComplete, onSkip }: ConsentStepProps) {
           )}
 
           {error && (
-            <p className="text-amber-400 text-sm mb-4 text-center">{error}</p>
+            <p className="text-red-400 text-sm mb-4 text-center">{error}</p>
           )}
 
           {/* Transparency note */}

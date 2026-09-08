@@ -15,19 +15,19 @@ function hexToRgb(hex: string): [number, number, number] {
 }
 
 const COLORS = {
-  ink: hexToRgb('#050505'),
-  brand: hexToRgb('#ffd45e'),
-  accent: hexToRgb('#ffd45e'),
-  ink100: hexToRgb('#fffaf0'),
-  ink300: hexToRgb('#fffaf0'),
-  ink400: hexToRgb('#b88408'),
-  ink500: hexToRgb('#6f4f08'),
-  ink700: hexToRgb('#171105'),
-  ink800: hexToRgb('#171105'),
-  ink900: hexToRgb('#0b0904'),
-  white: hexToRgb('#fffaf0'),
-  amber: hexToRgb('#ffd45e'),
-  green: hexToRgb('#b88408'),
+  ink: hexToRgb('#0a0e1a'),
+  brand: hexToRgb('#3b82f6'),
+  accent: hexToRgb('#22d3ee'),
+  ink100: hexToRgb('#f1f5f9'),
+  ink300: hexToRgb('#cbd5e1'),
+  ink400: hexToRgb('#94a3b8'),
+  ink500: hexToRgb('#64748b'),
+  ink700: hexToRgb('#334155'),
+  ink800: hexToRgb('#1e293b'),
+  ink900: hexToRgb('#0f172a'),
+  white: hexToRgb('#ffffff'),
+  amber: hexToRgb('#f59e0b'),
+  green: hexToRgb('#22c55e'),
 };
 
 export function generateResultsPDF(

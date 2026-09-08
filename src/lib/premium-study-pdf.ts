@@ -38,10 +38,10 @@ type Args = {
 
 const NAVY: [number, number, number] = [8, 17, 31];
 const CYAN: [number, number, number] = [33, 202, 230];
-const PURPLE: [number, number, number] = [224, 170, 24];
+const PURPLE: [number, number, number] = [139, 92, 246];
 const PALE: [number, number, number] = [241, 245, 249];
 const SLATE: [number, number, number] = [71, 85, 105];
-const GREEN: [number, number, number] = [184, 132, 8];
+const GREEN: [number, number, number] = [16, 185, 129];
 
 function pageHeader(doc: jsPDF, label: string) {
   doc.setFillColor(...NAVY);
@@ -51,7 +51,7 @@ function pageHeader(doc: jsPDF, label: string) {
   doc.setFontSize(9);
   doc.text('CONECTAÊ  /  PLANO DE APROVAÇÃO', 14, 11);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(255, 212, 94);
+  doc.setTextColor(165, 243, 252);
   doc.text(label.toUpperCase(), 196, 11, { align: 'right' });
 }
 
@@ -195,11 +195,11 @@ export function downloadPremiumStudyPdf(args: Args) {
 
   doc.setFillColor(...NAVY);
   doc.rect(0, 0, 210, 297, 'F');
-  doc.setFillColor(184, 132, 8);
+  doc.setFillColor(13, 148, 136);
   doc.circle(175, 42, 42, 'F');
-  doc.setFillColor(36, 25, 4);
+  doc.setFillColor(109, 40, 217);
   doc.circle(30, 267, 55, 'F');
-  doc.setTextColor(255, 212, 94);
+  doc.setTextColor(165, 243, 252);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.text('CONECTAÊ INTELLIGENCE', 16, 28);

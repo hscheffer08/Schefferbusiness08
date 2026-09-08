@@ -151,7 +151,7 @@ export default function AdminImpact() {
       {loading ? (
         <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-brand-400" /></div>
       ) : error || !stats || !traffic ? (
-        <div className="glass rounded-2xl border border-amber-500/25 p-6 text-sm text-amber-300">{error ?? 'Sem dados disponíveis.'}</div>
+        <div className="glass rounded-2xl border border-red-500/25 p-6 text-sm text-red-300">{error ?? 'Sem dados disponíveis.'}</div>
       ) : (
         <>
           <div className="mb-3 flex items-center gap-2 text-sm font-bold text-ink-200">
@@ -186,14 +186,14 @@ export default function AdminImpact() {
 
           <div className="mb-8 grid gap-4 md:grid-cols-2">
             <div className="glass rounded-2xl border border-ink-800 p-6">
-              <h3 className="mb-2 flex items-center gap-2 font-bold text-ink-100"><TrendingUp className="h-5 w-5 text-amber-400" /> Evolução mensurável</h3>
+              <h3 className="mb-2 flex items-center gap-2 font-bold text-ink-100"><TrendingUp className="h-5 w-5 text-emerald-400" /> Evolução mensurável</h3>
               {stats.measurable_improvement_users > 0 ? (
                 <>
                   <div className="mt-5 text-4xl font-black text-ink-50">{stats.improved_users_pct}%</div>
                   <p className="mt-1 text-sm text-ink-400">dos alunos com pelo menos 10 questões melhoraram entre as 5 primeiras e as 5 últimas tentativas.</p>
                   <div className="mt-4 rounded-xl bg-ink-800/50 p-4">
                     <div className="text-xs uppercase tracking-wider text-ink-500">Variação média da amostra</div>
-                    <div className={`mt-1 text-xl font-bold ${stats.avg_improvement_pp >= 0 ? 'text-amber-400' : 'text-amber-400'}`}>{stats.avg_improvement_pp > 0 ? '+' : ''}{stats.avg_improvement_pp} p.p.</div>
+                    <div className={`mt-1 text-xl font-bold ${stats.avg_improvement_pp >= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>{stats.avg_improvement_pp > 0 ? '+' : ''}{stats.avg_improvement_pp} p.p.</div>
                     <div className="mt-1 text-xs text-ink-600">Amostra: {stats.measurable_improvement_users} aluno(s)</div>
                   </div>
                 </>

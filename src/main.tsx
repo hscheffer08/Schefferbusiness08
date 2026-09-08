@@ -111,10 +111,10 @@ const openPlanner = () => {
 };
 
 const loadingFallback = (
-  <div className="min-h-screen bg-[#050505] text-white flex items-center justify-center px-6">
+  <div className="min-h-screen bg-[#020817] text-white flex items-center justify-center px-6">
     <div className="text-center">
-      <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-[#241904] border-t-[#ffd45e]" />
-      <p className="mt-4 text-sm font-bold text-[#e0aa18]">Carregando sua experiência Conectaê…</p>
+      <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-[#173765] border-t-[#72a5ff]" />
+      <p className="mt-4 text-sm font-bold text-[#9fb5d4]">Carregando sua experiência Conectaê…</p>
     </div>
   </div>
 );
@@ -158,12 +158,12 @@ createRoot(document.getElementById('root')!).render(
           <PremiumDemoMount />
         </>
       ) : unknownPath ? (
-        <div className="min-h-screen bg-[#050505] text-white flex items-center justify-center px-6">
+        <div className="min-h-screen bg-[#020817] text-white flex items-center justify-center px-6">
           <div className="max-w-md text-center">
-            <div className="text-sm font-black uppercase tracking-[.15em] text-[#ffd45e]">Página não encontrada</div>
+            <div className="text-sm font-black uppercase tracking-[.15em] text-[#72a5ff]">Página não encontrada</div>
             <h1 className="mt-3 text-4xl font-black">Esse endereço não existe.</h1>
-            <p className="mt-3 text-[#e0aa18]">Volte para o início e continue pelo menu principal do Conectaê.</p>
-            <button onClick={() => window.location.assign('/')} className="mt-6 rounded-xl bg-[#ffd45e] px-5 py-3 text-sm font-black">Ir para o início</button>
+            <p className="mt-3 text-[#9fb5d4]">Volte para o início e continue pelo menu principal do Conectaê.</p>
+            <button onClick={() => window.location.assign('/')} className="mt-6 rounded-xl bg-[#246cff] px-5 py-3 text-sm font-black">Ir para o início</button>
           </div>
         </div>
       ) : (

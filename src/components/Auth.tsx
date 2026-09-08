@@ -149,8 +149,8 @@ export default function Auth({ onBack, onSuccess, onPrivacy, onTerms, compact = 
             </p>
           </div>
 
-          {error && <div className="mb-4 flex items-start gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-sm text-amber-300"><AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /><span>{error}</span></div>}
-          {success && <div className="mb-4 flex items-start gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-sm text-amber-300"><CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" /><span>{success}</span></div>}
+          {error && <div className="mb-4 flex items-start gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-sm text-red-300"><AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /><span>{error}</span></div>}
+          {success && <div className="mb-4 flex items-start gap-2 p-3 rounded-xl bg-green-500/10 border border-green-500/30 text-sm text-green-300"><CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" /><span>{success}</span></div>}
 
           {pendingConfirmationEmail && mode === 'login' && (
             <div className="mb-4 rounded-xl border border-brand-500/25 bg-brand-500/[0.06] p-3 text-sm text-ink-300">

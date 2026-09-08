@@ -326,8 +326,8 @@ export default function OfficialQuestionWorkspaceV2() {
 
   if (loading) {
     return (
-      <div className="grid min-h-[260px] place-items-center rounded-2xl border border-[#241904] bg-[#0b0904]">
-        <div className="flex items-center gap-2 text-sm font-bold text-[#e0aa18]"><Loader2 size={17} className="animate-spin" />Carregando banco oficial…</div>
+      <div className="grid min-h-[260px] place-items-center rounded-2xl border border-[#173765] bg-[#06152f]">
+        <div className="flex items-center gap-2 text-sm font-bold text-[#9fb5d4]"><Loader2 size={17} className="animate-spin" />Carregando banco oficial…</div>
       </div>
     );
   }
@@ -335,106 +335,106 @@ export default function OfficialQuestionWorkspaceV2() {
   return (
     <section className="pb-8">
       <div className="mb-4">
-        <div className="text-[11px] font-extrabold uppercase tracking-[.1em] text-[#ffd45e]">Banco de questões</div>
+        <div className="text-[11px] font-extrabold uppercase tracking-[.1em] text-[#72a5ff]">Banco de questões</div>
         <h1 className="mt-1 text-2xl font-extrabold tracking-[-.035em] md:text-3xl">Questões oficiais para resolver aqui.</h1>
-        <p className="mt-2 max-w-2xl text-sm text-[#e0aa18]">A questão vem da prova oficial, você responde dentro do Conectaê e o gabarito só aparece depois da tentativa.</p>
+        <p className="mt-2 max-w-2xl text-sm text-[#93a9c9]">A questão vem da prova oficial, você responde dentro do Conectaê e o gabarito só aparece depois da tentativa.</p>
       </div>
 
       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {EXAMS.map((item) => (
-          <button key={item.id} type="button" onClick={() => setExam(item.id)} className={`shrink-0 rounded-xl border px-4 py-2.5 text-sm font-extrabold ${exam === item.id ? 'border-[#ffd45e] bg-[#ffd45e] text-white' : 'border-[#241904] bg-[#0b0904] text-[#e0aa18]'}`}>
+          <button key={item.id} type="button" onClick={() => setExam(item.id)} className={`shrink-0 rounded-xl border px-4 py-2.5 text-sm font-extrabold ${exam === item.id ? 'border-[#3479ff] bg-[#246cff] text-white' : 'border-[#234576] bg-[#071a38] text-[#a9bddc]'}`}>
             {item.label}
           </button>
         ))}
       </div>
 
-      <div className="mt-3 grid grid-cols-3 gap-2 rounded-2xl border border-[#241904] bg-[#0b0904] p-2">
-        <button type="button" disabled={!config.vestibular} onClick={() => setMode('official')} className={`rounded-xl px-2 py-3 text-xs font-extrabold disabled:opacity-35 ${mode === 'official' ? 'bg-amber-500/15 text-amber-200' : 'text-[#e0aa18]'}`}>
+      <div className="mt-3 grid grid-cols-3 gap-2 rounded-2xl border border-[#173765] bg-[#06152f] p-2">
+        <button type="button" disabled={!config.vestibular} onClick={() => setMode('official')} className={`rounded-xl px-2 py-3 text-xs font-extrabold disabled:opacity-35 ${mode === 'official' ? 'bg-emerald-500/15 text-emerald-200' : 'text-[#9fb5d4]'}`}>
           Oficiais <span className="block text-lg">{official.length}</span>
         </button>
-        <button type="button" onClick={() => setMode('adapted')} className={`rounded-xl px-2 py-3 text-xs font-extrabold ${mode === 'adapted' ? 'bg-[#171105] text-white' : 'text-[#e0aa18]'}`}>
+        <button type="button" onClick={() => setMode('adapted')} className={`rounded-xl px-2 py-3 text-xs font-extrabold ${mode === 'adapted' ? 'bg-[#0b2856] text-white' : 'text-[#9fb5d4]'}`}>
           Adaptadas <span className="block text-lg">{adapted.length}</span>
         </button>
-        <button type="button" onClick={() => setMode('authorial')} className={`rounded-xl px-2 py-3 text-xs font-extrabold ${mode === 'authorial' ? 'bg-[#171105] text-white' : 'text-[#e0aa18]'}`}>
+        <button type="button" onClick={() => setMode('authorial')} className={`rounded-xl px-2 py-3 text-xs font-extrabold ${mode === 'authorial' ? 'bg-[#0b2856] text-white' : 'text-[#9fb5d4]'}`}>
           Estilo da prova <span className="block text-lg">{authorial.length}</span>
         </button>
       </div>
 
       {mode === 'official' && config.vestibular && (
-        <div className="mt-3 rounded-2xl border border-amber-400/25 bg-amber-400/[.05] p-4">
+        <div className="mt-3 rounded-2xl border border-emerald-400/25 bg-emerald-400/[.05] p-4">
           <div className="font-extrabold">{config.label} · acervo oficial interativo</div>
           <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
             {config.areas.map((examArea) => (
-              <button key={examArea} type="button" onClick={() => setArea(examArea)} className={`shrink-0 rounded-xl border px-3 py-2 text-left ${area === examArea ? 'border-amber-300/50 bg-amber-300/10' : 'border-[#241904] bg-[#0b0904]'}`}>
+              <button key={examArea} type="button" onClick={() => setArea(examArea)} className={`shrink-0 rounded-xl border px-3 py-2 text-left ${area === examArea ? 'border-emerald-300/50 bg-emerald-300/10' : 'border-[#234576] bg-[#071a38]'}`}>
                 <strong className="block text-sm">{examArea}</strong>
-                <span className="text-[10px] text-[#e0aa18]">{officialAreaCounts[examArea] || 0} oficiais</span>
+                <span className="text-[10px] text-[#9fb5d4]">{officialAreaCounts[examArea] || 0} oficiais</span>
               </button>
             ))}
           </div>
-          <p className="mt-3 text-[11px] leading-relaxed text-[#e0aa18]">Carregamos 60 itens oficiais por área quando disponíveis — acima da meta mínima de 50. O enunciado e as alternativas são lidos da prova oficial somente quando a questão é aberta.</p>
+          <p className="mt-3 text-[11px] leading-relaxed text-[#8fa7c9]">Carregamos 60 itens oficiais por área quando disponíveis — acima da meta mínima de 50. O enunciado e as alternativas são lidos da prova oficial somente quando a questão é aberta.</p>
         </div>
       )}
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <button type="button" onClick={() => setArea('Todas')} className={`rounded-lg border px-3 py-2 text-xs font-bold ${area === 'Todas' ? 'border-[#ffd45e] bg-[#241904]' : 'border-[#241904] bg-[#0b0904] text-[#e0aa18]'}`}>Todas as áreas</button>
+        <button type="button" onClick={() => setArea('Todas')} className={`rounded-lg border px-3 py-2 text-xs font-bold ${area === 'Todas' ? 'border-[#3479ff] bg-[#123a78]' : 'border-[#203d67] bg-[#071a38] text-[#8fa7c9]'}`}>Todas as áreas</button>
         {availableAreas.map((examArea) => (
-          <button type="button" key={examArea} onClick={() => setArea(examArea)} className={`rounded-lg border px-3 py-2 text-xs font-bold ${area === examArea ? 'border-[#ffd45e] bg-[#241904]' : 'border-[#241904] bg-[#0b0904] text-[#e0aa18]'}`}>
+          <button type="button" key={examArea} onClick={() => setArea(examArea)} className={`rounded-lg border px-3 py-2 text-xs font-bold ${area === examArea ? 'border-[#3479ff] bg-[#123a78]' : 'border-[#203d67] bg-[#071a38] text-[#8fa7c9]'}`}>
             {examArea}
           </button>
         ))}
       </div>
 
       <div className="relative mt-3">
-        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#b88408]" size={16} />
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar conteúdo, matéria ou número" className="h-11 w-full rounded-xl border border-[#241904] bg-[#0b0904] pl-10 pr-3 text-sm text-white outline-none placeholder:text-[#c7b987]" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#6f8ebc]" size={16} />
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar conteúdo, matéria ou número" className="h-11 w-full rounded-xl border border-[#234576] bg-[#071a38] pl-10 pr-3 text-sm text-white outline-none placeholder:text-[#6680a5]" />
       </div>
 
       {years.length > 1 && (
         <div className="mt-2 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {years.map((value) => (
-            <button type="button" key={value} onClick={() => setYear(value)} className={`shrink-0 rounded-lg border px-3 py-1.5 text-[11px] font-bold ${year === value ? 'border-[#ffd45e] bg-[#241904] text-white' : 'border-[#241904] bg-[#0b0904] text-[#e0aa18]'}`}>
+            <button type="button" key={value} onClick={() => setYear(value)} className={`shrink-0 rounded-lg border px-3 py-1.5 text-[11px] font-bold ${year === value ? 'border-[#3479ff] bg-[#123a78] text-white' : 'border-[#203d67] bg-[#071a38] text-[#8fa7c9]'}`}>
               {value === 'Todos' ? 'Todos os anos' : value}
             </button>
           ))}
         </div>
       )}
 
-      <div className="mt-4 text-xs font-bold text-[#e0aa18]">{filtered.length} {filtered.length === 1 ? 'questão encontrada' : 'questões encontradas'}</div>
+      <div className="mt-4 text-xs font-bold text-[#8fa7c9]">{filtered.length} {filtered.length === 1 ? 'questão encontrada' : 'questões encontradas'}</div>
 
       <div className="mt-3 grid gap-2.5 md:grid-cols-2">
         {filtered.slice(0, 120).map((raw) => {
           if (mode === 'official') {
             const q = raw as OfficialRef;
             return (
-              <button type="button" key={q.question_id} onClick={() => openOfficial(q)} className="rounded-2xl border border-amber-400/20 bg-[#0b0904] p-4 text-left transition hover:border-amber-300/50">
-                <div className="flex items-center justify-between"><span className="rounded-full bg-amber-300/10 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-amber-200">Oficial</span><span className="text-[10px] text-[#b88408]">{q.year}</span></div>
-                <div className="mt-3 text-[11px] font-bold text-[#ffd45e]">{config.label} {q.year} · Questão {q.question_number}</div>
+              <button type="button" key={q.question_id} onClick={() => openOfficial(q)} className="rounded-2xl border border-emerald-400/20 bg-[#06152f] p-4 text-left transition hover:border-emerald-300/50">
+                <div className="flex items-center justify-between"><span className="rounded-full bg-emerald-300/10 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-emerald-200">Oficial</span><span className="text-[10px] text-[#708bb3]">{q.year}</span></div>
+                <div className="mt-3 text-[11px] font-bold text-[#72a5ff]">{config.label} {q.year} · Questão {q.question_number}</div>
                 <strong className="mt-1.5 block text-sm">{q.skill_name || q.subject || q.area || 'Questão oficial'}</strong>
-                <p className="mt-2 text-xs text-[#e0aa18]">Abrir e responder dentro do site</p>
+                <p className="mt-2 text-xs text-[#8fa7c9]">Abrir e responder dentro do site</p>
               </button>
             );
           }
 
           const q = raw as PracticeQuestion;
           return (
-            <button type="button" key={q.id} onClick={() => openPractice(q)} className="rounded-2xl border border-[#241904] bg-[#0b0904] p-4 text-left transition hover:border-[#ffd45e]">
-              <div className="flex items-center justify-between"><span className="rounded-full bg-[#171105] px-2 py-1 text-[9px] font-black uppercase tracking-wide text-[#e0aa18]">{mode === 'adapted' ? 'Adaptada de prova real' : 'Estilo da prova'}</span><span className="text-[10px] text-[#b88408]">nível {q.difficulty}/5</span></div>
-              <div className="mt-3 text-[11px] font-bold text-[#ffd45e]">{config.label}{q.source_exam_year ? ` ${q.source_exam_year}` : ''}{q.source_question_number ? ` · Q${q.source_question_number}` : ''} · {q.area}</div>
+            <button type="button" key={q.id} onClick={() => openPractice(q)} className="rounded-2xl border border-[#183965] bg-[#06152f] p-4 text-left transition hover:border-[#3479ff]">
+              <div className="flex items-center justify-between"><span className="rounded-full bg-[#10294f] px-2 py-1 text-[9px] font-black uppercase tracking-wide text-[#9fb5d4]">{mode === 'adapted' ? 'Adaptada de prova real' : 'Estilo da prova'}</span><span className="text-[10px] text-[#708bb3]">nível {q.difficulty}/5</span></div>
+              <div className="mt-3 text-[11px] font-bold text-[#72a5ff]">{config.label}{q.source_exam_year ? ` ${q.source_exam_year}` : ''}{q.source_question_number ? ` · Q${q.source_question_number}` : ''} · {q.area}</div>
               <strong className="mt-1.5 block text-sm">{q.skill_name}</strong>
-              <p className="mt-2 line-clamp-2 text-xs text-[#e0aa18]">{q.prompt}</p>
+              <p className="mt-2 line-clamp-2 text-xs text-[#8fa7c9]">{q.prompt}</p>
             </button>
           );
         })}
       </div>
 
-      {!filtered.length && <div className="mt-4 rounded-2xl border border-[#241904] bg-[#0b0904] p-5 text-sm text-[#e0aa18]">Nenhuma questão com esses filtros.</div>}
+      {!filtered.length && <div className="mt-4 rounded-2xl border border-[#173765] bg-[#06152f] p-5 text-sm text-[#9fb5d4]">Nenhuma questão com esses filtros.</div>}
 
       {modalOpen && (
-        <div className="fixed inset-0 z-[220] overflow-y-auto bg-[#050505] text-white" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-[220] overflow-y-auto bg-[#020817] text-white" role="dialog" aria-modal="true">
           <div className="mx-auto min-h-full w-full max-w-3xl px-4 pb-[calc(env(safe-area-inset-bottom)+28px)] pt-[max(12px,env(safe-area-inset-top))] md:px-6">
-            <div className="sticky top-0 z-10 -mx-1 flex items-center justify-between gap-3 border-b border-[#241904] bg-[#050505]/97 px-1 py-3 backdrop-blur-xl">
+            <div className="sticky top-0 z-10 -mx-1 flex items-center justify-between gap-3 border-b border-[#173765] bg-[#020817]/97 px-1 py-3 backdrop-blur-xl">
               <div>
-                <div className={`text-[11px] font-black uppercase tracking-wide ${activeOfficial ? 'text-amber-200' : 'text-[#ffd45e]'}`}>{activeOfficial ? 'Questão oficial' : mode === 'adapted' ? 'Adaptada de prova real' : 'Estilo da prova'}</div>
+                <div className={`text-[11px] font-black uppercase tracking-wide ${activeOfficial ? 'text-emerald-200' : 'text-[#72a5ff]'}`}>{activeOfficial ? 'Questão oficial' : mode === 'adapted' ? 'Adaptada de prova real' : 'Estilo da prova'}</div>
                 <div className="text-sm font-extrabold">
                   {config.label}
                   {activeOfficial ? ` ${activeOfficial.year} · Questão ${activeOfficial.question_number}` : ''}
@@ -442,29 +442,29 @@ export default function OfficialQuestionWorkspaceV2() {
                   {!activeOfficial && activePractice?.source_question_number ? ` · Questão ${activePractice.source_question_number}` : ''}
                 </div>
               </div>
-              <button type="button" onClick={close} className="grid h-11 w-11 place-items-center rounded-xl border border-[#241904] bg-[#0b0904]" aria-label="Fechar"><X size={20} /></button>
+              <button type="button" onClick={close} className="grid h-11 w-11 place-items-center rounded-xl border border-[#234576] bg-[#071a38]" aria-label="Fechar"><X size={20} /></button>
             </div>
 
             <div className="py-5">
               {extracting && (
-                <div className="grid min-h-[260px] place-items-center"><div className="text-center"><Loader2 className="mx-auto animate-spin text-[#ffd45e]" /><p className="mt-3 text-sm text-[#e0aa18]">Lendo a questão diretamente da prova oficial…</p></div></div>
+                <div className="grid min-h-[260px] place-items-center"><div className="text-center"><Loader2 className="mx-auto animate-spin text-[#72a5ff]" /><p className="mt-3 text-sm text-[#9fb5d4]">Lendo a questão diretamente da prova oficial…</p></div></div>
               )}
 
               {!extracting && extractError && (
-                <div className="rounded-2xl border border-amber-400/25 bg-amber-400/[.06] p-5">
+                <div className="rounded-2xl border border-rose-400/25 bg-rose-400/[.06] p-5">
                   <strong>Não consegui carregar essa questão.</strong>
-                  <p className="mt-2 text-sm text-[#e0aa18]">{extractError}</p>
-                  {activeOfficial?.source_pdf_url && <a href={activeOfficial.source_pdf_url} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#ffd45e]"><ExternalLink size={15} />Abrir fonte oficial</a>}
+                  <p className="mt-2 text-sm text-[#a9bddc]">{extractError}</p>
+                  {activeOfficial?.source_pdf_url && <a href={activeOfficial.source_pdf_url} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#8bb8ff]"><ExternalLink size={15} />Abrir fonte oficial</a>}
                 </div>
               )}
 
               {!extracting && !extractError && activePrompt && activeSource && (
                 <>
-                  <div className="text-xs font-bold text-[#ffd45e]">{activeOfficial?.area || activePractice?.area}</div>
+                  <div className="text-xs font-bold text-[#72a5ff]">{activeOfficial?.area || activePractice?.area}</div>
                   <h2 className="mt-3 whitespace-pre-line text-lg font-extrabold leading-relaxed md:text-xl">{activePrompt}</h2>
 
                   {activeOfficial && extracted?.needs_source_image && (
-                    <div className="mt-3 rounded-xl border border-amber-300/25 bg-amber-300/[.06] p-3 text-xs text-[#e0aa18]">Esta questão depende de figura ou gráfico. {extracted.image_note || 'Confira a figura na fonte oficial antes de responder.'}</div>
+                    <div className="mt-3 rounded-xl border border-amber-300/25 bg-amber-300/[.06] p-3 text-xs text-[#d8cba6]">Esta questão depende de figura ou gráfico. {extracted.image_note || 'Confira a figura na fonte oficial antes de responder.'}</div>
                   )}
 
                   <div className="mt-5 grid gap-2.5">
@@ -475,12 +475,12 @@ export default function OfficialQuestionWorkspaceV2() {
                       const isCorrect = submitted && correct === letter;
                       const isWrong = submitted && chosen && correct !== letter;
                       const classes = isCorrect
-                        ? 'border-amber-400 bg-amber-400/10'
+                        ? 'border-emerald-400 bg-emerald-400/10'
                         : isWrong
-                          ? 'border-amber-400 bg-amber-400/10'
+                          ? 'border-rose-400 bg-rose-400/10'
                           : chosen
-                            ? 'border-[#ffd45e] bg-[#241904]'
-                            : 'border-[#241904] bg-[#0b0904]';
+                            ? 'border-[#3479ff] bg-[#123a78]'
+                            : 'border-[#234576] bg-[#071a38]';
                       return (
                         <button type="button" key={letter} disabled={submitted} onClick={() => setSelected(letter)} className={`flex min-h-14 items-start gap-3 rounded-xl border px-4 py-3 text-left ${classes}`}>
                           <strong>{letter}</strong><span className="text-sm leading-relaxed">{text}</span>
@@ -490,19 +490,19 @@ export default function OfficialQuestionWorkspaceV2() {
                   </div>
 
                   {!submitted ? (
-                    <button type="button" disabled={!selected || answering} onClick={activeOfficial ? submitOfficial : submitPractice} className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#ffd45e] px-4 text-sm font-extrabold disabled:opacity-40">
+                    <button type="button" disabled={!selected || answering} onClick={activeOfficial ? submitOfficial : submitPractice} className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#246cff] px-4 text-sm font-extrabold disabled:opacity-40">
                       {answering && <Loader2 size={16} className="animate-spin" />}Confirmar resposta
                     </button>
                   ) : (
-                    <div className={`mt-5 rounded-2xl border p-4 ${correct ? (result ? 'border-amber-400/30 bg-amber-400/[.07]' : 'border-amber-400/30 bg-amber-400/[.07]') : 'border-amber-300/25 bg-amber-300/[.05]'}`}>
+                    <div className={`mt-5 rounded-2xl border p-4 ${correct ? (result ? 'border-emerald-400/30 bg-emerald-400/[.07]' : 'border-rose-400/30 bg-rose-400/[.07]') : 'border-amber-300/25 bg-amber-300/[.05]'}`}>
                       <div className="flex items-center gap-2 font-extrabold">
                         {correct ? (result ? <><CheckCircle2 size={19} />Resposta correta</> : <><XCircle size={19} />Resposta incorreta</>) : 'Resposta registrada'}
                       </div>
-                      {correct ? <p className="mt-2 text-sm text-[#e0aa18]">Gabarito oficial: <strong>{correct}</strong>.</p> : <p className="mt-2 text-sm text-[#e0aa18]">Não consegui ler automaticamente a letra do gabarito. A fonte oficial fica disponível abaixo.</p>}
-                      {activePractice?.explanation && <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-[#e0aa18]">{activePractice.explanation}</p>}
+                      {correct ? <p className="mt-2 text-sm text-[#b8cae4]">Gabarito oficial: <strong>{correct}</strong>.</p> : <p className="mt-2 text-sm text-[#b8cae4]">Não consegui ler automaticamente a letra do gabarito. A fonte oficial fica disponível abaixo.</p>}
+                      {activePractice?.explanation && <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-[#a9bddc]">{activePractice.explanation}</p>}
                       <div className="mt-4 flex flex-wrap gap-2">
-                        {(activeOfficial?.source_pdf_url || activePractice?.source_exam_url) && <a href={(activeOfficial?.source_pdf_url || activePractice?.source_exam_url)!} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-[#241904] px-3 py-2 text-xs font-bold text-[#ffd45e]"><ExternalLink size={14} />Conferir prova oficial</a>}
-                        {(activeOfficial?.answer_key_url || activePractice?.source_answer_url) && <a href={(activeOfficial?.answer_key_url || activePractice?.source_answer_url)!} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-[#241904] px-3 py-2 text-xs font-bold text-[#ffd45e]"><ExternalLink size={14} />Gabarito oficial</a>}
+                        {(activeOfficial?.source_pdf_url || activePractice?.source_exam_url) && <a href={(activeOfficial?.source_pdf_url || activePractice?.source_exam_url)!} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-[#234576] px-3 py-2 text-xs font-bold text-[#8bb8ff]"><ExternalLink size={14} />Conferir prova oficial</a>}
+                        {(activeOfficial?.answer_key_url || activePractice?.source_answer_url) && <a href={(activeOfficial?.answer_key_url || activePractice?.source_answer_url)!} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-[#234576] px-3 py-2 text-xs font-bold text-[#8bb8ff]"><ExternalLink size={14} />Gabarito oficial</a>}
                       </div>
                     </div>
                   )}

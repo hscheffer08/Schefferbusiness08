@@ -558,12 +558,12 @@ export interface CompatibilityBand {
 }
 
 export function getCompatibilityBand(score: number): CompatibilityBand {
-  if (score < 55) return { label: 'Baixa compatibilidade', color: '#b88408', description: 'Seu perfil atual apresenta menos pontos de alinhamento com as características priorizadas por esta instituição.' };
-  if (score <= 69) return { label: 'Compatibilidade moderada', color: '#ffd45e', description: 'Seu perfil tem alguns pontos de alinhamento com esta instituição.' };
-  if (score <= 79) return { label: 'Boa compatibilidade', color: '#ffd45e', description: 'Seu perfil apresenta alinhamento relevante com esta instituição.' };
-  if (score <= 89) return { label: 'Ótima compatibilidade', color: '#ffd45e', description: 'Seu perfil tem um match claramente forte com esta instituição.' };
-  if (score <= 95) return { label: 'Excelente compatibilidade', color: '#ffd45e', description: 'Seu perfil apresenta alinhamento muito alto com esta instituição.' };
-  return { label: 'Compatibilidade excepcional', color: '#ffd45e', description: 'Seu perfil apresenta alinhamento extremamente alto em praticamente todos os principais pilares avaliados.' };
+  if (score < 55) return { label: 'Baixa compatibilidade', color: '#7e8aaf', description: 'Seu perfil atual apresenta menos pontos de alinhamento com as características priorizadas por esta instituição.' };
+  if (score <= 69) return { label: 'Compatibilidade moderada', color: '#22d3ee', description: 'Seu perfil tem alguns pontos de alinhamento com esta instituição.' };
+  if (score <= 79) return { label: 'Boa compatibilidade', color: '#60a5fa', description: 'Seu perfil apresenta alinhamento relevante com esta instituição.' };
+  if (score <= 89) return { label: 'Ótima compatibilidade', color: '#60a5fa', description: 'Seu perfil tem um match claramente forte com esta instituição.' };
+  if (score <= 95) return { label: 'Excelente compatibilidade', color: '#22d3ee', description: 'Seu perfil apresenta alinhamento muito alto com esta instituição.' };
+  return { label: 'Compatibilidade excepcional', color: '#22d3ee', description: 'Seu perfil apresenta alinhamento extremamente alto em praticamente todos os principais pilares avaliados.' };
 }
 
 export const COMPATIBILITY_SCALE = [

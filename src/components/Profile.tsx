@@ -228,8 +228,8 @@ export default function Profile({ onBack, onSelectUniversity, universities }: Pr
                         <div
                           className="px-2.5 py-1 rounded-full text-xs font-bold"
                           style={{
-                            background: 'rgba(255,212,94,0.15)',
-                            color: latest.top_score >= 70 ? '#ffd45e' : '#ffd45e',
+                            background: 'rgba(59,130,246,0.15)',
+                            color: latest.top_score >= 70 ? '#60a5fa' : '#22d3ee',
                           }}
                         >
                           {latest.top_score}% match
@@ -297,7 +297,7 @@ export default function Profile({ onBack, onSelectUniversity, universities }: Pr
                       <span className="text-sm text-ink-300">Compartilhamento com faculdades</span>
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                         consent?.consent_status === 'accepted'
-                          ? 'bg-amber-500/15 text-amber-400'
+                          ? 'bg-green-500/15 text-green-400'
                           : consent?.consent_status === 'revoked'
                           ? 'bg-amber-500/15 text-amber-400'
                           : 'bg-ink-700 text-ink-400'
@@ -340,7 +340,7 @@ export default function Profile({ onBack, onSelectUniversity, universities }: Pr
                             setConsentLoading(false);
                           }}
                           disabled={consentLoading}
-                          className="px-4 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 text-sm font-medium transition-colors disabled:opacity-50"
+                          className="px-4 py-2 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-300 text-sm font-medium transition-colors disabled:opacity-50"
                         >
                           {consentLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Revogar'}
                         </button>
@@ -412,15 +412,15 @@ export default function Profile({ onBack, onSelectUniversity, universities }: Pr
               {!showDeleteConfirm ? (
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="flex items-center gap-2 text-sm text-ink-500 hover:text-amber-400 transition-colors"
+                  className="flex items-center gap-2 text-sm text-ink-500 hover:text-red-400 transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
                   Excluir minha conta
                 </button>
               ) : (
-                <div className="glass rounded-2xl border border-amber-500/30 p-5">
+                <div className="glass rounded-2xl border border-red-500/30 p-5">
                   <div className="flex items-start gap-2 mb-4">
-                    <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                    <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
                     <div>
                       <h3 className="font-semibold text-ink-100 mb-1">Excluir conta</h3>
                       <p className="text-sm text-ink-400">Esta ação é irreversível. Todos os seus dados (perfil, respostas, matches, favoritos) serão permanentemente excluídos.</p>
@@ -430,7 +430,7 @@ export default function Profile({ onBack, onSelectUniversity, universities }: Pr
                     <button
                       onClick={handleDeleteAccount}
                       disabled={deleting}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-sm font-medium hover:bg-amber-500/30 transition-colors disabled:opacity-50"
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/20 border border-red-500/40 text-red-300 text-sm font-medium hover:bg-red-500/30 transition-colors disabled:opacity-50"
                     >
                       {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                       Sim, excluir tudo

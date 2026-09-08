@@ -14,23 +14,23 @@
   justify-content: space-between;
   gap: 12px;
   padding: 14px 16px;
-  border: 1px solid rgba(255,250,240,.10);
+  border: 1px solid rgba(255,255,255,.10);
   border-radius: 18px;
-  background: rgba(5,5,5,.94);
+  background: rgba(8,16,30,.94);
   backdrop-filter: blur(18px);
   font-weight: 900;
 }
 
 .conectae-balanced-results > .conectae-balanced-header small {
-  color: rgba(255,250,240,.62);
+  color: rgba(203,213,225,.62);
   font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: .08em;
 }
 
-.conectae-balanced-public-header { grid-column: 1; color: rgb(255,212,94); }
-.conectae-balanced-private-header { grid-column: 2; color: rgb(255,212,94); }
+.conectae-balanced-public-header { grid-column: 1; color: rgb(165 243 252); }
+.conectae-balanced-private-header { grid-column: 2; color: rgb(233 213 255); }
 .conectae-balanced-results > article[data-institution-type='public'] { grid-column: 1; }
 .conectae-balanced-results > article[data-institution-type='private'] { grid-column: 2; }
 

@@ -167,29 +167,29 @@ export default function PostMockTwinAdaptation({examId,examLabel,rows,elapsed,se
   const weakest=weaknesses[0];
   const hourText=weeklyHours!=null?`${weeklyHours}h/semana`:'o mesmo tempo semanal já definido';
 
-  return <section className="mt-5 rounded-[22px] border border-amber-300/25 bg-amber-300/[.06] p-5">
+  return <section className="mt-5 rounded-[22px] border border-violet-300/25 bg-violet-300/[.06] p-5">
     <div className="flex items-start gap-3">
-      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-amber-300/10 text-amber-200"><BrainCircuit size={22}/></span>
+      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-violet-300/10 text-violet-200"><BrainCircuit size={22}/></span>
       <div>
-        <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[.12em] text-amber-200"><Sparkles size={13}/>Gêmeo de estudos + IA</div>
+        <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[.12em] text-violet-200"><Sparkles size={13}/>Gêmeo de estudos + IA</div>
         <h3 className="mt-1 text-xl font-black">Seu simulado já virou diagnóstico.</h3>
-        <p className="mt-2 text-sm leading-relaxed text-[#e0aa18]">{historySaved?'As respostas já entraram no histórico que alimenta o gêmeo e a IA.':'Estou enviando cada resposta para o histórico do gêmeo.'} {weakest?`O sinal mais fraco agora é ${weakest.area} — ${weakest.skill}, com ${weakest.correct}/${weakest.total} acertos neste recorte.`:'Não apareceu uma fraqueza clara neste simulado.'}</p>
+        <p className="mt-2 text-sm leading-relaxed text-[#b8cae4]">{historySaved?'As respostas já entraram no histórico que alimenta o gêmeo e a IA.':'Estou enviando cada resposta para o histórico do gêmeo.'} {weakest?`O sinal mais fraco agora é ${weakest.area} — ${weakest.skill}, com ${weakest.correct}/${weakest.total} acertos neste recorte.`:'Não apareceu uma fraqueza clara neste simulado.'}</p>
       </div>
     </div>
 
-    {weaknesses.length>0&&<div className="mt-4 grid gap-2 md:grid-cols-2">{weaknesses.slice(0,4).map(item=><div key={item.key} className="rounded-xl border border-white/10 bg-[#0b0904] px-3 py-3"><div className="text-[10px] font-extrabold uppercase tracking-wide text-[#b88408]">{item.area}</div><div className="mt-1 text-sm font-extrabold">{item.skill}</div><div className="mt-1 text-xs text-[#e0aa18]">{item.correct}/{item.total} acertos · {Math.round(item.accuracy*100)}%</div></div>)}</div>}
+    {weaknesses.length>0&&<div className="mt-4 grid gap-2 md:grid-cols-2">{weaknesses.slice(0,4).map(item=><div key={item.key} className="rounded-xl border border-white/10 bg-[#081a38] px-3 py-3"><div className="text-[10px] font-extrabold uppercase tracking-wide text-[#7891b4]">{item.area}</div><div className="mt-1 text-sm font-extrabold">{item.skill}</div><div className="mt-1 text-xs text-[#9fb5d4]">{item.correct}/{item.total} acertos · {Math.round(item.accuracy*100)}%</div></div>)}</div>}
 
-    {!adapted&&!dismissed&&<div className="mt-4 rounded-2xl border border-[#6f4f08] bg-[#0b0904] p-4">
+    {!adapted&&!dismissed&&<div className="mt-4 rounded-2xl border border-[#31588e] bg-[#071a38] p-4">
       <strong className="block text-base">Quer adaptar seu plano semanal com base neste simulado?</strong>
-      <p className="mt-1 text-xs leading-relaxed text-[#e0aa18]">Se você aceitar, o gêmeo redistribui prioridade para essas fraquezas dentro de <b>{hourText}</b>. Nada muda sozinho e nenhuma hora extra é criada.</p>
+      <p className="mt-1 text-xs leading-relaxed text-[#9fb5d4]">Se você aceitar, o gêmeo redistribui prioridade para essas fraquezas dentro de <b>{hourText}</b>. Nada muda sozinho e nenhuma hora extra é criada.</p>
       <div className="mt-3 flex flex-wrap gap-2">
-        <button type="button" onClick={adaptPlan} disabled={adapting} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#ffd45e] px-4 text-xs font-extrabold text-white disabled:opacity-50">{adapting?<Loader2 size={15} className="animate-spin"/>:<CalendarDays size={15}/>}Sim, adaptar meu plano</button>
-        <button type="button" onClick={()=>setDismissed(true)} className="min-h-11 rounded-xl border border-[#241904] px-4 text-xs font-extrabold text-[#e0aa18]">Não agora</button>
+        <button type="button" onClick={adaptPlan} disabled={adapting} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#7c3aed] px-4 text-xs font-extrabold text-white disabled:opacity-50">{adapting?<Loader2 size={15} className="animate-spin"/>:<CalendarDays size={15}/>}Sim, adaptar meu plano</button>
+        <button type="button" onClick={()=>setDismissed(true)} className="min-h-11 rounded-xl border border-[#234576] px-4 text-xs font-extrabold text-[#b8cae4]">Não agora</button>
       </div>
     </div>}
 
-    {dismissed&&<div className="mt-4 rounded-xl border border-[#241904] bg-[#0b0904] p-3 text-xs leading-relaxed text-[#e0aa18]">Plano mantido como está. O desempenho do simulado continua no histórico e ajuda a IA a entender sua evolução.</div>}
-    {adapted&&<div className="mt-4 rounded-xl border border-amber-300/25 bg-amber-300/[.06] p-4"><div className="flex items-center gap-2 font-extrabold text-amber-200"><CheckCircle2 size={17}/>Adaptação aceita</div><p className="mt-2 text-xs leading-relaxed text-[#e0aa18]">{message}</p>{hasMatchingPlan&&<button type="button" onClick={openPlan} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl bg-amber-400 px-4 text-xs font-extrabold text-[#0b0904]"><CalendarDays size={15}/>Ver meu plano adaptado</button>}</div>}
+    {dismissed&&<div className="mt-4 rounded-xl border border-[#234576] bg-[#071a38] p-3 text-xs leading-relaxed text-[#9fb5d4]">Plano mantido como está. O desempenho do simulado continua no histórico e ajuda a IA a entender sua evolução.</div>}
+    {adapted&&<div className="mt-4 rounded-xl border border-emerald-300/25 bg-emerald-300/[.06] p-4"><div className="flex items-center gap-2 font-extrabold text-emerald-200"><CheckCircle2 size={17}/>Adaptação aceita</div><p className="mt-2 text-xs leading-relaxed text-[#b8cae4]">{message}</p>{hasMatchingPlan&&<button type="button" onClick={openPlan} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-400 px-4 text-xs font-extrabold text-[#032014]"><CalendarDays size={15}/>Ver meu plano adaptado</button>}</div>}
     {!adapted&&message&&<div className="mt-3 text-xs text-amber-100">{message}</div>}
   </section>;
 }
