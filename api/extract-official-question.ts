@@ -6,7 +6,7 @@ const GATEWAY_MODELS=['google/gemini-2.5-flash-lite','google/gemini-2.5-flash'] 
 function allowedUrl(raw:unknown){
   try{
     const u=new URL(String(raw||''));
-    return u.protocol==='https:'&&['download.inep.gov.br','vestibular.cmmg.edu.br'].includes(u.hostname)&&/\.pdf$/i.test(u.pathname)?u.toString():'';
+    return u.protocol==='https:'&&['download.inep.gov.br','vestibular.cmmg.edu.br','www.fuvest.br','fuvest.br'].includes(u.hostname)&&/\.pdf$/i.test(u.pathname)?u.toString():'';
   }catch{return''}
 }
 function parseJson(raw:string){
