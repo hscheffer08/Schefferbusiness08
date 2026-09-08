@@ -4,8 +4,11 @@ import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import CourseHome from './components/CourseHome.tsx';
 import AlphabeticalSelectOrder from './lib/alphabetical-select-order.tsx';
+import { initAnalyticsTracking } from './lib/analytics.ts';
 import './index.css';
 import './lib/balanced-area-results.css';
+
+initAnalyticsTracking();
 
 const App = lazy(() => import('./App.tsx'));
 const AdmissionsPlannerGate = lazy(() => import('./components/AdmissionsPlannerGate.tsx'));
