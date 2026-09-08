@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import type { AdminSettings } from '@/types';
 import { getAdminSettings, getConsentStats } from '@/lib/api';
 import ReferralAdmin from '@/components/ReferralAdmin';
+import AdminImpact from '@/components/AdminImpact';
 
 interface AdminSession {
   session_id: string;
@@ -52,7 +53,7 @@ export default function Admin({ onBack }: AdminProps) {
   const [period, setPeriod] = useState<FilterPeriod>('30days');
   const [savingSettings, setSavingSettings] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [adminTab, setAdminTab] = useState<'dashboard' | 'referrals' | 'answers'>('dashboard');
+  const [adminTab, setAdminTab] = useState<'dashboard' | 'impact' | 'referrals' | 'answers'>('dashboard');
 
   const loadStats = useCallback(async (p: FilterPeriod) => {
     if (!supabase) return;
@@ -215,6 +216,15 @@ export default function Admin({ onBack }: AdminProps) {
             Dashboard
           </button>
           <button
+            onClick={() => setAdminTab('impact')}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              adminTab === 'impact' ? 'bg-brand-500 text-ink-950' : 'text-ink-400 hover:text-ink-200'
+            }`}
+          >
+            <TrendingUp className="w-4 h-4" />
+            Impacto
+          </button>
+          <button
             onClick={() => setAdminTab('referrals')}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               adminTab === 'referrals' ? 'bg-brand-500 text-ink-950' : 'text-ink-400 hover:text-ink-200'
@@ -236,7 +246,9 @@ export default function Admin({ onBack }: AdminProps) {
       </div>
 
       <main className="relative z-10 px-6 md:px-12 max-w-5xl mx-auto pb-20">
-        {adminTab === 'referrals' ? (
+        {adminTab === 'impact' ? (
+          <AdminImpact />
+        ) : adminTab === 'referrals' ? (
           <ReferralAdmin />
         ) : adminTab === 'answers' ? (
           <AnswersTab />
