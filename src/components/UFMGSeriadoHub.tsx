@@ -2,13 +2,10 @@ import { useMemo, useState } from 'react';
 import {
   ArrowLeft,
   BookOpen,
-  CalendarDays,
   CheckCircle2,
-  ChevronRight,
   Clock3,
   ExternalLink,
   FileCheck2,
-  FileText,
   GraduationCap,
   ListChecks,
   RotateCcw,
@@ -16,407 +13,348 @@ import {
   Target,
   Trophy,
 } from 'lucide-react';
+import UFMGSeriadoCore from './UFMGSeriadoCore';
+import { UFMG_OFFICIAL_2025 } from '@/lib/ufmg-seriado-data';
 import {
-  UFMG_2026_DATES,
-  UFMG_AUTHORED_QUESTIONS,
-  UFMG_CONTENT_MAP,
-  UFMG_DISCURSIVE_PROMPTS,
-  UFMG_OFFICIAL_2025,
-  UFMG_REQUIRED_WORKS,
-  UFMG_STAGE_INFO,
-  UFMG_WEEKLY_PLAN,
-  type UFMGArea,
-  type UFMGStageId,
-} from '@/lib/ufmg-seriado-data';
+  UFMG_OFFICIAL_AREA_BLOCKS,
+  UFMG_PERSONAL_SUBJECTS,
+  UFMG_WORKS_BY_YEAR,
+  UFMG_YEAR_INFO,
+  type UFMGPersonalArea,
+  type UFMGStudentYear,
+} from '@/lib/ufmg-seriado-personalization';
 
-type TabId = 'visao-geral' | 'prova-oficial' | 'treino-autoral' | 'conteudos' | 'plano';
+type SavedProfile = {
+  year: UFMGStudentYear;
+  targetScore: number;
+  weeklyHours: number;
+  grades: Record<string, number>;
+};
 
-const tabs: Array<{ id: TabId; label: string }> = [
-  { id: 'visao-geral', label: 'Como funciona' },
-  { id: 'prova-oficial', label: 'Prova oficial 2025' },
-  { id: 'treino-autoral', label: 'Questões autorais' },
-  { id: 'conteudos', label: 'Conteúdos e obras' },
-  { id: 'plano', label: 'Plano de estudo' },
-];
+const storageKey = 'conectae:ufmg-personal-profile-v1';
 
-const officialPage = 'https://www.ufmg.br/seriadoufmg/';
-const official2026Page = 'https://www.ufmg.br/seriadoufmg/prova-2026/';
-const officialSchedulePage = 'https://www.ufmg.br/seriadoufmg/cronograma/';
+const areaQuestionShare: Record<UFMGPersonalArea, number> = {
+  Linguagens: 14,
+  Matemática: 9,
+  Natureza: 12,
+  Humanas: 10,
+};
+
+function makeDefaultGrades() {
+  return Object.fromEntries(UFMG_PERSONAL_SUBJECTS.map((subject) => [subject.id, 7])) as Record<string, number>;
+}
+
+function readProfile(): SavedProfile | null {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SavedProfile;
+    if (![1, 2, 3].includes(parsed.year)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
 
 function openExternal(url: string) {
   window.open(url, '_blank', 'noopener,noreferrer');
 }
 
-function areaForOfficialQuestion(question: number): UFMGArea {
-  if (question <= 14) return 'Linguagens';
-  if (question <= 23) return 'Matemática';
-  if (question <= 35) return 'Natureza';
-  return 'Humanas';
+function priorityLabel(grade: number, targetScore: number) {
+  if (grade <= 5 || targetScore >= 90) return 'Prioridade alta';
+  if (grade <= 7) return 'Prioridade média';
+  return 'Manutenção';
 }
 
-const areaBadge: Record<UFMGArea, string> = {
-  Linguagens: 'border-violet-300/20 bg-violet-300/10 text-violet-100',
-  Matemática: 'border-cyan-300/20 bg-cyan-300/10 text-cyan-100',
-  Natureza: 'border-emerald-300/20 bg-emerald-300/10 text-emerald-100',
-  Humanas: 'border-amber-300/20 bg-amber-300/10 text-amber-100',
-};
-
 export default function UFMGSeriadoHub({ onBack }: { onBack: () => void }) {
-  const [tab, setTab] = useState<TabId>('visao-geral');
-  const [stage, setStage] = useState<UFMGStageId>('etapa1');
-  const [officialAnswers, setOfficialAnswers] = useState<Record<number, string>>({});
-  const [officialCorrected, setOfficialCorrected] = useState(false);
-  const [areaFilter, setAreaFilter] = useState<'Todas' | UFMGArea>('Todas');
-  const [authoredAnswers, setAuthoredAnswers] = useState<Record<string, number>>({});
-  const [authoredCorrected, setAuthoredCorrected] = useState<Record<string, boolean>>({});
-  const [completedWeeks, setCompletedWeeks] = useState<number[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('conectae:ufmg-weeks') ?? '[]') as number[];
-    } catch {
-      return [];
-    }
-  });
+  const saved = useMemo(() => readProfile(), []);
+  const [showCore, setShowCore] = useState(false);
+  const [year, setYear] = useState<UFMGStudentYear>(saved?.year ?? 1);
+  const [targetScore, setTargetScore] = useState(saved?.targetScore ?? 80);
+  const [weeklyHours, setWeeklyHours] = useState(saved?.weeklyHours ?? 8);
+  const [grades, setGrades] = useState<Record<string, number>>(() => ({ ...makeDefaultGrades(), ...(saved?.grades ?? {}) }));
+  const [generated, setGenerated] = useState(Boolean(saved));
 
-  const officialScore = useMemo(
-    () => UFMG_OFFICIAL_2025.finalKey.reduce((total, answer, index) => total + (officialAnswers[index + 1] === answer ? 1 : 0), 0),
-    [officialAnswers],
-  );
+  const yearInfo = UFMG_YEAR_INFO[year];
+  const works = UFMG_WORKS_BY_YEAR[year] ?? [];
 
-  const officialByArea = useMemo(() => {
-    const result: Record<UFMGArea, { correct: number; total: number }> = {
-      Linguagens: { correct: 0, total: 14 },
-      Matemática: { correct: 0, total: 9 },
-      Natureza: { correct: 0, total: 12 },
-      Humanas: { correct: 0, total: 10 },
+  const priorities = useMemo(() => {
+    const scored = UFMG_PERSONAL_SUBJECTS.map((subject) => {
+      const grade = clamp(grades[subject.id] ?? 7, 0, 10);
+      const gradeGap = 10 - grade;
+      const areaWeight = areaQuestionShare[subject.area] / 14;
+      const ambition = targetScore / 100;
+      const score = gradeGap * 2.2 + areaWeight * 1.2 + ambition;
+      return { ...subject, grade, score };
+    }).sort((a, b) => b.score - a.score);
+
+    const top = scored.slice(0, 6);
+    const needTotal = top.reduce((sum, item) => sum + Math.max(1, 10 - item.grade), 0);
+    return top.map((item) => ({
+      ...item,
+      hours: Math.max(0.5, (weeklyHours * Math.max(1, 10 - item.grade)) / needTotal),
+    }));
+  }, [grades, targetScore, weeklyHours]);
+
+  const areaPriorities = useMemo(() => {
+    const areas: UFMGPersonalArea[] = ['Linguagens', 'Matemática', 'Natureza', 'Humanas'];
+    return areas
+      .map((area) => {
+        const subjects = UFMG_PERSONAL_SUBJECTS.filter((subject) => subject.area === area);
+        const avg = subjects.reduce((sum, subject) => sum + (grades[subject.id] ?? 7), 0) / subjects.length;
+        return { area, avg };
+      })
+      .sort((a, b) => a.avg - b.avg);
+  }, [grades]);
+
+  const saveAndGenerate = () => {
+    const profile: SavedProfile = {
+      year,
+      targetScore: clamp(targetScore, 0, 100),
+      weeklyHours: clamp(weeklyHours, 1, 40),
+      grades,
     };
-    UFMG_OFFICIAL_2025.finalKey.forEach((answer, index) => {
-      const area = areaForOfficialQuestion(index + 1);
-      if (officialAnswers[index + 1] === answer) result[area].correct += 1;
-    });
-    return result;
-  }, [officialAnswers]);
-
-  const filteredAuthored = useMemo(
-    () => (areaFilter === 'Todas' ? UFMG_AUTHORED_QUESTIONS : UFMG_AUTHORED_QUESTIONS.filter((q) => q.area === areaFilter)),
-    [areaFilter],
-  );
-
-  const authoredAnswered = Object.keys(authoredAnswers).length;
-  const authoredCorrect = UFMG_AUTHORED_QUESTIONS.reduce(
-    (total, question) => total + (authoredCorrected[question.id] && authoredAnswers[question.id] === question.answer ? 1 : 0),
-    0,
-  );
-
-  const toggleWeek = (week: number) => {
-    const next = completedWeeks.includes(week)
-      ? completedWeeks.filter((value) => value !== week)
-      : [...completedWeeks, week];
-    setCompletedWeeks(next);
-    localStorage.setItem('conectae:ufmg-weeks', JSON.stringify(next));
+    localStorage.setItem(storageKey, JSON.stringify(profile));
+    setTargetScore(profile.targetScore);
+    setWeeklyHours(profile.weeklyHours);
+    setGenerated(true);
   };
 
-  const resetOfficial = () => {
-    setOfficialAnswers({});
-    setOfficialCorrected(false);
+  const reset = () => {
+    localStorage.removeItem(storageKey);
+    setYear(1);
+    setTargetScore(80);
+    setWeeklyHours(8);
+    setGrades(makeDefaultGrades());
+    setGenerated(false);
   };
 
-  const requiredWorks = stage === 'etapa2' ? UFMG_REQUIRED_WORKS.etapa2 : UFMG_REQUIRED_WORKS.etapa1;
+  if (showCore) {
+    return <UFMGSeriadoCore onBack={() => setShowCore(false)} />;
+  }
 
   return (
     <div className="min-h-screen bg-[#020817] text-white font-['Plus_Jakarta_Sans']">
-      <header className="sticky top-0 z-30 border-b border-white/5 bg-[#020817]/95 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-white/5 bg-[#020817]/95 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 md:px-8">
           <button onClick={onBack} className="inline-flex items-center gap-2 rounded-xl border border-[#173765] bg-[#06152f] px-3 py-2 text-sm font-extrabold text-[#c4d4ea] hover:border-[#31588e]">
-            <ArrowLeft className="h-4 w-4" /> Voltar
+            <ArrowLeft className="h-4 w-4" /> Voltar ao curso
           </button>
-          <div className="min-w-0 text-center">
+          <div className="text-center">
             <div className="text-xs font-black uppercase tracking-[.16em] text-[#72a5ff]">Conectaê • Curso</div>
-            <div className="truncate text-base font-black md:text-lg">Seriado UFMG</div>
+            <div className="text-base font-black md:text-lg">Seriado UFMG</div>
           </div>
-          <button onClick={() => openExternal(officialPage)} className="inline-flex items-center gap-2 rounded-xl bg-[#246cff] px-3 py-2 text-xs font-black hover:bg-[#3678ff] md:text-sm">
-            UFMG <ExternalLink className="h-4 w-4" />
+          <button onClick={() => setShowCore(true)} className="rounded-xl bg-[#246cff] px-3 py-2 text-xs font-black hover:bg-[#3678ff] md:text-sm">
+            Banco completo
           </button>
-        </div>
-        <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 pb-3 md:px-8">
-          {tabs.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setTab(item.id)}
-              className={`whitespace-nowrap rounded-xl px-3 py-2 text-xs font-extrabold transition md:text-sm ${tab === item.id ? 'bg-[#246cff] text-white' : 'border border-[#173765] bg-[#06152f] text-[#9fb5d4] hover:text-white'}`}
-            >
-              {item.label}
-            </button>
-          ))}
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
-        {tab === 'visao-geral' && (
-          <div className="space-y-8">
-            <section className="grid gap-5 lg:grid-cols-[1.15fr_.85fr]">
-              <div className="rounded-[28px] border border-[#173765] bg-gradient-to-br from-[#0b2856] to-[#06152f] p-6 md:p-8">
-                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-xs font-black text-emerald-200">
-                  <Sparkles className="h-4 w-4" /> Preparação completa adicionada ao curso
-                </div>
-                <h1 className="mt-5 text-4xl font-black tracking-[-.05em] md:text-6xl">Treine para o <span className="text-[#72a5ff]">Seriado UFMG.</span></h1>
-                <p className="mt-5 max-w-3xl text-base leading-relaxed text-[#b4c6df] md:text-lg">
-                  Estrutura das três etapas, prova oficial mais recente, gabarito interativo, treino autoral, questão discursiva, conteúdos, obras e plano de estudo no mesmo lugar.
-                </p>
-                <div className="mt-7 flex flex-wrap gap-3">
-                  <button onClick={() => setTab('prova-oficial')} className="inline-flex items-center gap-2 rounded-2xl bg-[#246cff] px-5 py-3 text-sm font-black hover:bg-[#3678ff]">
-                    <FileCheck2 className="h-5 w-5" /> Fazer prova oficial 2025
-                  </button>
-                  <button onClick={() => setTab('treino-autoral')} className="inline-flex items-center gap-2 rounded-2xl border border-[#31588e] bg-[#06152f] px-5 py-3 text-sm font-black hover:border-[#72a5ff]">
-                    <ListChecks className="h-5 w-5" /> Treinar questões autorais
-                  </button>
-                </div>
+      <main className="mx-auto max-w-7xl space-y-7 px-4 py-8 md:px-8 md:py-12">
+        <section className="overflow-hidden rounded-[30px] border border-[#173765] bg-gradient-to-br from-[#0b2856] via-[#071a38] to-[#06152f] p-6 md:p-9">
+          <div className="grid gap-7 lg:grid-cols-[1.1fr_.9fr] lg:items-end">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-xs font-black text-emerald-200">
+                <Sparkles className="h-4 w-4" /> Plano personalizado para o Seriado UFMG
               </div>
-              <div className="rounded-[28px] border border-[#173765] bg-[#06152f] p-6 md:p-7">
-                <div className="flex items-center gap-3"><CalendarDays className="h-6 w-6 text-[#72a5ff]" /><h2 className="text-xl font-black">Datas 2026</h2></div>
-                <div className="mt-5 space-y-3">
-                  {UFMG_2026_DATES.map((date) => (
-                    <div key={date.label} className="rounded-2xl border border-[#173765] bg-[#041027] p-4">
-                      <div className="text-xs font-bold text-[#839ab9]">{date.label}</div>
-                      <div className="mt-1 font-black">{date.value}</div>
+              <h1 className="mt-5 max-w-3xl text-4xl font-black tracking-[-.05em] md:text-6xl">
+                Seu ano, sua nota-meta e suas dificuldades viram uma <span className="text-[#72a5ff]">rota de estudo.</span>
+              </h1>
+              <p className="mt-4 max-w-3xl text-sm leading-relaxed text-[#b4c6df] md:text-lg">
+                A Etapa 1 e a Etapa 2 não usam o mesmo foco: a primeira trabalha o 1º ano; a segunda é cumulativa, mas avança predominantemente sobre o 2º ano. O plano abaixo muda conteúdos e prioridades conforme a etapa.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-[#31588e] bg-[#041027]/80 p-5">
+              <div className="text-xs font-black uppercase tracking-[.14em] text-[#72a5ff]">Referência oficial mais recente</div>
+              <div className="mt-2 text-xl font-black">Prova UFMG 2025 • Etapa 1</div>
+              <div className="mt-2 text-sm leading-relaxed text-[#a9bddc]">45 objetivas + 1 discursiva • 4 horas. É a última prova oficial disponível antes das provas de dezembro de 2026.</div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button onClick={() => openExternal(UFMG_OFFICIAL_2025.examUrl)} className="inline-flex items-center gap-2 rounded-xl bg-[#246cff] px-3 py-2 text-xs font-black"><FileCheck2 className="h-4 w-4" /> Abrir prova</button>
+                <button onClick={() => setShowCore(true)} className="inline-flex items-center gap-2 rounded-xl border border-[#31588e] bg-[#071a38] px-3 py-2 text-xs font-black text-[#c4d4ea]"><ListChecks className="h-4 w-4" /> Fazer com correção</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-[28px] border border-[#173765] bg-[#06152f] p-5 md:p-7">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+              <div className="text-xs font-black uppercase tracking-[.14em] text-[#72a5ff]">1. Sua etapa</div>
+              <h2 className="mt-1 text-2xl font-black">Em qual ano você está?</h2>
+            </div>
+            <div className="text-xs font-bold text-[#839ab9]">Isso muda o conteúdo recomendado.</div>
+          </div>
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            {([1, 2, 3] as UFMGStudentYear[]).map((value) => {
+              const info = UFMG_YEAR_INFO[value];
+              const active = year === value;
+              return (
+                <button
+                  key={value}
+                  onClick={() => { setYear(value); setGenerated(false); }}
+                  className={`rounded-2xl border p-4 text-left transition ${active ? 'border-[#72a5ff] bg-[#246cff]/15' : 'border-[#173765] bg-[#041027] hover:border-[#31588e]'}`}
+                >
+                  <div className="flex items-center justify-between"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#246cff]/15 text-[#72a5ff]"><GraduationCap className="h-5 w-5" /></span><span className="text-xs font-black text-[#72a5ff]">{info.stage}</span></div>
+                  <div className="mt-3 font-black">{info.title}</div>
+                  <div className="mt-1 text-xs leading-relaxed text-[#9fb5d4]">{info.officialFocus}</div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-[#173765] bg-[#041027] p-4"><div className="text-xs font-bold text-[#839ab9]">Ciclo</div><div className="mt-1 font-black">{yearInfo.cycle}</div></div>
+            <div className="rounded-2xl border border-[#173765] bg-[#041027] p-4"><div className="text-xs font-bold text-[#839ab9]">Prova</div><div className="mt-1 font-black">{yearInfo.exam}</div></div>
+            <div className="rounded-2xl border border-[#173765] bg-[#041027] p-4"><div className="text-xs font-bold text-[#839ab9]">Formato</div><div className="mt-1 text-sm font-black leading-relaxed">{yearInfo.format}</div></div>
+          </div>
+          <p className="mt-4 rounded-xl border border-amber-300/15 bg-amber-300/[.05] p-3 text-xs leading-relaxed text-amber-100">{yearInfo.notice}</p>
+        </section>
+
+        <section className="grid gap-5 lg:grid-cols-[.75fr_1.25fr]">
+          <div className="rounded-[28px] border border-[#173765] bg-[#06152f] p-5 md:p-7">
+            <div className="text-xs font-black uppercase tracking-[.14em] text-[#72a5ff]">2. Meta</div>
+            <h2 className="mt-1 text-2xl font-black">Qual nota você busca?</h2>
+            <label className="mt-5 block text-sm font-bold text-[#a9bddc]">Nota-meta da etapa (0–100)</label>
+            <div className="mt-2 flex items-center gap-3">
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value={targetScore}
+                onChange={(event) => { setTargetScore(Number(event.target.value)); setGenerated(false); }}
+                className="w-full accent-[#246cff]"
+              />
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={targetScore}
+                onChange={(event) => { setTargetScore(clamp(Number(event.target.value) || 0, 0, 100)); setGenerated(false); }}
+                className="w-20 rounded-xl border border-[#31588e] bg-[#041027] px-3 py-2 text-center font-black outline-none focus:border-[#72a5ff]"
+              />
+            </div>
+            {year === 1 && <p className="mt-3 text-xs leading-relaxed text-[#839ab9]">Na Etapa 1 de 2025, 45 objetivas + discursiva somavam 49 pontos brutos e eram convertidos para 0–100. Sua meta de {targetScore} equivale a cerca de {(targetScore * 49 / 100).toFixed(1)} pontos brutos naquele formato.</p>}
+
+            <label className="mt-6 block text-sm font-bold text-[#a9bddc]">Horas de estudo por semana</label>
+            <div className="mt-2 flex items-center gap-3">
+              <input type="range" min="1" max="40" value={weeklyHours} onChange={(event) => { setWeeklyHours(Number(event.target.value)); setGenerated(false); }} className="w-full accent-[#246cff]" />
+              <div className="min-w-20 rounded-xl border border-[#31588e] bg-[#041027] px-3 py-2 text-center font-black">{weeklyHours}h</div>
+            </div>
+          </div>
+
+          <div className="rounded-[28px] border border-[#173765] bg-[#06152f] p-5 md:p-7">
+            <div className="flex items-end justify-between gap-3">
+              <div><div className="text-xs font-black uppercase tracking-[.14em] text-[#72a5ff]">3. Notas atuais</div><h2 className="mt-1 text-2xl font-black">Como você está em cada matéria?</h2></div>
+              <div className="text-xs font-bold text-[#839ab9]">0 a 10</div>
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {UFMG_PERSONAL_SUBJECTS.map((subject) => (
+                <label key={subject.id} className="rounded-2xl border border-[#173765] bg-[#041027] p-3">
+                  <div className="flex items-center justify-between gap-2"><span className="text-sm font-black">{subject.label}</span><span className="text-[10px] font-bold text-[#839ab9]">{subject.area}</span></div>
+                  <div className="mt-3 flex items-center gap-3">
+                    <input
+                      type="range"
+                      min="0"
+                      max="10"
+                      step="0.5"
+                      value={grades[subject.id] ?? 7}
+                      onChange={(event) => { setGrades((current) => ({ ...current, [subject.id]: Number(event.target.value) })); setGenerated(false); }}
+                      className="w-full accent-[#246cff]"
+                    />
+                    <span className="w-8 text-right text-sm font-black text-[#72a5ff]">{(grades[subject.id] ?? 7).toFixed(1)}</span>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="flex flex-col gap-3 rounded-[24px] border border-[#31588e] bg-[#0b2856] p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div><div className="font-black">Pronto para montar a rota?</div><div className="mt-1 text-sm text-[#a9bddc]">O site cruza sua etapa, nota-meta, notas escolares e o peso das áreas na última prova oficial.</div></div>
+          <div className="flex gap-2">
+            {saved && <button onClick={reset} className="rounded-xl border border-[#31588e] bg-[#041027] p-3 text-[#a9bddc]" title="Limpar perfil"><RotateCcw className="h-4 w-4" /></button>}
+            <button onClick={saveAndGenerate} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#246cff] px-5 py-3 text-sm font-black shadow-lg shadow-[#246cff]/20 hover:bg-[#3678ff]"><Target className="h-4 w-4" /> Gerar meu plano</button>
+          </div>
+        </section>
+
+        {generated && (
+          <>
+            <section className="rounded-[30px] border border-emerald-300/20 bg-emerald-300/[.06] p-6 md:p-8">
+              <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-end">
+                <div>
+                  <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[.14em] text-emerald-200"><CheckCircle2 className="h-4 w-4" /> Plano gerado</div>
+                  <h2 className="mt-2 text-3xl font-black">Meta {targetScore}/100 • {yearInfo.stage}</h2>
+                  <p className="mt-3 max-w-3xl text-sm leading-relaxed text-[#b4c6df]">Comece pelas matérias abaixo. Quanto menor sua nota atual e maior o peso da área na prova, mais tempo ela recebe no plano.</p>
+                </div>
+                <div className="rounded-2xl border border-emerald-300/20 bg-[#041027] px-5 py-4"><div className="text-xs font-bold text-[#839ab9]">Carga semanal</div><div className="mt-1 text-3xl font-black text-emerald-200">{weeklyHours}h</div></div>
+              </div>
+            </section>
+
+            <section>
+              <div className="mb-4"><div className="text-xs font-black uppercase tracking-[.14em] text-[#72a5ff]">Sua ordem de prioridade</div><h2 className="mt-1 text-3xl font-black">O que estudar primeiro</h2></div>
+              <div className="grid gap-4 lg:grid-cols-2">
+                {priorities.map((item, index) => (
+                  <article key={item.id} className="rounded-[24px] border border-[#173765] bg-[#06152f] p-5">
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#246cff] text-lg font-black">{index + 1}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2"><h3 className="text-xl font-black">{item.label}</h3><span className="rounded-full border border-[#31588e] px-2 py-1 text-[10px] font-black text-[#a9c7ef]">{item.area}</span></div>
+                        <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold text-[#9fb5d4]"><span>Nota atual: {item.grade.toFixed(1)}</span><span>•</span><span>{priorityLabel(item.grade, targetScore)}</span><span>•</span><span className="inline-flex items-center gap-1"><Clock3 className="h-3.5 w-3.5" /> {item.hours.toFixed(1)}h/semana</span></div>
+                        <div className="mt-4 rounded-2xl bg-[#041027] p-4">
+                          <div className="text-[11px] font-black uppercase tracking-[.12em] text-[#72a5ff]">Conteúdo específico para {yearInfo.stage}</div>
+                          <ul className="mt-3 space-y-2">{item.topicsByYear[year].map((topic) => <li key={topic} className="flex gap-2 text-sm leading-relaxed text-[#b4c6df]"><Target className="mt-0.5 h-4 w-4 shrink-0 text-[#72a5ff]" />{topic}</li>)}</ul>
+                        </div>
+                        <div className="mt-3 rounded-xl border border-emerald-300/15 bg-emerald-300/[.05] p-3 text-xs leading-relaxed text-emerald-100">
+                          Prova oficial 2025 para diagnosticar essa área: <strong>{UFMG_OFFICIAL_AREA_BLOCKS[item.area].questions}</strong>. {year === 2 ? 'Use esse bloco para revisar a base do 1º ano, que continua valendo na Etapa 2.' : ''}
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
+              <div className="rounded-[28px] border border-[#173765] bg-[#06152f] p-6">
+                <div className="flex items-center gap-3"><Trophy className="h-6 w-6 text-[#72a5ff]" /><div><div className="text-xs font-black uppercase tracking-[.12em] text-[#72a5ff]">Banco da última prova</div><h2 className="mt-1 text-2xl font-black">Treino oficial 2025 por área</h2></div></div>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  {areaPriorities.map(({ area, avg }) => (
+                    <div key={area} className="rounded-2xl border border-[#173765] bg-[#041027] p-4">
+                      <div className="flex items-center justify-between"><span className="font-black">{area}</span><span className="text-xs font-black text-[#72a5ff]">média {avg.toFixed(1)}</span></div>
+                      <div className="mt-2 text-sm text-[#a9bddc]">{UFMG_OFFICIAL_AREA_BLOCKS[area].questions} • {UFMG_OFFICIAL_AREA_BLOCKS[area].count} questões</div>
                     </div>
                   ))}
                 </div>
-                <button onClick={() => openExternal(officialSchedulePage)} className="mt-4 inline-flex items-center gap-2 text-sm font-black text-[#72a5ff]">Ver cronograma oficial <ExternalLink className="h-4 w-4" /></button>
-              </div>
-            </section>
-
-            <section>
-              <div className="flex items-end justify-between gap-4"><div><div className="text-xs font-black uppercase tracking-[.16em] text-[#72a5ff]">Formato oficial</div><h2 className="mt-2 text-3xl font-black">As três etapas</h2></div><button onClick={() => openExternal(official2026Page)} className="hidden items-center gap-2 text-sm font-black text-[#72a5ff] md:inline-flex">Fonte UFMG <ExternalLink className="h-4 w-4" /></button></div>
-              <div className="mt-5 grid gap-4 lg:grid-cols-3">
-                {UFMG_STAGE_INFO.map((item) => (
-                  <article key={item.id} className="rounded-[24px] border border-[#173765] bg-[#06152f] p-5">
-                    <div className="flex items-center justify-between"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#246cff]/15 text-[#72a5ff]"><GraduationCap className="h-5 w-5" /></span><span className="rounded-full border border-[#31588e] px-2.5 py-1 text-[11px] font-black text-[#a9c7ef]">{item.weight}</span></div>
-                    <h3 className="mt-4 text-2xl font-black">{item.title}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-[#9fb5d4]">{item.content}</p>
-                    <div className="mt-4 rounded-xl bg-[#041027] p-3 text-sm leading-relaxed text-[#c4d4ea]">{item.format}</div>
-                  </article>
-                ))}
-              </div>
-            </section>
-
-            <section className="rounded-[28px] border border-emerald-300/15 bg-emerald-300/[.05] p-6 md:p-8">
-              <div className="grid gap-5 md:grid-cols-3">
-                <div><div className="text-4xl font-black text-emerald-200">30%</div><div className="mt-1 text-sm font-bold text-[#a9bddc]">das vagas iniciais por curso serão destinadas ao Seriado a partir do ingresso de 2028.</div></div>
-                <div><div className="text-4xl font-black text-emerald-200">3 anos</div><div className="mt-1 text-sm font-bold text-[#a9bddc]">com uma etapa por ano e conteúdo progressivamente cumulativo.</div></div>
-                <div><div className="text-4xl font-black text-emerald-200">0 corte</div><div className="mt-1 text-sm font-bold text-[#a9bddc]">não há nota mínima na Etapa 1 para poder seguir para as etapas seguintes.</div></div>
-              </div>
-            </section>
-          </div>
-        )}
-
-        {tab === 'prova-oficial' && (
-          <div className="space-y-6">
-            <section className="rounded-[28px] border border-[#173765] bg-[#06152f] p-5 md:p-7">
-              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <div className="text-xs font-black uppercase tracking-[.16em] text-emerald-300">Última prova oficial disponível</div>
-                  <h1 className="mt-2 text-3xl font-black">{UFMG_OFFICIAL_2025.label}</h1>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold text-[#a9bddc]">
-                    <span className="rounded-full border border-[#31588e] px-3 py-1.5">45 objetivas</span>
-                    <span className="rounded-full border border-[#31588e] px-3 py-1.5">1 discursiva</span>
-                    <span className="rounded-full border border-[#31588e] px-3 py-1.5">4 horas</span>
-                    <span className="rounded-full border border-[#31588e] px-3 py-1.5">4 alternativas por questão</span>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button onClick={() => openExternal(UFMG_OFFICIAL_2025.examUrl)} className="inline-flex items-center gap-2 rounded-xl bg-[#246cff] px-4 py-3 text-sm font-black"><FileText className="h-4 w-4" /> Abrir caderno oficial</button>
-                  <button onClick={() => openExternal(UFMG_OFFICIAL_2025.finalKeyUrl)} className="inline-flex items-center gap-2 rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-4 py-3 text-sm font-black text-emerald-100"><FileCheck2 className="h-4 w-4" /> Gabarito final UFMG</button>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <button onClick={() => setShowCore(true)} className="inline-flex items-center gap-2 rounded-xl bg-[#246cff] px-4 py-3 text-sm font-black"><ListChecks className="h-4 w-4" /> Fazer prova com gabarito interativo</button>
+                  <button onClick={() => openExternal(UFMG_OFFICIAL_2025.finalKeyUrl)} className="inline-flex items-center gap-2 rounded-xl border border-[#31588e] bg-[#041027] px-4 py-3 text-sm font-black text-[#c4d4ea]">Gabarito final <ExternalLink className="h-4 w-4" /></button>
                 </div>
               </div>
-            </section>
 
-            <section className="grid gap-6 xl:grid-cols-[1.15fr_.85fr]">
-              <div className="overflow-hidden rounded-[24px] border border-[#173765] bg-white">
-                <div className="flex items-center justify-between bg-[#071a38] px-4 py-3 text-white"><div className="text-sm font-black">Caderno oficial UFMG</div><div className="inline-flex items-center gap-1 text-xs font-bold text-[#a9bddc]"><Clock3 className="h-4 w-4" /> Meta: 4h</div></div>
-                <iframe title="Prova oficial Seriado UFMG 2025" src={UFMG_OFFICIAL_2025.examUrl} className="h-[72vh] min-h-[620px] w-full bg-white" />
-              </div>
-
-              <div className="space-y-4">
-                <div className="rounded-[24px] border border-[#173765] bg-[#06152f] p-5">
-                  <div className="flex items-center justify-between gap-3"><div><div className="text-xs font-black uppercase tracking-[.14em] text-[#72a5ff]">Folha de respostas</div><h2 className="mt-1 text-xl font-black">Marque enquanto resolve</h2></div><button onClick={resetOfficial} className="rounded-xl border border-[#31588e] p-2 text-[#9fb5d4] hover:text-white"><RotateCcw className="h-4 w-4" /></button></div>
-                  <div className="mt-5 grid grid-cols-5 gap-2 sm:grid-cols-9 xl:grid-cols-5 2xl:grid-cols-9">
-                    {Array.from({ length: 45 }, (_, index) => index + 1).map((number) => (
-                      <div key={number} className="rounded-xl border border-[#173765] bg-[#041027] p-2 text-center">
-                        <div className="mb-1.5 text-[10px] font-black text-[#839ab9]">{number}</div>
-                        <div className="flex justify-center gap-1">
-                          {['A','B','C','D'].map((letter) => {
-                            const selected = officialAnswers[number] === letter;
-                            const correct = officialCorrected && UFMG_OFFICIAL_2025.finalKey[number - 1] === letter;
-                            const wrong = officialCorrected && selected && !correct;
-                            return (
-                              <button
-                                key={letter}
-                                onClick={() => { setOfficialAnswers((current) => ({ ...current, [number]: letter })); setOfficialCorrected(false); }}
-                                className={`flex h-6 w-6 items-center justify-center rounded-md text-[10px] font-black transition ${correct ? 'bg-emerald-500 text-white' : wrong ? 'bg-rose-500 text-white' : selected ? 'bg-[#246cff] text-white' : 'bg-[#0a2045] text-[#a9bddc] hover:bg-[#123266]'}`}
-                              >
-                                {letter}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <button onClick={() => setOfficialCorrected(true)} className="mt-5 w-full rounded-2xl bg-emerald-500 px-4 py-3.5 text-sm font-black text-[#02120b] hover:bg-emerald-400">Corrigir pelo gabarito final</button>
-                </div>
-
-                {officialCorrected && (
-                  <div className="rounded-[24px] border border-emerald-300/20 bg-emerald-300/[.07] p-5">
-                    <div className="flex items-end justify-between"><div><div className="text-xs font-black uppercase tracking-[.14em] text-emerald-200">Objetivas</div><div className="mt-1 text-4xl font-black">{officialScore}/45</div></div><div className="text-2xl font-black text-emerald-200">{Math.round((officialScore / 45) * 100)}%</div></div>
-                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                      {(Object.entries(officialByArea) as Array<[UFMGArea, { correct: number; total: number }]>).map(([area, score]) => (
-                        <div key={area} className="rounded-xl bg-[#041027] p-3"><div className="text-xs font-bold text-[#839ab9]">{area}</div><div className="mt-1 font-black">{score.correct}/{score.total} • {Math.round((score.correct / score.total) * 100)}%</div></div>
-                      ))}
-                    </div>
-                    <p className="mt-4 text-xs leading-relaxed text-[#a9bddc]">A questão discursiva da Etapa 1 vale 4 pontos na prova original. O total bruto de 49 pontos é convertido pela UFMG para a escala de 0 a 100.</p>
-                  </div>
+              <div className="rounded-[28px] border border-[#173765] bg-[#06152f] p-6">
+                <div className="flex items-center gap-3"><BookOpen className="h-6 w-6 text-amber-200" /><div><div className="text-xs font-black uppercase tracking-[.12em] text-amber-200">Obras de 2026</div><h2 className="mt-1 text-2xl font-black">{yearInfo.stage}</h2></div></div>
+                {works.length > 0 ? (
+                  <div className="mt-5 space-y-3">{works.map((work) => <div key={work.title} className="rounded-2xl border border-amber-300/10 bg-[#041027] p-4"><div className="text-[10px] font-black uppercase tracking-[.12em] text-amber-200">{work.type}</div><div className="mt-1 font-black">{work.title}</div><div className="mt-1 text-sm text-[#9fb5d4]">{work.creator}</div></div>)}</div>
+                ) : (
+                  <p className="mt-5 rounded-2xl bg-[#041027] p-4 text-sm leading-relaxed text-[#a9bddc]">Para a Etapa 3, acompanhe as obras e áreas específicas publicadas pela UFMG para o ciclo correspondente.</p>
                 )}
               </div>
             </section>
-          </div>
-        )}
 
-        {tab === 'treino-autoral' && (
-          <div className="space-y-6">
-            <section className="rounded-[28px] border border-[#173765] bg-gradient-to-br from-[#0b2856] to-[#06152f] p-6 md:p-8">
-              <div className="text-xs font-black uppercase tracking-[.16em] text-[#72a5ff]">Banco autoral Conectaê</div>
-              <h1 className="mt-2 text-4xl font-black tracking-tight">24 questões + 4 discursivas</h1>
-              <p className="mt-3 max-w-3xl text-[#b4c6df]">Questões inéditas alinhadas às quatro áreas e ao foco interdisciplinar do Seriado. As questões abaixo não são questões oficiais da UFMG.</p>
-              <div className="mt-5 flex flex-wrap items-center gap-2">
-                {(['Todas','Linguagens','Matemática','Natureza','Humanas'] as const).map((area) => (
-                  <button key={area} onClick={() => setAreaFilter(area)} className={`rounded-full px-3 py-2 text-xs font-black ${areaFilter === area ? 'bg-[#246cff] text-white' : 'border border-[#31588e] bg-[#06152f] text-[#a9bddc]'}`}>{area}</button>
-                ))}
-                <span className="ml-auto text-xs font-bold text-[#9fb5d4]">Respondidas: {authoredAnswered}/24 • Corretas já corrigidas: {authoredCorrect}</span>
-              </div>
-            </section>
-
-            <div className="space-y-4">
-              {filteredAuthored.map((question, index) => {
-                const selected = authoredAnswers[question.id];
-                const corrected = authoredCorrected[question.id] ?? false;
-                const correct = selected === question.answer;
-                return (
-                  <article key={question.id} className="rounded-[24px] border border-[#173765] bg-[#06152f] p-5 md:p-6">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${areaBadge[question.area]}`}>{question.area}</span>
-                      <span className="text-xs font-bold text-[#839ab9]">{question.subject} • {question.topic}</span>
-                      <span className="ml-auto text-xs font-black text-[#637b9c]">Q{String(UFMG_AUTHORED_QUESTIONS.indexOf(question) + 1).padStart(2, '0')}</span>
-                    </div>
-                    <h2 className="mt-4 text-base font-bold leading-relaxed md:text-lg">{question.prompt}</h2>
-                    <div className="mt-4 grid gap-2">
-                      {question.options.map((option, optionIndex) => {
-                        const isSelected = selected === optionIndex;
-                        const isAnswer = corrected && optionIndex === question.answer;
-                        const isWrong = corrected && isSelected && optionIndex !== question.answer;
-                        return (
-                          <button
-                            key={`${question.id}-${optionIndex}`}
-                            onClick={() => { setAuthoredAnswers((current) => ({ ...current, [question.id]: optionIndex })); setAuthoredCorrected((current) => ({ ...current, [question.id]: false })); }}
-                            className={`flex items-start gap-3 rounded-2xl border p-3.5 text-left text-sm transition ${isAnswer ? 'border-emerald-300/50 bg-emerald-300/10 text-emerald-50' : isWrong ? 'border-rose-300/40 bg-rose-300/10 text-rose-50' : isSelected ? 'border-[#72a5ff] bg-[#246cff]/15 text-white' : 'border-[#173765] bg-[#041027] text-[#c4d4ea] hover:border-[#31588e]'}`}
-                          >
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#0b2856] font-black">{String.fromCharCode(65 + optionIndex)}</span>
-                            <span className="pt-1">{option}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <div className="mt-4 flex flex-wrap items-center gap-3">
-                      <button disabled={selected === undefined} onClick={() => setAuthoredCorrected((current) => ({ ...current, [question.id]: true }))} className="rounded-xl bg-[#246cff] px-4 py-2.5 text-xs font-black disabled:cursor-not-allowed disabled:opacity-40">Corrigir questão</button>
-                      {corrected && <span className={`inline-flex items-center gap-1.5 text-sm font-black ${correct ? 'text-emerald-300' : 'text-rose-300'}`}>{correct ? <CheckCircle2 className="h-4 w-4" /> : null}{correct ? 'Acertou' : `Resposta correta: ${String.fromCharCode(65 + question.answer)}`}</span>}
-                    </div>
-                    {corrected && <div className="mt-4 rounded-xl border border-[#173765] bg-[#041027] p-4 text-sm leading-relaxed text-[#b4c6df]"><span className="font-black text-white">Explicação: </span>{question.explanation}</div>}
-                  </article>
-                );
-              })}
-            </div>
-
-            <section>
-              <div className="mb-4"><div className="text-xs font-black uppercase tracking-[.16em] text-[#72a5ff]">Treino aberto</div><h2 className="mt-2 text-3xl font-black">Questões discursivas interdisciplinares</h2></div>
-              <div className="grid gap-4 lg:grid-cols-2">
-                {UFMG_DISCURSIVE_PROMPTS.map((question) => (
-                  <article key={question.id} className="rounded-[24px] border border-[#173765] bg-[#06152f] p-5">
-                    <div className="text-xs font-black text-[#72a5ff]">{question.id.toUpperCase()}</div>
-                    <h3 className="mt-2 text-xl font-black">{question.title}</h3>
-                    <p className="mt-3 text-sm leading-relaxed text-[#c4d4ea]">{question.prompt}</p>
-                    <div className="mt-4 rounded-2xl bg-[#041027] p-4"><div className="text-xs font-black uppercase tracking-[.12em] text-[#839ab9]">Checklist de autocorreção</div><ul className="mt-3 space-y-2">{question.checklist.map((item) => <li key={item} className="flex gap-2 text-xs leading-relaxed text-[#a9bddc]"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-300" />{item}</li>)}</ul></div>
-                  </article>
-                ))}
-              </div>
-            </section>
-          </div>
-        )}
-
-        {tab === 'conteudos' && (
-          <div className="space-y-7">
             <section className="rounded-[28px] border border-[#173765] bg-[#06152f] p-6 md:p-8">
-              <div className="text-xs font-black uppercase tracking-[.16em] text-[#72a5ff]">Matriz de estudo</div>
-              <h1 className="mt-2 text-4xl font-black">O que estudar</h1>
-              <p className="mt-3 max-w-3xl text-[#a9bddc]">O Seriado se apoia na BNCC e no Currículo Referência de Minas Gerais. A Etapa 2 é cumulativa da 1ª e 2ª séries; a Etapa 3 acumula as três séries.</p>
-              <div className="mt-5 flex flex-wrap gap-2">{UFMG_STAGE_INFO.map((item) => <button key={item.id} onClick={() => setStage(item.id)} className={`rounded-xl px-4 py-2 text-sm font-black ${stage === item.id ? 'bg-[#246cff]' : 'border border-[#31588e] bg-[#041027] text-[#a9bddc]'}`}>{item.title}</button>)}</div>
-            </section>
-
-            <div className="grid gap-4 lg:grid-cols-2">
-              {UFMG_CONTENT_MAP.map((group) => (
-                <article key={group.area} className="rounded-[24px] border border-[#173765] bg-[#06152f] p-5 md:p-6">
-                  <div className="flex items-center gap-3"><span className={`rounded-full border px-3 py-1 text-xs font-black ${areaBadge[group.area as UFMGArea]}`}>{group.area}</span></div>
-                  <ul className="mt-4 space-y-3">{group.subjects.map((subject) => <li key={subject} className="flex gap-3 text-sm leading-relaxed text-[#b4c6df]"><ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-[#72a5ff]" />{subject}</li>)}</ul>
-                </article>
-              ))}
-            </div>
-
-            {stage !== 'etapa3' && (
-              <section className="rounded-[28px] border border-amber-300/15 bg-amber-300/[.05] p-6 md:p-8">
-                <div className="flex items-center gap-3"><BookOpen className="h-6 w-6 text-amber-200" /><div><div className="text-xs font-black uppercase tracking-[.14em] text-amber-200">Obras indicadas para 2026</div><h2 className="mt-1 text-2xl font-black">{stage === 'etapa1' ? 'Etapa 1 • ciclo 2026–2028' : 'Etapa 2 • ciclo 2025–2027'}</h2></div></div>
-                <div className="mt-5 grid gap-3 lg:grid-cols-3">{requiredWorks.map((work) => <article key={work.title} className="rounded-2xl border border-amber-200/10 bg-[#041027] p-4"><div className="text-[11px] font-black uppercase tracking-[.12em] text-amber-200">{work.type}</div><div className="mt-2 font-black">{work.title}</div><div className="mt-1 text-sm text-[#9fb5d4]">{work.author}</div></article>)}</div>
-                <p className="mt-4 text-xs leading-relaxed text-[#9fb5d4]">A UFMG não define previamente uma quantidade fixa de questões sobre as obras. O estudo deve priorizar compreensão, contexto, linguagem, temas e relações interdisciplinares.</p>
-              </section>
-            )}
-
-            {stage === 'etapa3' && (
-              <section className="rounded-[28px] border border-[#173765] bg-[#06152f] p-6 md:p-8">
-                <div className="text-xs font-black uppercase tracking-[.14em] text-[#72a5ff]">Atenção na Etapa 3</div>
-                <h2 className="mt-2 text-2xl font-black">O segundo dia depende do curso escolhido</h2>
-                <p className="mt-3 text-sm leading-relaxed text-[#b4c6df]">A preparação final precisa priorizar a uma ou duas áreas definidas para o curso. O Dia 2 terá até 8 questões discursivas e vale 30% da nota global, o maior peso individual do ciclo.</p>
-              </section>
-            )}
-          </div>
-        )}
-
-        {tab === 'plano' && (
-          <div className="space-y-6">
-            <section className="rounded-[28px] border border-[#173765] bg-gradient-to-br from-[#0b2856] to-[#06152f] p-6 md:p-8">
-              <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-                <div><div className="text-xs font-black uppercase tracking-[.16em] text-[#72a5ff]">Reta de preparação</div><h1 className="mt-2 text-4xl font-black">Plano de 8 semanas</h1><p className="mt-3 max-w-2xl text-[#b4c6df]">Use como ciclo-base e repita com nível maior de dificuldade. As semanas marcadas ficam salvas neste dispositivo.</p></div>
-                <div className="rounded-2xl border border-[#31588e] bg-[#041027] px-5 py-4"><div className="text-xs font-bold text-[#839ab9]">Progresso</div><div className="mt-1 text-3xl font-black">{completedWeeks.length}/8</div></div>
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                <div><div className="text-xs font-black uppercase tracking-[.14em] text-[#72a5ff]">Próximo passo</div><h2 className="mt-1 text-3xl font-black">Use o banco completo do Seriado</h2><p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#a9bddc]">Lá estão a prova oficial 2025 incorporada, folha de respostas, correção automática, questões autorais, discursivas, obras e plano de 8 semanas.</p></div>
+                <button onClick={() => setShowCore(true)} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#246cff] px-6 py-4 text-sm font-black"><ListChecks className="h-5 w-5" /> Abrir preparação completa</button>
               </div>
-              <div className="mt-5 h-2 overflow-hidden rounded-full bg-[#041027]"><div className="h-full rounded-full bg-[#246cff] transition-all" style={{ width: `${(completedWeeks.length / 8) * 100}%` }} /></div>
             </section>
 
-            <div className="grid gap-4 lg:grid-cols-2">
-              {UFMG_WEEKLY_PLAN.map((item) => {
-                const done = completedWeeks.includes(item.week);
-                return (
-                  <article key={item.week} className={`rounded-[24px] border p-5 transition ${done ? 'border-emerald-300/30 bg-emerald-300/[.06]' : 'border-[#173765] bg-[#06152f]'}`}>
-                    <div className="flex items-start gap-4">
-                      <button onClick={() => toggleWeek(item.week)} className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${done ? 'border-emerald-300/40 bg-emerald-400 text-[#02120b]' : 'border-[#31588e] bg-[#041027] text-[#72a5ff]'}`}>{done ? <CheckCircle2 className="h-5 w-5" /> : <span className="font-black">{item.week}</span>}</button>
-                      <div className="min-w-0"><div className="text-xs font-black uppercase tracking-[.12em] text-[#839ab9]">Semana {item.week}</div><h2 className="mt-1 text-xl font-black">{item.title}</h2><ul className="mt-3 space-y-2">{item.tasks.map((task) => <li key={task} className="flex gap-2 text-sm text-[#b4c6df]"><Target className="mt-0.5 h-4 w-4 shrink-0 text-[#72a5ff]" />{task}</li>)}</ul></div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-
-            <section className="grid gap-4 md:grid-cols-3">
-              <button onClick={() => setTab('prova-oficial')} className="rounded-[24px] border border-[#31588e] bg-[#0b2856] p-5 text-left"><Trophy className="h-6 w-6 text-[#72a5ff]" /><div className="mt-4 font-black">Simulado oficial</div><div className="mt-1 text-sm text-[#a9bddc]">Use a prova real de 2025 como diagnóstico e simulado de 4 horas.</div></button>
-              <button onClick={() => setTab('treino-autoral')} className="rounded-[24px] border border-[#173765] bg-[#06152f] p-5 text-left"><ListChecks className="h-6 w-6 text-emerald-300" /><div className="mt-4 font-black">Blocos de questões</div><div className="mt-1 text-sm text-[#a9bddc]">Treine por área, corrija na hora e registre os erros que precisam voltar ao plano.</div></button>
-              <button onClick={() => setTab('conteudos')} className="rounded-[24px] border border-[#173765] bg-[#06152f] p-5 text-left"><BookOpen className="h-6 w-6 text-amber-200" /><div className="mt-4 font-black">Conteúdo + obras</div><div className="mt-1 text-sm text-[#a9bddc]">Confira a matriz por área e as obras indicadas para a etapa de 2026.</div></button>
-            </section>
-          </div>
+            <p className="pb-3 text-center text-xs leading-relaxed text-[#637b9c]">A UFMG organiza o Documento Norteador por competências e habilidades de cada etapa. O Conectaê transforma essa progressão em frentes de estudo; não apresenta uma lista de capítulos como se fosse uma divisão oficial rígida por escola.</p>
+          </>
         )}
       </main>
     </div>
