@@ -17,9 +17,11 @@ assert.equal(normalized.correct_option,'C');
 assert.equal(normalized.option_e,'Alternativa E');
 assert.deepEqual(normalized.images,['https://enem.dev/2023/questions/24/visual.png']);
 assert.equal(normalized.prompt.includes('![]'),false);
-assert.equal(ENEM_INTERACTIVE_TOTAL,806);
+assert.equal(ENEM_INTERACTIVE_TOTAL,1166);
 assert.equal(isEnemInteractiveQuestion(2023,24),true);
 assert.equal(isEnemInteractiveQuestion(2023,34),false);
+assert.equal(isEnemInteractiveQuestion(2024,1),true);
+assert.equal(isEnemInteractiveQuestion(2025,180),true);
 
 assert.equal(isQuestionMarker('01. Considerando o texto anterior, responda.',1),true);
 assert.equal(isQuestionMarker('QUESTÃO 135',135),true);
@@ -40,4 +42,4 @@ assert.match(workspace,/extracted\?\.correct_option/);
 assert.doesNotMatch(workspace,/filter\(x=>x\.area===q\.area\)\.length\)<60/);
 assert.ok(pdfClient.indexOf('/api/proxy-official-pdf')<pdfClient.indexOf('SUPABASE_PDF_PROXY}?url='));
 
-console.log('Official question validation passed: complete ENEM normalization, CMMG numbering/options, full pagination, answer hiding and local proxy priority.');
+console.log('Official question validation passed: ENEM 2019-2025, CMMG numbering/options, subject filters, full pagination, answer hiding and local proxy priority.');
