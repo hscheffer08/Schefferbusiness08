@@ -377,7 +377,7 @@ export default function Admin({ onBack }: AdminProps) {
                 <>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                     <div className="p-3 rounded-xl bg-ink-800/40">
-                      <div className="text-2xl font-bold text-green-400">{stats.consentAccepted}</div>
+                      <div className="text-2xl font-bold text-amber-400">{stats.consentAccepted}</div>
                       <div className="text-xs text-ink-500 mt-1">Aceitaram</div>
                     </div>
                     <div className="p-3 rounded-xl bg-ink-800/40">

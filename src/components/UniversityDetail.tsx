@@ -83,7 +83,7 @@ export default function UniversityDetail({
               <div
                 className="px-3 py-1.5 rounded-xl text-sm font-bold"
                 style={{
-                  background: 'rgba(59,130,246,0.15)',
+                  background: 'rgba(255,212,94,0.15)',
                   color: getCompatibilityBand(matchResult.overallScore).color,
                 }}
               >

@@ -219,8 +219,8 @@ export default function FacultyQuestionnaireHub({ onBack }: FacultyQuestionnaire
           </div>
         </section>
 
-        {error && <div role="alert" className="mb-5 p-4 rounded-xl border border-red-500/30 bg-red-500/10 text-red-300 text-sm">{error}</div>}
-        {success && <div className="mb-5 flex items-center gap-2 p-4 rounded-xl border border-green-500/30 bg-green-500/10 text-green-300 text-sm"><CheckCircle2 className="w-4 h-4" />{success}</div>}
+        {error && <div role="alert" className="mb-5 p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300 text-sm">{error}</div>}
+        {success && <div className="mb-5 flex items-center gap-2 p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300 text-sm"><CheckCircle2 className="w-4 h-4" />{success}</div>}
 
         {loading ? (
           <div className="py-20 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-brand-400" /></div>

@@ -165,16 +165,16 @@ export default function VocationalFollowupMount() {
 
   return createPortal(
     <section className="max-w-7xl mx-auto px-5 md:px-8 mt-5 mb-8">
-      <div className="relative overflow-hidden rounded-[28px] border border-cyan-300/25 bg-gradient-to-r from-cyan-400/10 via-brand-500/10 to-violet-500/10 p-6 md:p-8 shadow-xl shadow-cyan-950/10">
-        <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-cyan-300/10 blur-3xl pointer-events-none" />
+      <div className="relative overflow-hidden rounded-[28px] border border-amber-300/25 bg-gradient-to-r from-amber-400/10 via-brand-500/10 to-amber-500/10 p-6 md:p-8 shadow-xl shadow-amber-950/10">
+        <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-amber-300/10 blur-3xl pointer-events-none" />
         <div className="relative flex flex-col lg:flex-row lg:items-center gap-6">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-300 to-brand-400 text-[#06131c] flex items-center justify-center flex-shrink-0 shadow-lg shadow-cyan-950/20"><GraduationCap className="w-6 h-6" /></div>
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-300 to-brand-400 text-[#050505] flex items-center justify-center flex-shrink-0 shadow-lg shadow-amber-950/20"><GraduationCap className="w-6 h-6" /></div>
           <div className="flex-1 min-w-0">
-            <div className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[.14em] text-cyan-200 mb-2"><Sparkles className="w-3.5 h-3.5" /> Seu próximo passo</div>
+            <div className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[.14em] text-amber-200 mb-2"><Sparkles className="w-3.5 h-3.5" /> Seu próximo passo</div>
             <h2 className="text-2xl md:text-3xl font-black tracking-tight text-ink-50 mb-2">{ctaCopy.title}</h2>
             <p className="text-sm md:text-base text-ink-300 leading-relaxed max-w-3xl">{ctaCopy.description}</p>
           </div>
-          <button onClick={continueToCollegeMatch} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-cyan-300 hover:brightness-110 text-[#06131c] font-black px-6 py-4 whitespace-nowrap shadow-lg shadow-cyan-950/20 transition-all hover:scale-[1.01] active:scale-95">{ctaCopy.button} <ArrowRight className="w-5 h-5" /></button>
+          <button onClick={continueToCollegeMatch} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-300 hover:brightness-110 text-[#050505] font-black px-6 py-4 whitespace-nowrap shadow-lg shadow-amber-950/20 transition-all hover:scale-[1.01] active:scale-95">{ctaCopy.button} <ArrowRight className="w-5 h-5" /></button>
         </div>
       </div>
     </section>,

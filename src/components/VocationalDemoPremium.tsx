@@ -251,10 +251,10 @@ export default function VocationalDemoPremium({ onBack }: VocationalDemoProps) {
         </section>
 
         {matchedAcademicArea && (
-          <section className="mb-8 overflow-hidden rounded-[26px] border border-cyan-300/30 bg-gradient-to-r from-cyan-400/12 via-brand-500/10 to-violet-500/10 p-6 md:p-8 shadow-xl shadow-cyan-950/10">
+          <section className="mb-8 overflow-hidden rounded-[26px] border border-amber-300/30 bg-gradient-to-r from-amber-400/12 via-brand-500/10 to-amber-500/10 p-6 md:p-8 shadow-xl shadow-amber-950/10">
             <div className="flex flex-col lg:flex-row lg:items-center gap-6">
               <div className="flex-1">
-                <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[.15em] text-cyan-200 font-black mb-2"><GraduationCap className="w-4 h-4" /> Seu próximo passo</div>
+                <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[.15em] text-amber-200 font-black mb-2"><GraduationCap className="w-4 h-4" /> Seu próximo passo</div>
                 <h2 className="text-2xl md:text-4xl font-black tracking-tight mb-3">Agora descubra qual faculdade combina mais com você em {top.course.name}</h2>
                 <p className="text-sm md:text-base text-ink-300 leading-relaxed max-w-3xl">Responda ao questionário específico da área e compare as faculdades por ambiente acadêmico, metodologia, carreira, prática, internacionalização e preferências pessoais.</p>
               </div>
@@ -265,7 +265,7 @@ export default function VocationalDemoPremium({ onBack }: VocationalDemoProps) {
                   window.dispatchEvent(new CustomEvent('conectae:close-vocational'));
                   window.dispatchEvent(new CustomEvent('conectae:open-area-match', { detail: { areaId: matchedAcademicArea.id } }));
                 }}
-                className="shrink-0 inline-flex items-center justify-center gap-2 rounded-2xl bg-cyan-300 hover:brightness-110 text-[#06131c] font-black px-6 py-4 shadow-lg shadow-cyan-950/20 transition-all hover:scale-[1.02] active:scale-95"
+                className="shrink-0 inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-300 hover:brightness-110 text-[#050505] font-black px-6 py-4 shadow-lg shadow-amber-950/20 transition-all hover:scale-[1.02] active:scale-95"
               >
                 Encontrar minha faculdade <ArrowRight className="w-5 h-5" />
               </button>

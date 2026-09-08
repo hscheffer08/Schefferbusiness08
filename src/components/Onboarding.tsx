@@ -146,7 +146,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         </div>
 
         {error && (
-          <p className="text-red-400 text-sm mt-4">{error}</p>
+          <p className="text-amber-400 text-sm mt-4">{error}</p>
         )}
 
         <button

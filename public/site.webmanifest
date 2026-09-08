@@ -6,7 +6,7 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#020817",
-  "theme_color": "#020817",
+  "background_color": "#050505",
+  "theme_color": "#050505",
   "categories": ["education", "productivity"]
 }
