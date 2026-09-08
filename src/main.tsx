@@ -26,7 +26,6 @@ const DiscoveryHub = lazy(() => import('./components/DiscoveryHub.tsx'));
 const AreaMatchPortal = lazy(() => import('./components/AreaMatchPortal.tsx'));
 const VocationalDemoPremium = lazy(() => import('./components/VocationalDemoPremium.tsx'));
 const OfficialVestibularBankPage = lazy(() => import('./components/OfficialVestibularBankPage.tsx'));
-const UFMGSeriadoHub = lazy(() => import('./components/UFMGSeriadoHub.tsx'));
 const UFMGCourseArea = lazy(() => import('./components/UFMGCourseArea.tsx'));
 const InterviewCoachPage = lazy(() => import('./components/InterviewCoachPage.tsx'));
 const InfoPages = lazy(() => import('./components/InfoPages.tsx'));
@@ -78,7 +77,7 @@ if (interviewOpen) {
     'Pratique entrevistas de admissão para Insper e Link com 10 perguntas adaptativas, feedback por competência e plano de melhoria.',
     '/treino-entrevista',
   );
-} else if (courseArea === 'ufmg' || experienceMode === 'ufmg-seriado') {
+} else if (courseArea === 'ufmg') {
   updateMeta(
     'Seriado UFMG: conteúdo por ano e questões | Conectaê',
     'Estude para o Seriado UFMG em uma área separada do Curso, com conteúdos específicos do 1º, 2º e 3º anos e questões por componente curricular.',
@@ -159,8 +158,6 @@ createRoot(document.getElementById('root')!).render(
             <UFMGCourseEntryMount />
           </>
         )
-      ) : experienceMode === 'ufmg-seriado' ? (
-        <UFMGSeriadoHub onBack={() => navigateExperience(null)} />
       ) : experienceMode === 'vestibulares-oficiais' ? (
         <OfficialVestibularBankPage onBack={() => navigateExperience(null)} />
       ) : experienceMode === 'faculdades' || experienceMode === 'descoberta' ? (
