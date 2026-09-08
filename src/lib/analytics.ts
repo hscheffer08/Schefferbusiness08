@@ -57,6 +57,14 @@ function getAnonVisitorId(): string {
   return anonVisitorId;
 }
 
+function isAutomatedBrowser(): boolean {
+  try {
+    return navigator.webdriver === true;
+  } catch {
+    return false;
+  }
+}
+
 export function initSessionId(): string {
   return getAnonSessionId();
 }
@@ -69,6 +77,7 @@ function getPageMetadata(extra?: Record<string, unknown>): Record<string, unknow
   const url = new URL(window.location.href);
   return {
     visitor_id: getAnonVisitorId(),
+    automation: isAutomatedBrowser(),
     path: url.pathname,
     query: url.search || null,
     referrer: document.referrer || null,
@@ -110,6 +119,7 @@ export function trackEvent(
         session_id: sessionId,
         metadata: {
           visitor_id: visitorId,
+          automation: isAutomatedBrowser(),
           ...(metadata ?? {}),
         },
       });
