@@ -11,8 +11,25 @@ function allowedUrl(raw:unknown){
 }
 function parseJson(raw:string){
   const s=raw.trim().replace(/^```json\s*/i,'').replace(/^```\s*/,'').replace(/```$/,'').trim();
-  const a=s.indexOf('{'),b=s.lastIndexOf('}');
-  return JSON.parse(a>=0&&b>a?s.slice(a,b+1):s);
+  const start=s.indexOf('{');
+  if(start<0)return JSON.parse(s);
+  let depth=0,inString=false,escaped=false;
+  for(let i=start;i<s.length;i++){
+    const ch=s[i];
+    if(inString){
+      if(escaped){escaped=false;continue;}
+      if(ch==='\\'){escaped=true;continue;}
+      if(ch==='"')inString=false;
+      continue;
+    }
+    if(ch==='"'){inString=true;continue;}
+    if(ch==='{')depth++;
+    else if(ch==='}'){
+      depth--;
+      if(depth===0)return JSON.parse(s.slice(start,i+1));
+    }
+  }
+  return JSON.parse(s.slice(start));
 }
 
 export function normalizeRequestedQuestion(parsed:any,questionNumber:number){
