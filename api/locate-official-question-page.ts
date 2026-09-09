@@ -213,6 +213,15 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ error: 'Fonte ou número da questão inválido.' });
   }
 
+  // ENEM is served from the structured question/media pipeline. The INEP PDF host
+  // is intermittently unreachable from cloud serverless networks, so do not turn
+  // a non-essential page lookup into a user-facing 502 or repeated retries.
+  if (new URL(sourceUrl).hostname === 'download.inep.gov.br') {
+    res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800');
+    if (req.method === 'HEAD') return res.status(404).end();
+    return res.status(404).json({ error: 'O ENEM usa a mídia estruturada da questão; página do PDF não necessária.' });
+  }
+
   try {
     const sourcePage = await locatePage(sourceUrl, questionNumber);
     res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=2592000, stale-while-revalidate=7776000');
