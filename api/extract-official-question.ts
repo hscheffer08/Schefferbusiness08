@@ -1,7 +1,12 @@
 import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
+import { createClient } from '@supabase/supabase-js';
 
 const GATEWAY_MODELS=['google/gemini-2.5-flash-lite','google/gemini-2.5-flash'] as const;
+const DEFAULT_SUPABASE_URL='https://kmognvgnfisdchzffkgh.supabase.co';
+const SUPABASE_URL=(process.env.SUPABASE_URL||process.env.VITE_SUPABASE_URL||DEFAULT_SUPABASE_URL).replace(/\/$/,'');
+const SUPABASE_ANON_KEY=process.env.SUPABASE_ANON_KEY||process.env.VITE_SUPABASE_ANON_KEY||'';
+const db=SUPABASE_ANON_KEY?createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false}}):null;
 
 function allowedUrl(raw:unknown){
   try{
@@ -9,6 +14,7 @@ function allowedUrl(raw:unknown){
     return u.protocol==='https:'&&['download.inep.gov.br','vestibular.cmmg.edu.br','www.fuvest.br','fuvest.br'].includes(u.hostname)&&/\.pdf$/i.test(u.pathname)?u.toString():'';
   }catch{return''}
 }
+function isInepPdf(sourceUrl:string){try{return new URL(sourceUrl).hostname==='download.inep.gov.br'}catch{return false}}
 function parseJson(raw:string){
   const s=raw.trim().replace(/^```json\s*/i,'').replace(/^```\s*/,'').replace(/```$/,'').trim();
   const start=s.indexOf('{');
@@ -67,6 +73,42 @@ function normalizeOutputQuestion(parsed:any,questionNumber:number){
     confidence:Math.max(0,Math.min(.99,Number(p?.confidence)||0)),
     source:'official-exam-pdf'
   };
+}
+
+async function storedEnemQuestion(sourceUrl:string,questionNumber:number){
+  if(!db)return null;
+  try{
+    const {data,error}=await db
+      .from('official_vestibular_question_bank_v2')
+      .select('prompt_text,option_a,option_b,option_c,option_d,option_e,source_page,image_url,image_alt')
+      .eq('series_id','enem')
+      .eq('source_pdf_url',sourceUrl)
+      .eq('question_number',questionNumber)
+      .maybeSingle();
+    if(error||!data)return null;
+    const prompt=String(data.prompt_text||'').trim();
+    const options=[data.option_a,data.option_b,data.option_c,data.option_d,data.option_e];
+    if(prompt.length<12||options.filter(Boolean).length<2)return null;
+    const visualCue=/\b(figura|imagem|gr[aá]fico|tabela|mapa|esquema|fotografia|charge|tirinha|diagrama|cartum|quadrinho|ilustra[cç][aã]o)\b/i.test([prompt,...options].filter(Boolean).join(' '));
+    return {
+      question_number:questionNumber,
+      found:true,
+      prompt,
+      option_a:data.option_a||null,
+      option_b:data.option_b||null,
+      option_c:data.option_c||null,
+      option_d:data.option_d||null,
+      option_e:data.option_e||null,
+      needs_source_image:Boolean(data.image_url||data.image_alt||visualCue),
+      image_note:data.image_alt||(visualCue?'Esta questão contém elemento visual da prova oficial.':null),
+      source_page:Number.isInteger(Number(data.source_page))&&Number(data.source_page)>0?Number(data.source_page):undefined,
+      confidence:1,
+      source:'stored-enem-question'
+    };
+  }catch(error:any){
+    console.warn('stored ENEM lookup failed',error?.message||error);
+    return null;
+  }
 }
 
 const reply=(res:any,status:number,body:any)=>{res.setHeader('Cache-Control',status===200?'public, s-maxage=2592000, stale-while-revalidate=7776000':'no-store');return res.status(status).json(body)};
@@ -134,6 +176,14 @@ export default async function handler(req:any,res:any){
     const exam=String(input?.exam||'').slice(0,80);
     const year=Number(input?.year)||null;
     if(!sourceUrl)return reply(res,400,{error:'Fonte oficial inválida.'});
+
+    // INEP blocks/fails intermittently from cloud serverless networks. For ENEM
+    // questions already materialized in our structured bank, serve the faithful
+    // stored text first and reserve AI/PDF extraction only for genuinely missing rows.
+    if(mode==='question'&&isInepPdf(sourceUrl)&&questionNumber){
+      const stored=await storedEnemQuestion(sourceUrl,questionNumber);
+      if(stored)return reply(res,200,stored);
+    }
 
     if(mode==='batch'){
       if(!fromQuestion||toQuestion<fromQuestion)return reply(res,400,{error:'Intervalo de questões inválido.'});
