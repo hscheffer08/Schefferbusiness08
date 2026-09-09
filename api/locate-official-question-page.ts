@@ -1,6 +1,7 @@
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 const pdfCache = new Map<string, Promise<any>>();
+const SUPABASE_PDF_PROXY = 'https://kmognvgnfisdchzffkgh.supabase.co/functions/v1/official-pdf-proxy';
 
 function allowedUrl(raw: unknown) {
   try {
@@ -52,21 +53,45 @@ function isQuestionMarker(line: string, questionNumber: number) {
     || new RegExp(`^\\s*0*${questionNumber}\\s*$`).test(line);
 }
 
+async function fetchPdfBytes(sourceUrl: string) {
+  const candidates = [
+    sourceUrl,
+    `${SUPABASE_PDF_PROXY}?url=${encodeURIComponent(sourceUrl)}`,
+  ];
+  let lastError = 'A fonte oficial não respondeu.';
+  for (const candidate of candidates) {
+    try {
+      const response = await fetch(candidate, {
+        redirect: 'follow',
+        signal: AbortSignal.timeout(30000),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; ConectaeOfficialPageLocator/1.1)',
+          Accept: 'application/pdf,*/*;q=0.8',
+        },
+      });
+      if (!response.ok) {
+        lastError = `PDF HTTP ${response.status}`;
+        continue;
+      }
+      const data = await response.arrayBuffer();
+      if (!data.byteLength) {
+        lastError = 'PDF vazio.';
+        continue;
+      }
+      if (data.byteLength > 35 * 1024 * 1024) throw new Error('PDF grande demais.');
+      return data;
+    } catch (error: any) {
+      lastError = String(error?.message || error);
+    }
+  }
+  throw new Error(lastError);
+}
+
 async function loadPdf(sourceUrl: string) {
   let cached = pdfCache.get(sourceUrl);
   if (cached) return cached;
   cached = (async () => {
-    const response = await fetch(sourceUrl, {
-      redirect: 'follow',
-      signal: AbortSignal.timeout(30000),
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; ConectaeOfficialPageLocator/1.0)',
-        Accept: 'application/pdf,*/*;q=0.8',
-      },
-    });
-    if (!response.ok) throw new Error(`PDF HTTP ${response.status}`);
-    const data = await response.arrayBuffer();
-    if (!data.byteLength || data.byteLength > 35 * 1024 * 1024) throw new Error('PDF inválido ou grande demais.');
+    const data = await fetchPdfBytes(sourceUrl);
     return getDocument({ data: new Uint8Array(data), isEvalSupported: false, useSystemFonts: true, disableFontFace: false }).promise;
   })();
   pdfCache.set(sourceUrl, cached);
