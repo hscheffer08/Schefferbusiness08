@@ -15,17 +15,18 @@ function allowed(raw:string){
 }
 function shiftedAscii(raw:string){
   let out='';
-  for(const ch of raw){const code=ch.charCodeAt(0);out+=code>=32&&code<=93?String.fromCharCode(code+29):ch}
+  for(const ch of raw){const code=ch.charCodeAt(0);out+=code>=3&&code<=97?String.fromCharCode(code+29):ch}
   return out;
 }
 function decodeCmmgToken(token:string){
-  if(token.length<3)return token;
+  if(token.length<2)return token;
   const candidate=shiftedAscii(token);
   const bad=[...candidate].filter(ch=>'`^[\\]'.includes(ch)).length;
   const letters=(candidate.match(/[A-Za-zÀ-ÿ]/g)||[]).length;
   const odd="$%&'()*+,-./0123456789:;<=>?@[\\]^_";
-  const originalOdd=[...token].filter(ch=>odd.includes(ch)).length;
-  if(bad||letters/Math.max(candidate.length,1)<.62)return token;
+  const originalOdd=[...token].filter(ch=>odd.includes(ch)||ch.charCodeAt(0)<32).length;
+  const candidateUseful=(candidate.match(/[A-Za-z0-9À-ÿ]/g)||[]).length/Math.max(candidate.length,1);
+  if(bad||candidateUseful<.55)return token;
   return originalOdd>0||/^[A-Z]{4,}$/.test(token)?candidate:token;
 }
 function decodeCmmg(raw:string){
