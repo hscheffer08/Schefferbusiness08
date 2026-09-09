@@ -28,7 +28,7 @@ patch(
 
 patch(
   `const key=\`conectae:official-v8:\${q.question_id}\`;`,
-  `const key=\`conectae:official-v12:\${q.question_id}\`;`,
+  `const key=\`conectae:official-v13:\${q.question_id}\`;`,
   'visual cache version',
 );
 
@@ -40,7 +40,7 @@ patch(
 
 patch(
   `      if(!value)throw new Error('Não consegui carregar esta questão completa agora. Tente novamente em alguns segundos.');\n      if(value.needs_source_image&&!value.images?.length&&value.source_page&&q.source_pdf_url&&!/^https:\\/\\/download\\.inep\\.gov\\.br\\//i.test(q.source_pdf_url)){try{const image=await renderOfficialPdfPage(q.source_pdf_url,value.source_page);if(image)value={...value,images:[image]}}catch(e){console.warn('official source page rendering failed',e)}}`,
-  `      if(!value)throw new Error('Não consegui carregar esta questão completa agora. Tente novamente em alguns segundos.');\n      // Mostra o texto imediatamente; o gráfico/foto é carregado sem bloquear a questão.\n      setExtracted(value);setExtracting(false);\n      if(value.needs_source_image&&!value.images?.length&&!value.source_page&&q.source_pdf_url){\n        try{const localMeta=await extractOfficialQuestion(q.source_pdf_url,q.question_number);if(localMeta?.source_page)value={...value,source_page:localMeta.source_page,image_note:value.image_note||localMeta.image_note||null}}catch(e){console.warn('official visual page lookup failed',e)}\n      }\n      if(value.needs_source_image&&!value.images?.length&&!value.source_page&&q.source_pdf_url){\n        try{const remoteMeta=await extractOfficialQuestionRemotely(q.source_pdf_url,q.question_number,q.vestibular,q.year);if(remoteMeta?.source_page)value={...value,source_page:remoteMeta.source_page,image_note:value.image_note||remoteMeta.image_note||null}}catch(e){console.warn('official remote visual page lookup failed',e)}\n      }\n      if(value.needs_source_image&&!value.images?.length&&value.source_page&&q.source_pdf_url){try{const image=await renderOfficialPdfPage(q.source_pdf_url,value.source_page);if(image)value={...value,images:[image]}}catch(e){console.warn('official source page rendering failed',e)}}`,
+  `      if(!value)throw new Error('Não consegui carregar esta questão completa agora. Tente novamente em alguns segundos.');\n      // Mostra o texto imediatamente; o gráfico/foto é carregado sem bloquear a questão.\n      setExtracted(value);setExtracting(false);\n      if(value.needs_source_image&&!value.images?.length&&!value.source_page&&q.source_pdf_url){\n        try{const localMeta=await extractOfficialQuestion(q.source_pdf_url,q.question_number);if(localMeta?.source_page)value={...value,source_page:localMeta.source_page,image_note:value.image_note||localMeta.image_note||null}}catch(e){console.warn('official visual page lookup failed',e)}\n      }\n      if(value.needs_source_image&&!value.images?.length&&!value.source_page&&q.source_pdf_url){\n        try{const remoteMeta=await extractOfficialQuestionRemotely(q.source_pdf_url,q.question_number,q.vestibular,q.year);if(remoteMeta?.source_page)value={...value,source_page:remoteMeta.source_page,image_note:value.image_note||remoteMeta.image_note||null}}catch(e){console.warn('official remote visual page lookup failed',e)}\n      }\n      // Último fallback: usa a página previamente materializada somente se os localizadores atuais falharem.\n      if(value.needs_source_image&&!value.images?.length&&!value.source_page&&q.source_page)value={...value,source_page:q.source_page};\n      if(value.needs_source_image&&!value.images?.length&&value.source_page&&q.source_pdf_url){try{const image=await renderOfficialPdfPage(q.source_pdf_url,value.source_page);if(image)value={...value,images:[image]}}catch(e){console.warn('official source page rendering failed',e)}}`,
   'visual hydration',
 );
 
@@ -54,6 +54,12 @@ patch(
   `#page=\${Math.max(1,(extracted.source_page||1)-1)}`,
   `#page=\${Math.max(1,extracted.source_page||1)}`,
   'pdf page fragment',
+);
+
+patch(
+  `activeOfficial?.source_pdf_url&&extracted?.needs_source_image&&!extracted.images?.length&&<iframe`,
+  `activeOfficial?.source_pdf_url&&extracted?.needs_source_image&&!extracted.images?.length&&Boolean(extracted.source_page)&&<iframe`,
+  'avoid wrong first-page fallback',
 );
 
 fs.writeFileSync(path,src);
