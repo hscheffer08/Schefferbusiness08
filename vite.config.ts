@@ -6,9 +6,16 @@ import { fileURLToPath, URL } from 'node:url';
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
-    },
+    alias: [
+      {
+        find: '@/lib/admissions-roadmap',
+        replacement: fileURLToPath(new URL('./src/lib/admissions-roadmap-balanced.ts', import.meta.url)),
+      },
+      {
+        find: '@',
+        replacement: fileURLToPath(new URL('./src', import.meta.url)),
+      },
+    ],
   },
   optimizeDeps: {
     exclude: ['lucide-react'],
