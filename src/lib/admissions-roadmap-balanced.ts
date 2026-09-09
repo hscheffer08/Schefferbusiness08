@@ -1,4 +1,4 @@
-import { getExamSkillCatalog, topicKey, type DifficultySelection } from './exam-skill-catalog';
+import { getExamSkillCatalog, topicKey, type DifficultySelection } from './exam-skill-catalog.ts';
 import {
   buildRoadmap as buildBaseRoadmap,
   getMilestones,
@@ -7,7 +7,7 @@ import {
   type RoadmapQuestion,
   type RoadmapSession,
   type RoadmapWeek as BaseRoadmapWeek,
-} from './admissions-roadmap';
+} from './admissions-roadmap.ts';
 
 export { getMilestones };
 export type { ExamMilestone, RoadmapPriority, RoadmapQuestion, RoadmapSession };
@@ -55,8 +55,6 @@ function matchArea(area: string, key: string) {
 function eligibleForMix(examId: string, week: BaseRoadmapWeek, priority: RoadmapPriority) {
   const key = norm(keyOf(priority));
   if (examId === 'enem') {
-    // Até o 1º dia, todas as áreas precisam continuar vivas. Entre os dois dias,
-    // o tempo restante é concentrado em Natureza e Matemática.
     return week.start >= '2026-11-09' ? ['natureza', 'matematica'].includes(key) : ['linguagens', 'humanas', 'natureza', 'matematica', 'redacao'].includes(key);
   }
   if (examId === 'fuvest') return week.phase.includes('2ª') ? key !== '1ª fase' && key !== '1a fase' : key === '1ª fase' || key === '1a fase';
@@ -249,9 +247,7 @@ export function buildRoadmap(args: BuildArgs) {
 
     const mixText = focusMix.map(f => `${f.label} ${Math.round(f.weight * 100)}%`).join(' · ');
     const questionSkills = Array.from(new Set(focusMix.flatMap(focus => args.questions.filter(q => matchArea(q.area, focus.key)).map(q => q.skill_name).filter(Boolean)))).slice(0, 8);
-    const studyChecklist = focusMix.flatMap(focus => [
-      `${focus.role === 'principal' ? 'Foco principal' : focus.role === 'secundario' ? 'Foco secundário' : 'Manutenção'} — ${focus.label}: ${focus.topic}.`,
-    ]);
+    const studyChecklist = focusMix.map(focus => `${focus.role === 'principal' ? 'Foco principal' : focus.role === 'secundario' ? 'Foco secundário' : 'Manutenção'} — ${focus.label}: ${focus.topic}.`);
     const questionIds = mixedQuestionIds(args, focusMix, weekIndex);
     const balanceSummary = `Tempo dirigido: ${mixText}. O simulado/checkpoint permanece misto e não rouba horas do orçamento semanal.`;
     const rationale = `${balanceSummary} A distribuição considera distância até a meta, desempenho recente, dificuldades declaradas e diagnósticos; uma área pode continuar como foco principal quando a necessidade é claramente maior, mas não monopoliza a semana.`;
