@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { ArrowLeft, GraduationCap, Loader2, Mail, Lock, User as UserIcon, AlertCircle, CheckCircle2, RefreshCcw } from 'lucide-react';
+import { ArrowLeft, GraduationCap, Loader2, Mail, Lock, User as UserIcon, AlertCircle, CheckCircle2, RefreshCcw, KeyRound } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { supabase } from '@/lib/supabase';
 import { trackEvent } from '@/lib/analytics';
 
 interface AuthProps {
@@ -14,10 +15,31 @@ interface AuthProps {
 
 type Mode = 'login' | 'signup' | 'reset' | 'update';
 
+function normalizeCourseUsername(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_')
+    .replace(/[^a-z0-9._-]/g, '')
+    .replace(/^[._-]+|[._-]+$/g, '')
+    .slice(0, 32);
+}
+
+function courseUsernameEmail(username: string) {
+  return `u_${normalizeCourseUsername(username)}@course.conectae.app`;
+}
+
 export default function Auth({ onBack, onSuccess, onPrivacy, onTerms, compact = false, initialMode = 'login' }: AuthProps) {
   const { signIn, signUp, resendConfirmation, resetPassword, updatePassword } = useAuth();
   const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return localStorage.getItem('conectae:course-username') || '';
+  });
+  const [rememberUsername, setRememberUsername] = useState(true);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -35,6 +57,137 @@ export default function Auth({ onBack, onSuccess, onPrivacy, onTerms, compact = 
     setConfirmPassword('');
     if (next !== 'login') setPendingConfirmationEmail(null);
   };
+
+  const rememberCourseUsername = (value: string) => {
+    if (typeof window === 'undefined') return;
+    const normalized = normalizeCourseUsername(value);
+    if (rememberUsername && normalized) localStorage.setItem('conectae:course-username', normalized);
+    else localStorage.removeItem('conectae:course-username');
+  };
+
+  const handleCourseSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supabase) {
+      setError('Não foi possível abrir o acesso agora.');
+      return;
+    }
+    setError(null);
+    setSuccess(null);
+    const normalized = normalizeCourseUsername(username);
+    if (normalized.length < 3) {
+      setError('Use um usuário com pelo menos 3 caracteres.');
+      return;
+    }
+    if (password.length < 8) {
+      setError('A senha deve ter pelo menos 8 caracteres.');
+      return;
+    }
+    if (mode === 'signup' && password !== confirmPassword) {
+      setError('As senhas não coincidem.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (mode === 'signup') {
+        const { data, error: createError } = await supabase.functions.invoke('course-username-register', {
+          body: { username: normalized, password },
+        });
+        if (createError) {
+          const raw = String((createError as any)?.context?.body?.error || (createError as any)?.message || '');
+          if (/already|exist|409|registered/i.test(raw)) throw new Error('Esse usuário já existe. Entre com a senha ou escolha outro.');
+          throw new Error('Não foi possível criar esse usuário agora. Tente outro nome ou tente novamente.');
+        }
+        const createdUsername = normalizeCourseUsername(String((data as any)?.username || normalized));
+        const { error: loginError } = await supabase.auth.signInWithPassword({
+          email: courseUsernameEmail(createdUsername),
+          password,
+        });
+        if (loginError) throw new Error('Usuário criado. Tente entrar agora com o usuário e a senha escolhidos.');
+        setUsername(createdUsername);
+        rememberCourseUsername(createdUsername);
+        trackEvent('signup_started', { method: 'course_username' });
+        trackEvent('login_completed', { method: 'course_username' });
+        onSuccess();
+      } else {
+        const { error: loginError } = await supabase.auth.signInWithPassword({
+          email: courseUsernameEmail(normalized),
+          password,
+        });
+        if (loginError) throw new Error('Usuário ou senha inválidos.');
+        rememberCourseUsername(normalized);
+        trackEvent('login_completed', { method: 'course_username' });
+        onSuccess();
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Não foi possível entrar agora.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (compact) {
+    const courseMode: 'login' | 'signup' = mode === 'signup' ? 'signup' : 'login';
+    return (
+      <div className="relative overflow-hidden">
+        <main className="relative z-10 px-5 pb-8">
+          <div className="w-full max-w-md mx-auto">
+            <div className="text-center mb-5">
+              <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 mb-3 shadow-lg shadow-brand-500/20">
+                <KeyRound className="w-5 h-5 text-ink-950" strokeWidth={2.5} />
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight mb-1">{courseMode === 'login' ? 'Entrar no Curso' : 'Criar meu acesso'}</h1>
+              <p className="text-sm text-ink-400">Sem e-mail. Use apenas um usuário e uma senha.</p>
+            </div>
+
+            {error && <div className="mb-4 flex items-start gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-sm text-red-300"><AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /><span>{error}</span></div>}
+            {success && <div className="mb-4 flex items-start gap-2 p-3 rounded-xl bg-green-500/10 border border-green-500/30 text-sm text-green-300"><CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" /><span>{success}</span></div>}
+
+            <form onSubmit={handleCourseSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-ink-400 mb-1.5">Usuário</label>
+                <div className="relative">
+                  <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" />
+                  <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="seu_usuario" required autoComplete="username" autoCapitalize="none" spellCheck={false} maxLength={32} className="w-full pl-11 pr-4 py-3 rounded-xl bg-ink-800/50 border border-ink-700 text-ink-100 placeholder-ink-600 focus:outline-none focus:border-brand-500 focus:bg-ink-800 transition-colors" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-ink-400 mb-1.5">Senha</label>
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" />
+                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={8} autoComplete={courseMode === 'login' ? 'current-password' : 'new-password'} className="w-full pl-11 pr-4 py-3 rounded-xl bg-ink-800/50 border border-ink-700 text-ink-100 placeholder-ink-600 focus:outline-none focus:border-brand-500 focus:bg-ink-800 transition-colors" />
+                </div>
+              </div>
+
+              {courseMode === 'signup' && <div>
+                <label className="block text-xs font-medium text-ink-400 mb-1.5">Confirmar senha</label>
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" />
+                  <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" required minLength={8} autoComplete="new-password" className="w-full pl-11 pr-4 py-3 rounded-xl bg-ink-800/50 border border-ink-700 text-ink-100 placeholder-ink-600 focus:outline-none focus:border-brand-500 focus:bg-ink-800 transition-colors" />
+                </div>
+              </div>}
+
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-400">
+                <input type="checkbox" checked={rememberUsername} onChange={(e) => setRememberUsername(e.target.checked)} className="h-4 w-4 rounded border-ink-600 bg-ink-800" />
+                Lembrar meu usuário neste aparelho
+              </label>
+
+              <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-ink-950 font-semibold transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : courseMode === 'login' ? 'Entrar no meu Curso' : 'Criar acesso e entrar'}
+              </button>
+            </form>
+
+            <p className="mt-3 text-center text-[11px] leading-relaxed text-ink-500">Seu acesso permanece conectado neste aparelho. A senha não é gravada em texto pelo Conectaê.</p>
+            <div className="mt-5 text-center text-sm text-ink-400">
+              {courseMode === 'login' ? <p>Primeira vez? <button type="button" onClick={() => changeMode('signup')} className="text-brand-400 hover:text-brand-300 font-medium">Criar usuário</button></p> : <p>Já tem usuário? <button type="button" onClick={() => changeMode('login')} className="text-brand-400 hover:text-brand-300 font-medium">Entrar</button></p>}
+            </div>
+            <button type="button" onClick={onBack} className="mt-5 w-full text-center text-xs font-semibold text-ink-500 hover:text-ink-300">Voltar</button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   const handleResend = async () => {
     if (!pendingConfirmationEmail || resending) return;
@@ -116,8 +269,8 @@ export default function Auth({ onBack, onSuccess, onPrivacy, onTerms, compact = 
   };
 
   return (
-    <div className={compact ? 'relative overflow-hidden' : 'min-h-screen flex flex-col relative overflow-hidden'}>
-      {!compact && <>
+    <div className="min-h-screen flex flex-col relative overflow-hidden">
+      <>
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-40 left-1/4 w-[400px] h-[400px] rounded-full bg-brand-500/15 blur-[120px]" />
           <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] rounded-full bg-accent-500/8 blur-[120px]" />
@@ -127,13 +280,13 @@ export default function Auth({ onBack, onSuccess, onPrivacy, onTerms, compact = 
             <ArrowLeft className="w-4 h-4" /> {mode === 'update' ? 'Voltar ao site' : 'Voltar ao início'}
           </button>
         </header>
-      </>}
+      </>
 
-      <main className={compact ? 'relative z-10 px-5 pb-8' : 'relative z-10 flex-1 flex items-center justify-center px-6 pb-16'}>
+      <main className="relative z-10 flex-1 flex items-center justify-center px-6 pb-16">
         <div className="w-full max-w-md mx-auto">
-          <div className={compact ? 'text-center mb-5' : 'text-center mb-8'}>
-            <div className={compact ? 'inline-flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 mb-3 shadow-lg shadow-brand-500/20' : 'inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-400 to-brand-600 mb-4 shadow-lg shadow-brand-500/20'}>
-              <GraduationCap className={compact ? 'w-5 h-5 text-ink-950' : 'w-7 h-7 text-ink-950'} strokeWidth={2.5} />
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-400 to-brand-600 mb-4 shadow-lg shadow-brand-500/20">
+              <GraduationCap className="w-7 h-7 text-ink-950" strokeWidth={2.5} />
             </div>
             <h1 className="text-2xl font-bold tracking-tight mb-1">
               {mode === 'login' && 'Entrar na sua conta'}
