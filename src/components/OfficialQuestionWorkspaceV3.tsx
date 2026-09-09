@@ -114,7 +114,7 @@ export default function OfficialQuestionWorkspaceV3(){
   function reset(){setSelected('');setCorrect(null);setSubmitted(false);setAnswering(false);setExtracted(null);setExtractError('')}
   function close(){setActiveOfficial(null);setActivePractice(null);reset()}
   async function loadOfficial(q:OfficialRef){
-    reset();setActiveOfficial(q);setActivePractice(null);setExtracting(true);const key=`conectae:official-v7:${q.question_id}`;
+    reset();setActiveOfficial(q);setActivePractice(null);setExtracting(true);const key=`conectae:official-v8:${q.question_id}`;
     try{const cached=JSON.parse(sessionStorage.getItem(key)||'null');if(isUsableOfficialQuestion(cached)){setExtracted(cached);return}}catch{}
     try{
       let value:Extracted|null=null;

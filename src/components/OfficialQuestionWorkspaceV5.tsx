@@ -312,7 +312,7 @@ export default function OfficialQuestionWorkspaceV5() {
     setAo(q);
     setAp(null);
     setExtracting(true);
-    const key = `conectae:official-v6:${q.question_id}`;
+    const key = `conectae:official-v8:${q.question_id}`;
     try {
       try {
         const cached = JSON.parse(sessionStorage.getItem(key) || "null");

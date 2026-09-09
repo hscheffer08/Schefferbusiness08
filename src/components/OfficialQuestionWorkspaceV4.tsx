@@ -331,7 +331,7 @@ export default function OfficialQuestionWorkspaceV4() {
     setActiveOfficial(q);
     setActivePractice(null);
     setExtracting(true);
-    const key = `conectae:official-v6:${q.question_id}`;
+    const key = `conectae:official-v8:${q.question_id}`;
     try {
       const cached = JSON.parse(sessionStorage.getItem(key) || "null");
       if (isUsableOfficialQuestion(cached)) {
