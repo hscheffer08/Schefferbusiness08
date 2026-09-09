@@ -90,7 +90,7 @@ export default async function handler(req:any,res:any){
     const pending=force?refs:refs.filter(q=>!usable(q));
     const results=await pool(pending,concurrency,(q)=>extractOne(req,q));
     const success=results.filter(x=>x?.ok).length;
-    const failures=results.map((x,i)=>x&&!x.ok?{question_id:pending[i]?.question_id,year:pending[i]?.year,question_number:pending[i]?.question_number,error:x.error}:null).filter(Boolean);
+    const failures=results.flatMap((x,i)=>x&&'error' in x?[{question_id:pending[i]?.question_id,year:pending[i]?.year,question_number:pending[i]?.question_number,error:x.error}]:[]);
     res.setHeader('Cache-Control','no-store');
     return res.status(200).json({series,offset,limit,rows:refs.length,skipped:refs.length-pending.length,processed:pending.length,success,failed:failures.length,failures,done:refs.length<limit,next_offset:offset+refs.length});
   }catch(e:any){
