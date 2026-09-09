@@ -124,8 +124,14 @@ async function tutorRequest(payload: unknown) {
     }
   }
 
-  const response = await request(token || undefined);
-  if (response.status === 401 && token) return request();
+  let response = await request(token || undefined);
+  if (response.status === 401 && token) response = await request();
+  for (const delay of [4000, 10000]) {
+    if (response.status !== 429 && response.status !== 503) break;
+    await new Promise(resolve => window.setTimeout(resolve, delay));
+    response = await request(token || undefined);
+    if (response.status === 401 && token) response = await request();
+  }
   return response;
 }
 
