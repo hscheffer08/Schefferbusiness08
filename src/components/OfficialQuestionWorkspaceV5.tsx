@@ -63,6 +63,9 @@ type P = {
   source_exam_year: number | null;
   source_question_number: number | null;
   source_exam_url: string | null;
+  image_url: string | null;
+  image_alt: string | null;
+  image_credit: string | null;
 };
 type E = {
   found?: boolean;
@@ -77,6 +80,7 @@ type E = {
   image_note: string | null;
   confidence: number;
   images?: string[];
+  option_images?: Record<string, string>;
   source_page?: number;
 };
 const CFG: Cfg[] = [
@@ -167,6 +171,7 @@ export default function OfficialQuestionWorkspaceV5() {
     [submitted, setSubmitted] = useState(false),
     [answering, setAnswering] = useState(false),
     [written, setWritten] = useState("");
+  const [failedVisuals, setFailedVisuals] = useState<string[]>([]);
   const started = useRef(Date.now());
   const cfg = CFG.find((c) => c.id === exam)!;
   useEffect(() => {
@@ -189,7 +194,7 @@ export default function OfficialQuestionWorkspaceV5() {
       const pp = supabase
         .from("exam_practice_questions")
         .select(
-          "id,exam_id,area,skill_name,difficulty,prompt,option_a,option_b,option_c,option_d,option_e,correct_option,explanation,source_kind,source_exam_year,source_question_number,source_exam_url",
+          "id,exam_id,area,skill_name,difficulty,prompt,option_a,option_b,option_c,option_d,option_e,correct_option,explanation,source_kind,source_exam_year,source_question_number,source_exam_url,image_url,image_alt,image_credit",
         )
         .eq("active", true)
         .eq("exam_id", exam)
@@ -300,6 +305,7 @@ export default function OfficialQuestionWorkspaceV5() {
     setCorrect(null);
     setSubmitted(false);
     setWritten("");
+    setFailedVisuals([]);
     setExt(null);
     setExtractError("");
     started.current = Date.now();
@@ -314,16 +320,23 @@ export default function OfficialQuestionWorkspaceV5() {
     setAo(q);
     setAp(null);
     setExtracting(true);
-    const key = `conectae:official-v11:${q.question_id}`;
+    const key = `conectae:official-v16:${q.question_id}`;
     try {
+      let v: E | null = null;
       try {
         const cached = JSON.parse(sessionStorage.getItem(key) || "null");
         if (isUsableOfficialQuestion(cached)) {
           setExt(cached);
-          return;
+          v = cached as E;
+          if (
+            !cached.needs_source_image ||
+            cached.images?.length ||
+            Object.keys(cached.option_images || {}).length ||
+            cached.source_page
+          )
+            return;
         }
       } catch {}
-      let v: E | null = null;
       const visualCue = /\b(figura|imagem|gr[aá]fico|tabela|mapa|esquema|fotografia|charge|tirinha|diagrama|cartum|quadrinho|ilustra[cç][aã]o)\b/i.test(
         [q.prompt_text, q.option_a, q.option_b, q.option_c, q.option_d, q.option_e]
           .filter(Boolean)
@@ -346,9 +359,9 @@ export default function OfficialQuestionWorkspaceV5() {
         images: q.image_url ? [q.image_url] : undefined,
         // source_page antigo pode ter sido produzido por extratores anteriores;
         // para questões visuais sem asset, localizamos a página novamente antes de exibir.
-        source_page: undefined,
+        source_page: q.source_page || undefined,
       };
-      if (isUsableOfficialQuestion(stored)) v = stored;
+      if (!v && isUsableOfficialQuestion(stored)) v = stored;
       if (!v && q.series_id === "enem" && q.year >= 2019 && q.year <= 2023) {
         try {
           const r = await fetch(
@@ -399,8 +412,53 @@ export default function OfficialQuestionWorkspaceV5() {
       setExtracting(false);
 
       if (
+        q.series_id === "enem" &&
         v.needs_source_image &&
         !v.images?.length &&
+        !Object.keys(v.option_images || {}).length
+      ) {
+        try {
+          const response = await fetch(
+            `/api/enem-question-visuals?year=${q.year}&questionNumber=${q.question_number}&prompt=${encodeURIComponent(v.prompt || q.prompt_text || "")}`,
+          );
+          const media = await response.json().catch(() => ({}));
+          const images = Array.isArray(media?.images)
+            ? media.images.filter(
+                (url: unknown) =>
+                  typeof url === "string" && url.startsWith("https://"),
+              )
+            : [];
+          const optionImages =
+            media?.option_images && typeof media.option_images === "object"
+              ? media.option_images
+              : {};
+          if (response.ok && (images.length || Object.keys(optionImages).length))
+            v = {
+              ...v,
+              images: images.length ? images : v.images,
+              option_images: optionImages,
+            };
+        } catch (e) {
+          console.warn("ENEM original media lookup failed", e);
+        }
+      }
+
+      if (v.needs_source_image && !v.source_page && q.source_pdf_url) {
+        try {
+          const response = await fetch(
+            `/api/locate-official-question-page?sourceUrl=${encodeURIComponent(q.source_pdf_url)}&questionNumber=${q.question_number}`,
+          );
+          const data = await response.json().catch(() => ({}));
+          const sourcePage = Number(data?.source_page);
+          if (response.ok && Number.isInteger(sourcePage) && sourcePage > 0)
+            v = { ...v, source_page: sourcePage };
+        } catch (e) {
+          console.warn("official deterministic page locator failed", e);
+        }
+      }
+
+      if (
+        v.needs_source_image &&
         !v.source_page &&
         q.source_pdf_url
       ) {
@@ -422,7 +480,6 @@ export default function OfficialQuestionWorkspaceV5() {
       }
       if (
         v.needs_source_image &&
-        !v.images?.length &&
         !v.source_page &&
         q.source_pdf_url
       ) {
@@ -461,9 +518,19 @@ export default function OfficialQuestionWorkspaceV5() {
           console.warn("official source page rendering failed", e);
         }
       }
+      if (
+        v.needs_source_image &&
+        !v.images?.length &&
+        !Object.keys(v.option_images || {}).length &&
+        !v.source_page
+      )
+        throw new Error(
+          "A figura obrigatória desta questão não carregou. Tente novamente para responder com o enunciado completo.",
+        );
       setExt(v);
       try {
-        sessionStorage.setItem(key, JSON.stringify(v));
+        if (!v.needs_source_image || v.images?.length || Object.keys(v.option_images || {}).length || v.source_page)
+          sessionStorage.setItem(key, JSON.stringify(v));
       } catch {}
     } catch (e: any) {
       setExtractError(
@@ -478,6 +545,10 @@ export default function OfficialQuestionWorkspaceV5() {
     setAp(q);
     setAo(null);
   };
+  const markVisualFailed = (src: string) =>
+    setFailedVisuals((current) =>
+      current.includes(src) ? current : [...current, src],
+    );
   async function submitPractice() {
     if (!ap || submitted) return;
     if (objective(ap)) {
@@ -577,6 +648,12 @@ export default function OfficialQuestionWorkspaceV5() {
   const modal = Boolean(ao || ap),
     source: any = ao ? ext : ap,
     prompt = ao ? ext?.prompt : ap?.prompt,
+    officialVisuals = (ext?.images || []).filter(
+      (src) => !failedVisuals.includes(src),
+    ),
+    practiceVisual = ap?.image_url && !failedVisuals.includes(ap.image_url)
+      ? ap.image_url
+      : null,
     isObj = objective(source),
     ok = Boolean(submitted && correct && selected === correct);
   useEffect(() => {
@@ -766,24 +843,45 @@ export default function OfficialQuestionWorkspaceV5() {
                   <h2 className="mt-3 whitespace-pre-line text-lg font-extrabold leading-relaxed">
                     {prompt}
                   </h2>
-                  {Array.isArray(ext?.images) && ext.images.length > 0 && (
+                  {officialVisuals.length > 0 && (
                     <div className="mt-4 grid gap-3">
-                      {ext.images.map((src, i) => (
+                      {officialVisuals.map((src, i) => (
                         <img
                           key={`${src}-${i}`}
                           src={src}
                           alt={`Elemento visual ${i + 1} da questão`}
+                          onError={() => markVisualFailed(src)}
                           className="max-h-[520px] w-full rounded-xl border border-[#234576] bg-white object-contain"
                         />
                       ))}
                     </div>
                   )}
-                  {ext?.needs_source_image && (
-                    <div className="mt-3 rounded-xl border border-amber-300/25 bg-amber-300/[.06] p-3 text-xs text-amber-100">
-                      {ext.image_note ||
-                        "Gráfico, foto, mapa, tabela ou outro elemento visual da página oficial exibido acima."}
-                    </div>
+                  {practiceVisual && (
+                    <figure className="mt-4">
+                      <img
+                        src={practiceVisual}
+                        alt={ap?.image_alt || "Elemento visual necessário para responder à questão"}
+                        onError={() => markVisualFailed(practiceVisual)}
+                        className="max-h-[520px] w-full rounded-xl border border-[#234576] bg-white object-contain"
+                      />
+                      {ap?.image_credit && (
+                        <figcaption className="mt-1 text-[11px] text-[#8fa7c9]">
+                          Fonte: {ap.image_credit}
+                        </figcaption>
+                      )}
+                    </figure>
                   )}
+                  {ao?.source_pdf_url &&
+                    ext?.needs_source_image &&
+                    officialVisuals.length === 0 &&
+                    !Object.keys(ext.option_images || {}).length &&
+                    Boolean(ext.source_page) && (
+                      <iframe
+                        title="Imagem da página oficial da questão"
+                        src={`/api/proxy-official-pdf?url=${encodeURIComponent(ao.source_pdf_url)}#page=${Math.max(1, ext.source_page || 1)}`}
+                        className="mt-4 h-[70vh] min-h-[520px] w-full rounded-xl border border-[#234576] bg-white"
+                      />
+                    )}
                   {isObj ? (
                     <div className="mt-5 grid gap-2.5">
                       {L.map((l) => {
@@ -791,7 +889,8 @@ export default function OfficialQuestionWorkspaceV5() {
                         if (!t) return null;
                         const chosen = selected === l,
                           c = submitted && correct === l,
-                          w = submitted && chosen && correct !== l;
+                          w = submitted && chosen && correct !== l,
+                          optionImage = ext?.option_images?.[l];
                         return (
                           <button
                             key={l}
@@ -800,7 +899,17 @@ export default function OfficialQuestionWorkspaceV5() {
                             className={`flex min-h-14 gap-3 rounded-xl border px-4 py-3 text-left ${c ? "border-emerald-400 bg-emerald-400/10" : w ? "border-rose-400 bg-rose-400/10" : chosen ? "border-[#3479ff] bg-[#123a78]" : "border-[#234576] bg-[#071a38]"}`}
                           >
                             <strong>{l}</strong>
-                            <span>{t}</span>
+                            <span className="min-w-0 flex-1">
+                              {t}
+                              {optionImage && !failedVisuals.includes(optionImage) && (
+                                <img
+                                  src={optionImage}
+                                  alt={`Imagem da alternativa ${l}`}
+                                  onError={() => markVisualFailed(optionImage)}
+                                  className="mt-2 max-h-72 w-full rounded-lg bg-white object-contain"
+                                />
+                              )}
+                            </span>
                           </button>
                         );
                       })}
