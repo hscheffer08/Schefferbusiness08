@@ -59,7 +59,7 @@ async function fetchText(url: string) {
     redirect: 'follow',
     signal: AbortSignal.timeout(15000),
     headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; ConectaeVisualReader/1.0)',
+      'User-Agent': 'Mozilla/5.0 (compatible; ConectaeVisualReader/1.1)',
       Accept: 'text/html,application/xhtml+xml',
     },
   });
@@ -90,7 +90,8 @@ function attr(tag: string, name: string) {
 
 function cleanVisualUrl(raw: string) {
   try {
-    const url = new URL(raw, DIMVS_BASE);
+    const cleaned = raw.replace(/[\]})>,;]+$/g, '');
+    const url = new URL(cleaned, DIMVS_BASE);
     if (url.hostname !== IMAGE_HOST) return '';
     if (!url.pathname.startsWith('/storage/v1/object/public/images/enem/')) return '';
     return url.toString();
@@ -129,13 +130,15 @@ function parseVisuals(html: string): VisualPayload {
     else images.push(url);
   }
 
-  // Alguns renderizadores deixam a URL da imagem serializada fora da tag <img>.
-  const loose = html.match(/https:\/\/zospydaosoqbdpxgpnni\.supabase\.co\/storage\/v1\/object\/public\/images\/enem\/[^"'<>\\\s]+/gi) || [];
-  for (const raw of loose) {
-    const url = cleanVisualUrl(decodeHtml(raw.replace(/\\u0026/g, '&')));
-    if (!url || seen.has(url)) continue;
-    seen.add(url);
-    images.push(url);
+  // Fallback apenas quando o HTML não expõe tags <img> utilizáveis.
+  if (!images.length && !Object.keys(optionImages).length) {
+    const loose = html.match(/https:\/\/zospydaosoqbdpxgpnni\.supabase\.co\/storage\/v1\/object\/public\/images\/enem\/[^"'<>\\\s]+/gi) || [];
+    for (const raw of loose) {
+      const url = cleanVisualUrl(decodeHtml(raw.replace(/\\u0026/g, '&')));
+      if (!url || seen.has(url)) continue;
+      seen.add(url);
+      images.push(url);
+    }
   }
 
   return { images, option_images: optionImages, source_question_number: parseQuestionNumber(html) };
