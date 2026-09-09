@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
+import { ensureFreshSession, supabase } from '@/lib/supabase';
 import type { UserProfile } from '@/types';
 
 const PROFILE_SELECT = 'id, display_name, school_year, city, state, age_range, onboarding_completed, created_at';
@@ -99,12 +99,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!supabase) { setLoading(false); return; }
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s); setUser(s?.user ?? null);
-      if (s?.user) loadProfile(s.user).finally(() => setLoading(false));
-      else setLoading(false);
-    });
+    let cancelled = false;
+
+    void ensureFreshSession(false)
+      .then(async (s) => {
+        if (cancelled) return;
+        setSession(s);
+        setUser(s?.user ?? null);
+        if (s?.user) await loadProfile(s.user);
+        else setProfile(null);
+      })
+      .catch((error) => {
+        console.warn('Initial auth session recovery failed', error);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, s) => {
+      if (cancelled) return;
       setSession(s);
       setUser(s?.user ?? null);
       if (s?.user) {
@@ -113,7 +126,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(null);
       }
     });
-    return () => authListener.subscription.unsubscribe();
+
+    return () => {
+      cancelled = true;
+      authListener.subscription.unsubscribe();
+    };
   }, [loadProfile]);
 
   const signUp = useCallback(async (email: string, password: string, displayName: string) => {
