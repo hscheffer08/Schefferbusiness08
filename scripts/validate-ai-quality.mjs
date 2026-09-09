@@ -12,6 +12,7 @@ const areas=new Set(cases.map(c=>c.area));if(areas.size<6)throw new Error('A bat
 const behaviors=new Set(cases.map(c=>c.expectedBehavior));for(const b of ['answer','abstain','uncertain','verify','challenge'])if(!behaviors.has(b))throw new Error(`Comportamento não testado: ${b}.`);
 
 const tutorRoute=fs.readFileSync(new URL('../api/education-tutor.ts',import.meta.url),'utf8');
+const tutorV5=fs.readFileSync(new URL('../api/education-tutor-v5.ts',import.meta.url),'utf8');
 const tutorV4=fs.readFileSync(new URL('../api/education-tutor-v4.ts',import.meta.url),'utf8');
 const tutorV3=fs.readFileSync(new URL('../api/education-tutor-v3.ts',import.meta.url),'utf8');
 const tutor=fs.readFileSync(new URL('../api/education-tutor-v2.ts',import.meta.url),'utf8');
@@ -22,7 +23,9 @@ const analyzerV3=fs.readFileSync(new URL('../api/analyze-question-v3.ts',import.
 const analyzer=fs.readFileSync(new URL('../api/analyze-question-v2.ts',import.meta.url),'utf8');
 const tutorUi=fs.readFileSync(new URL('../src/components/AIEducationTutor.tsx',import.meta.url),'utf8');
 
-if(!tutorRoute.includes("export { default } from './education-tutor-v4.js'"))throw new Error('A rota principal precisa usar a IA v4 com contexto de prova e gêmeo.');
+if(!tutorRoute.includes("export { default } from './education-tutor-v5.js'"))throw new Error('A rota principal precisa usar a IA v5 com corpus educacional completo.');
+if(!tutorV5.includes("from './education-tutor-v4.js'"))throw new Error('A IA v5 precisa preservar as proteções da v4.');
+for(const marker of ['official_vestibular_question_bank_v2','exam_intelligence_profiles','exam_study_resources','exam_resources','MODO TUTOR COMPLETO','resumos','mnemônicos','BASE DE CONHECIMENTO RECUPERADA'])if(!tutorV5.includes(marker))throw new Error(`Tutor v5 sem corpus/capacidade obrigatória: ${marker}.`);
 if(!tutorV4.includes("from './education-tutor-v3.js'"))throw new Error('A IA v4 precisa preservar o enriquecimento do gêmeo da v3.');
 for(const exam of ['ibmec','einstein'])if(!tutorV4.includes(`${exam}:`))throw new Error(`Tutor v4 sem contexto explícito: ${exam}.`);
 for(const marker of ['QUALITY_CONTEXT','highRiskQuestion','quality-guard','CHECAGEM AVANÇADA','exemplos recuperados do banco são material de apoio'])if(!tutorV4.includes(marker))throw new Error(`Tutor v4 sem proteção de qualidade: ${marker}.`);
@@ -44,4 +47,4 @@ const requiredSubjects={enem:['Humanas','Linguagens','Matemática','Natureza','R
 for(const [exam,subjects] of Object.entries(requiredSubjects))for(const subject of subjects)if(Number(coverage.exams[exam][subject]||0)<3)throw new Error(`Cobertura insuficiente: ${exam} / ${subject}.`);
 for(const key of ['allActiveItemsHaveAnswerKey','allActiveItemsHaveExplanation','allActiveItemsHaveSourceBasis'])if(coverage.quality?.[key]!==true)throw new Error(`Falha de qualidade na base: ${key}.`);
 const coveredSubjects=Object.values(coverage.exams).reduce((total,exam)=>total+Object.keys(exam).length,0);
-console.log(`Guardrails estruturais da IA v4 validados: ${cases.length} casos difíceis catalogados, gêmeo baseado em evidências, ${coveredSubjects} áreas ENEM/CMMG e 7 perfis de prova. Este teste não substitui avaliação ao vivo de acurácia do modelo.`);
+console.log(`Guardrails estruturais da IA v5 validados: ${cases.length} casos difíceis catalogados, corpus educacional ampliado, gêmeo baseado em evidências, ${coveredSubjects} áreas ENEM/CMMG e 7 perfis de prova. Este teste não substitui avaliação ao vivo de acurácia do modelo.`);
