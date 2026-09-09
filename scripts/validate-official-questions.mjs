@@ -62,7 +62,8 @@ assert.match(embedded,/extractOfficialQuestionRemotely/);
 assert.match(embedded,/extractOfficialAnswerRemotely/);
 assert.match(embedded,/isUsableOfficialQuestion/);
 assert.match(embedded,/id: "fuvest", label: "FUVEST", official: true/);
-assert.match(embedded,/officialVisuals\.map/);
+// Preserve the behavior contract without coupling the build to formatting/minor refactors.
+assert.match(embedded,/officialVisuals\s*\.\s*map\s*\(/);
 assert.match(embedded,/enem-question-visuals/);
 assert.match(embedded,/Imagem da página oficial da questão/);
 assert.match(embedded,/onError=\{\(\) => markVisualFailed/);
