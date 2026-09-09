@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {normalizeEnemQuestion} from '../api/enem-official-questions.ts';
-import {isQuestionMarker,splitOptions} from '../src/lib/official-pdf-client.ts';
+import {isQuestionMarker,isUsableOfficialQuestion,splitOptions} from '../src/lib/official-pdf-client.ts';
 import {ENEM_INTERACTIVE_TOTAL,isEnemInteractiveQuestion} from '../src/lib/enem-official-availability.ts';
 
 const fixture={
@@ -30,11 +30,14 @@ assert.equal(isQuestionMarker('10 palavras no parágrafo',10),false);
 const cmmg=splitOptions(['Assinale a alternativa CORRETA.','A) primeira','B) segunda','C) terceira','D) quarta']);
 assert.equal(cmmg?.prompt,'Assinale a alternativa CORRETA.');
 assert.equal(cmmg?.opts.D,'quarta');
+assert.equal(isUsableOfficialQuestion({found:true,prompt:'Enunciado correto e completo.',option_a:'Uma alternativa',option_b:'Outra alternativa'}),true);
+assert.equal(isUsableOfficialQuestion({found:true,prompt:'$VVLQDOH D DOWHUQDWLYD CORRETA ��',option_a:'FRUSR ��',option_b:'texto'}),false);
 
 const workspace=await readFile(new URL('../src/components/OfficialQuestionWorkspaceV3.tsx',import.meta.url),'utf8');
 const publicPage=await readFile(new URL('../src/components/OfficialVestibularBankPage.tsx',import.meta.url),'utf8');
 const pdfClient=await readFile(new URL('../src/lib/official-pdf-client.ts',import.meta.url),'utf8');
 const extractionApi=await readFile(new URL('../api/extract-official-question.ts',import.meta.url),'utf8');
+const embedded=await readFile(new URL('../src/components/OfficialQuestionWorkspaceV5.tsx',import.meta.url),'utf8');
 assert.match(workspace,/\.range\(from,from\+499\)/);
 assert.match(workspace,/isEnemInteractiveQuestion\(q\.year,q\.question_number\)/);
 assert.match(publicPage,/OfficialQuestionWorkspaceV3/);
@@ -48,5 +51,10 @@ assert.match(pdfClient,/start=\$\{offset\}&end=\$\{end\}/);
 assert.match(pdfClient,/URLSearchParams/);
 assert.match(workspace,/download\\\.inep\\\.gov\\\.br/);
 assert.match(extractionApi,/for\(let attempt=0;attempt<2;attempt\+\+\)/);
+assert.match(embedded,/extractOfficialQuestionRemotely/);
+assert.match(embedded,/extractOfficialAnswerRemotely/);
+assert.match(embedded,/isUsableOfficialQuestion/);
+assert.match(embedded,/id: "fuvest", label: "FUVEST", official: true/);
+assert.match(embedded,/ext\.images\.map/);
 
 console.log('Official question validation passed: ENEM 2019-2025, CMMG numbering/options, subject filters, full pagination, answer hiding and local proxy priority.');

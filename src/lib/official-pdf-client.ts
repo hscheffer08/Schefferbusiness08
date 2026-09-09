@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-type ParsedQuestion={
+export type ParsedQuestion={
   found:boolean;
   prompt:string;
   option_a:string|null;
@@ -12,6 +12,20 @@ type ParsedQuestion={
   confidence:number;
   source_page?:number;
 };
+
+const BROKEN_GLYPHS=/[\uFFFD\u25A0-\u25FF\uE000-\uF8FF]/g;
+
+/** Rejects partial or font-corrupted PDF text before it reaches the UI. */
+export function isUsableOfficialQuestion(value:Partial<ParsedQuestion>|null|undefined){
+  if(!value?.found||String(value.prompt||'').trim().length<12)return false;
+  const fields=[value.prompt,value.option_a,value.option_b,value.option_c,value.option_d,value.option_e].filter(Boolean).map(String);
+  if(fields.slice(1).filter(Boolean).length<2)return false;
+  const content=fields.join(' ');
+  const broken=(content.match(BROKEN_GLYPHS)||[]).length;
+  if(broken>=2||broken/Math.max(content.length,1)>.003)return false;
+  if(/\b(?:DVVLQDOH|DOWHUQDWLYD|TXHVWDR|SHUVRQDJHQV|FRUSR|VHUWDR|UHVSRVWD)\b/i.test(content))return false;
+  return true;
+}
 
 const PDFJS_URL='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';
 const PDFJS_WORKER='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
@@ -178,15 +192,30 @@ export async function extractOfficialQuestion(sourceUrl:string,questionNumber:nu
       if(!started){if(isQuestionMarker(line,questionNumber)){started=true;sourcePage=p;const remainder=stripQuestionMarker(line,questionNumber);if(remainder)collected.push(remainder);}continue;}
       if(isQuestionMarker(line,questionNumber+1)){
         const parsed=splitOptions(collected);
-        if(parsed)return parsedResult(parsed,.92,sourcePage);
+        if(parsed){const result=parsedResult(parsed,.92,sourcePage);if(isUsableOfficialQuestion(result))return result;}
         return {found:false,prompt:'',option_a:null,option_b:null,option_c:null,option_d:null,option_e:null,needs_source_image:false,image_note:null,confidence:0};
       }
       collected.push(line);
     }
     if(started&&++pagesAfterStart>=3)break;
   }
-  if(started){const parsed=splitOptions(collected);if(parsed)return parsedResult(parsed,.88,sourcePage)}
+  if(started){const parsed=splitOptions(collected);if(parsed){const result=parsedResult(parsed,.88,sourcePage);if(isUsableOfficialQuestion(result))return result;}}
   return {found:false,prompt:'',option_a:null,option_b:null,option_c:null,option_d:null,option_e:null,needs_source_image:false,image_note:null,confidence:0};
+}
+
+export async function renderOfficialPdfPage(sourceUrl:string,pageNumber:number):Promise<string|null>{
+  if(typeof document==='undefined'||!Number.isFinite(pageNumber)||pageNumber<1)return null;
+  const pdf=await loadPdf(sourceUrl);
+  if(pageNumber>pdf.numPages)return null;
+  const page=await pdf.getPage(pageNumber);
+  const viewport=page.getViewport({scale:1.5});
+  const canvas=document.createElement('canvas');
+  canvas.width=Math.ceil(viewport.width);
+  canvas.height=Math.ceil(viewport.height);
+  const context=canvas.getContext('2d',{alpha:false});
+  if(!context)return null;
+  await page.render({canvasContext:context,viewport}).promise;
+  return canvas.toDataURL('image/jpeg',.9);
 }
 
 export async function extractOfficialAnswer(sourceUrl:string,questionNumber:number):Promise<string|null>{

@@ -89,12 +89,12 @@ export default async function handler(req:any,res:any){
 Regras obrigatórias:
 1) Preserve fielmente o sentido e os dados da questão; não resolva e não indique o gabarito.
 2) Retorne o enunciado necessário para resolver e as alternativas A, B, C, D e E exatamente como aparecem quando existirem.
-3) Inclua textos auxiliares indispensáveis da própria questão (títulos de tabela, legenda, descrição textual curta de figura). Se uma imagem/gráfico for indispensável e não puder ser convertido com fidelidade, marque needs_source_image=true e descreva em image_note o que precisa ser exibido; não invente valores.
+3) Inclua textos auxiliares indispensáveis da própria questão (títulos de tabela, legenda, descrição textual curta de figura). Se uma imagem/gráfico for indispensável e não puder ser convertido com fidelidade, marque needs_source_image=true, descreva em image_note o que precisa ser exibido e informe source_page (número da página do PDF, começando em 1); não invente valores.
 4) Ignore instruções gerais da prova e outras questões.
 5) Se não localizar a questão com segurança, found=false.
 6) Não inclua resposta correta, comentário ou solução.
 
-Retorne APENAS JSON válido: {"found":true,"prompt":"...","option_a":"...","option_b":"...","option_c":"...","option_d":"...","option_e":"...","needs_source_image":false,"image_note":null,"confidence":0.0}.`;
+Retorne APENAS JSON válido: {"found":true,"prompt":"...","option_a":"...","option_b":"...","option_c":"...","option_d":"...","option_e":"...","needs_source_image":false,"image_note":null,"source_page":1,"confidence":0.0}.`;
     const p=await runJson({prompt,sourceUrl,maxOutputTokens:2600,timeoutMs:60000,exam,tag:'feature:official-question-extract'});
     const optionCount=['option_a','option_b','option_c','option_d','option_e'].filter((key)=>String(p[key]||'').trim()).length;
     const found=p.found!==false&&String(p.prompt||'').trim().length>10&&optionCount>=2;
@@ -108,6 +108,7 @@ Retorne APENAS JSON válido: {"found":true,"prompt":"...","option_a":"...","opti
       option_e:found?String(p.option_e||'').trim()||null:null,
       needs_source_image:Boolean(p.needs_source_image),
       image_note:p.image_note?String(p.image_note).slice(0,500):null,
+      source_page:Number.isInteger(Number(p.source_page))&&Number(p.source_page)>0?Number(p.source_page):undefined,
       confidence:Math.max(0,Math.min(.99,Number(p.confidence)||0)),
       source:'official-exam-pdf'
     });
