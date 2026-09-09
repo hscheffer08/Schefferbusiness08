@@ -1,3 +1,3 @@
-// Stable compatibility route. Production retrieves the complete relevant learning corpus,
-// provenance, seen-history, the measured study twin and exam-specific context before answers.
-export { default } from './education-tutor-v5.js';
+// Public compatibility route. The tutor works with or without a logged-in account.
+// Login is used only to enrich context and allow saving learning signals to a personal plan.
+export { default } from './education-tutor-public.js';
