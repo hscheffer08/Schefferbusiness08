@@ -374,6 +374,7 @@ export default function OfficialQuestionWorkspaceV4() {
       }
       if (
         !value &&
+        q.series_id !== "cmmg" &&
         q.source_pdf_url &&
         !/download\.inep\.gov\.br/i.test(q.source_pdf_url)
       ) {
@@ -452,6 +453,7 @@ export default function OfficialQuestionWorkspaceV4() {
       if (
         !validLetter(ans) &&
         activeOfficial.answer_key_url &&
+        activeOfficial.series_id !== "cmmg" &&
         !/download\.inep\.gov\.br/i.test(activeOfficial.answer_key_url)
       ) {
         try {

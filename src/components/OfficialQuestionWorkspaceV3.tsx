@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, ExternalLink, Loader2, RotateCcw, Search, X, XCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { extractOfficialAnswer, extractOfficialAnswerRemotely, extractOfficialQuestion, extractOfficialQuestionRemotely } from '@/lib/official-pdf-client';
+import { extractOfficialAnswer, extractOfficialAnswerRemotely, extractOfficialQuestion, extractOfficialQuestionRemotely, isUsableOfficialQuestion, renderOfficialPdfPage } from '@/lib/official-pdf-client';
 import { isEnemInteractiveQuestion } from '@/lib/enem-official-availability';
 
 type ExamId='enem'|'cmmg'|'fuvest'|'insper'|'link';
@@ -114,17 +114,18 @@ export default function OfficialQuestionWorkspaceV3(){
   function reset(){setSelected('');setCorrect(null);setSubmitted(false);setAnswering(false);setExtracted(null);setExtractError('')}
   function close(){setActiveOfficial(null);setActivePractice(null);reset()}
   async function loadOfficial(q:OfficialRef){
-    reset();setActiveOfficial(q);setActivePractice(null);setExtracting(true);const key=`conectae:official-v3:${q.question_id}`;
-    try{const cached=sessionStorage.getItem(key);if(cached){setExtracted(JSON.parse(cached));setExtracting(false);return}}catch{}
+    reset();setActiveOfficial(q);setActivePractice(null);setExtracting(true);const key=`conectae:official-v7:${q.question_id}`;
+    try{const cached=JSON.parse(sessionStorage.getItem(key)||'null');if(isUsableOfficialQuestion(cached)){setExtracted(cached);return}}catch{}
     try{
       let value:Extracted|null=null;
-      if(q.prompt_text&&q.option_a&&q.option_b&&q.option_c&&q.option_d)value={found:true,prompt:q.prompt_text,option_a:q.option_a,option_b:q.option_b,option_c:q.option_c,option_d:q.option_d,option_e:q.option_e,correct_option:q.correct_option,needs_source_image:false,image_note:null,confidence:1};
-      if(!value&&q.series_id==='enem'){
-        try{const response=await fetch(`/api/enem-official-questions?year=${q.year}&question=${q.question_number}`);const data=await response.json();if(response.ok&&data.found)value=data as Extracted}catch(error){console.warn('structured ENEM extraction failed',error)}
+      const stored={found:true,prompt:q.prompt_text||'',option_a:q.option_a,option_b:q.option_b,option_c:q.option_c,option_d:q.option_d,option_e:q.option_e,correct_option:q.correct_option,needs_source_image:false,image_note:null,confidence:1};if(isUsableOfficialQuestion(stored))value=stored;
+      if(!value&&q.series_id==='enem'&&q.year>=2019&&q.year<=2023){
+        try{const response=await fetch(`/api/enem-official-questions?year=${q.year}&question=${q.question_number}`);const data=await response.json();if(response.ok&&isUsableOfficialQuestion(data))value=data as Extracted}catch(error){console.warn('structured ENEM extraction failed',error)}
       }
-      if(!value&&q.source_pdf_url&&/\.pdf(?:$|\?)/i.test(q.source_pdf_url)&&!/^https:\/\/download\.inep\.gov\.br\//i.test(q.source_pdf_url)){try{const d=await extractOfficialQuestion(q.source_pdf_url,q.question_number);if(d.found)value=d}catch(e){console.warn('deterministic official extraction failed',e)}}
-      if(!value&&q.source_pdf_url&&/\.pdf(?:$|\?)/i.test(q.source_pdf_url)){try{const d=await extractOfficialQuestionRemotely(q.source_pdf_url,q.question_number,q.vestibular,q.year);if(d.found)value=d}catch(e){console.warn('remote official extraction failed',e)}}
-      if(!value)throw new Error('Não foi possível reconstruir a questão a partir da fonte oficial.');
+      if(!value&&q.series_id!=='cmmg'&&q.source_pdf_url&&/\.pdf(?:$|\?)/i.test(q.source_pdf_url)&&!/^https:\/\/download\.inep\.gov\.br\//i.test(q.source_pdf_url)){try{const d=await extractOfficialQuestion(q.source_pdf_url,q.question_number);if(isUsableOfficialQuestion(d))value=d}catch(e){console.warn('deterministic official extraction failed',e)}}
+      if(!value&&q.source_pdf_url&&/\.pdf(?:$|\?)/i.test(q.source_pdf_url)){try{const d=await extractOfficialQuestionRemotely(q.source_pdf_url,q.question_number,q.vestibular,q.year);if(isUsableOfficialQuestion(d))value=d}catch(e){console.warn('remote official extraction failed',e)}}
+      if(!value)throw new Error('Não consegui carregar esta questão completa agora. Tente novamente em alguns segundos.');
+      if(value.needs_source_image&&!value.images?.length&&value.source_page&&q.source_pdf_url&&!/^https:\/\/download\.inep\.gov\.br\//i.test(q.source_pdf_url)){try{const image=await renderOfficialPdfPage(q.source_pdf_url,value.source_page);if(image)value={...value,images:[image]}}catch(e){console.warn('official source page rendering failed',e)}}
       setExtracted(value);try{sessionStorage.setItem(key,JSON.stringify(value))}catch{}
     }catch(e:any){setExtractError(e?.message||'Não consegui carregar essa questão oficial agora.')}finally{setExtracting(false)}
   }
@@ -133,7 +134,7 @@ export default function OfficialQuestionWorkspaceV3(){
 
   async function submitOfficial(){if(!activeOfficial||!selected||submitted)return;setAnswering(true);try{
     let ans=extracted?.correct_option?.toUpperCase()||activeOfficial.correct_option?.toUpperCase()||null;
-    if(!ans&&activeOfficial.answer_key_url&&!/^https:\/\/download\.inep\.gov\.br\//i.test(activeOfficial.answer_key_url)){try{ans=await extractOfficialAnswer(activeOfficial.answer_key_url,activeOfficial.question_number)}catch(e){console.warn('deterministic answer extraction failed',e)}}
+    if(!ans&&activeOfficial.series_id!=='cmmg'&&activeOfficial.answer_key_url&&!/^https:\/\/download\.inep\.gov\.br\//i.test(activeOfficial.answer_key_url)){try{ans=await extractOfficialAnswer(activeOfficial.answer_key_url,activeOfficial.question_number)}catch(e){console.warn('deterministic answer extraction failed',e)}}
     if(!ans&&activeOfficial.answer_key_url&&/\.pdf(?:$|\?)/i.test(activeOfficial.answer_key_url)){try{ans=await extractOfficialAnswerRemotely(activeOfficial.answer_key_url,activeOfficial.question_number,activeOfficial.vestibular,activeOfficial.year)}catch(e){console.warn('remote answer extraction failed',e)}}
     setCorrect(ans);setSubmitted(true);
   }finally{setAnswering(false)}}

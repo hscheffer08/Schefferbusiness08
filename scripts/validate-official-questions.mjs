@@ -45,6 +45,8 @@ assert.doesNotMatch(publicPage,/OfficialVestibularBank\/>/);
 assert.match(workspace,/extracted\?\.correct_option/);
 assert.match(workspace,/extractOfficialQuestionRemotely/);
 assert.match(workspace,/extractOfficialAnswerRemotely/);
+assert.match(workspace,/q\.series_id!=='cmmg'/);
+assert.match(workspace,/isUsableOfficialQuestion/);
 assert.doesNotMatch(workspace,/filter\(x=>x\.area===q\.area\)\.length\)<60/);
 assert.ok(pdfClient.indexOf('/api/proxy-official-pdf')<pdfClient.indexOf('SUPABASE_PDF_PROXY}?url='));
 assert.match(pdfClient,/start=\$\{offset\}&end=\$\{end\}/);
@@ -56,5 +58,6 @@ assert.match(embedded,/extractOfficialAnswerRemotely/);
 assert.match(embedded,/isUsableOfficialQuestion/);
 assert.match(embedded,/id: "fuvest", label: "FUVEST", official: true/);
 assert.match(embedded,/ext\.images\.map/);
+assert.match(embedded,/q\.series_id !== "cmmg"/);
 
 console.log('Official question validation passed: ENEM 2019-2025, CMMG numbering/options, subject filters, full pagination, answer hiding and local proxy priority.');
