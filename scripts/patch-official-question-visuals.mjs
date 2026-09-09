@@ -31,12 +31,12 @@ patchFile('src/components/OfficialQuestionWorkspaceV5.tsx', [
   {
     label: 'visual cache version',
     from: `const key = \`conectae:official-v8:\${q.question_id}\`;`,
-    to: `const key = \`conectae:official-v10:\${q.question_id}\`;`,
+    to: `const key = \`conectae:official-v11:\${q.question_id}\`;`,
   },
   {
     label: 'stored visual payload',
     from: `      const stored = {\n        found: true,\n        prompt: q.prompt_text || "",\n        option_a: q.option_a,\n        option_b: q.option_b,\n        option_c: q.option_c,\n        option_d: q.option_d,\n        option_e: q.option_e,\n        correct_option: q.correct_option,\n        needs_source_image: false,\n        image_note: null,\n        confidence: 1,\n      };`,
-    to: `      const visualCue = /\\b(figura|imagem|gr[aá]fico|tabela|mapa|esquema|fotografia|charge|tirinha|diagrama|cartum|quadrinho|ilustra[cç][aã]o)\\b/i.test(\n        [q.prompt_text, q.option_a, q.option_b, q.option_c, q.option_d, q.option_e]\n          .filter(Boolean)\n          .join(" "),\n      );\n      const stored = {\n        found: true,\n        prompt: q.prompt_text || "",\n        option_a: q.option_a,\n        option_b: q.option_b,\n        option_c: q.option_c,\n        option_d: q.option_d,\n        option_e: q.option_e,\n        correct_option: q.correct_option,\n        needs_source_image: Boolean(q.image_url || q.image_alt || q.source_page || visualCue),\n        image_note:\n          q.image_alt ||\n          (visualCue ? "Esta questão contém elemento visual da prova oficial." : null),\n        confidence: 1,\n        images: q.image_url ? [q.image_url] : undefined,\n        source_page: q.source_page || undefined,\n      };`,
+    to: `      const visualCue = /\\b(figura|imagem|gr[aá]fico|tabela|mapa|esquema|fotografia|charge|tirinha|diagrama|cartum|quadrinho|ilustra[cç][aã]o)\\b/i.test(\n        [q.prompt_text, q.option_a, q.option_b, q.option_c, q.option_d, q.option_e]\n          .filter(Boolean)\n          .join(" "),\n      );\n      const stored = {\n        found: true,\n        prompt: q.prompt_text || "",\n        option_a: q.option_a,\n        option_b: q.option_b,\n        option_c: q.option_c,\n        option_d: q.option_d,\n        option_e: q.option_e,\n        correct_option: q.correct_option,\n        needs_source_image: Boolean(q.image_url || q.image_alt || visualCue),\n        image_note:\n          q.image_alt ||\n          (visualCue ? "Esta questão contém elemento visual da prova oficial." : null),\n        confidence: 1,\n        images: q.image_url ? [q.image_url] : undefined,\n        // source_page antigo pode ter sido produzido por extratores anteriores;\n        // para questões visuais sem asset, localizamos a página novamente antes de exibir.\n        source_page: undefined,\n      };`,
   },
   {
     label: 'instant text before visual hydration',
