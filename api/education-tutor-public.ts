@@ -6,6 +6,7 @@ const MODEL = 'openai/gpt-5.6-luna';
 const REVIEW_MODEL = 'google/gemini-3.6-flash';
 const SEARCH_MODEL = 'google/gemini-2.5-flash-lite';
 const FALLBACK_MODELS = ['google/gemini-3.6-flash', 'openai/gpt-5.4-mini'];
+const DIRECT_MODEL = 'gemini-2.5-flash';
 const FALLBACK_SUPABASE_URL = 'https://kmognvgnfisdchzffkgh.supabase.co';
 const FALLBACK_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
 
@@ -38,6 +39,10 @@ function clamp(value: unknown, min = 0, max = 0.99) {
 
 function cleanEnv(value: unknown) {
   return String(value ?? '').trim().replace(/^["']|["']$/g, '');
+}
+
+function placeholder(value: string) {
+  return /(?:^|[._-])(x{4,}|placeholder|changeme|seu-projeto|your-project)(?:[._-]|$)/i.test(value);
 }
 
 function tokens(value: string) {
@@ -77,9 +82,14 @@ function config() {
   const key = cleanEnv(process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || FALLBACK_SUPABASE_ANON_KEY);
   try {
     const url = new URL(raw.startsWith('http') ? raw : `https://${raw}`);
-    if (key && /^[a-z0-9-]+\.supabase\.co$/i.test(url.hostname)) return { url: url.origin, key };
+    if (key && !placeholder(key) && !placeholder(url.hostname) && /^[a-z0-9-]+\.supabase\.co$/i.test(url.hostname)) return { url: url.origin, key };
   } catch {}
   return { url: FALLBACK_SUPABASE_URL, key: FALLBACK_SUPABASE_ANON_KEY };
+}
+
+function anonymousClientId(value: unknown) {
+  const id = trim(value, 80).trim();
+  return /^[a-z0-9_-]{8,80}$/i.test(id) ? id : '';
 }
 
 async function fetchJson(url: string, headers: Record<string, string>): Promise<any[]> {
@@ -195,6 +205,7 @@ export default async function handler(req: any, res: any) {
     const rawMessages = body.messages;
     const context = body.context && typeof body.context === 'object' ? body.context : {};
     const imageDataUrl = body.imageDataUrl;
+    const clientId = anonymousClientId(body.clientId);
     if (!Array.isArray(rawMessages) || !rawMessages.length) return json(res, 400, { error: 'Escreva sua dúvida.' });
 
     const safe: Msg[] = rawMessages
@@ -255,21 +266,45 @@ export default async function handler(req: any, res: any) {
       ? { role: 'user', content: [{ type: 'text', text: message.content }, { type: 'image', image: imageDataUrl }] }
       : { role: message.role, content: message.content });
 
-    const gatewayUser = userId || 'public-conectae';
+    const gatewayUser = userId || (clientId ? `anon-${clientId}` : undefined);
     let raw = '';
-    try {
-      raw = String((await generateText({
-        model: MODEL,
-        system,
-        messages: modelMessages,
-        maxOutputTokens: 1700,
-        abortSignal: AbortSignal.timeout(45_000),
-        providerOptions: { gateway: { models: FALLBACK_MODELS, user: gatewayUser, tags: ['feature:education-tutor-public', `exam:${exam}`] } },
-      } as any)).text || '');
-    } catch (error: any) {
-      console.error('public tutor primary', error?.message || error);
+    let primaryModel = MODEL;
+    let primaryError = '';
+    if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+      try {
+        raw = String((await generateText({
+          model: google(DIRECT_MODEL),
+          system,
+          messages: modelMessages,
+          maxOutputTokens: 1700,
+          abortSignal: AbortSignal.timeout(45_000),
+        } as any)).text || '');
+        if (raw) primaryModel = `google/${DIRECT_MODEL}`;
+      } catch (error: any) {
+        primaryError = String(error?.message || error);
+        console.warn('public tutor direct Google', primaryError.slice(0, 300));
+      }
     }
-    if (!raw) return json(res, 502, { error: 'A IA ficou temporariamente indisponível. Tente novamente.' });
+    try {
+      if (!raw) {
+        raw = String((await generateText({
+          model: MODEL,
+          system,
+          messages: modelMessages,
+          maxOutputTokens: 1700,
+          abortSignal: AbortSignal.timeout(45_000),
+          providerOptions: { gateway: { models: FALLBACK_MODELS, ...(gatewayUser ? { user: gatewayUser } : {}), tags: ['feature:education-tutor-public', `exam:${exam}`] } },
+        } as any)).text || '');
+        if (raw) primaryModel = MODEL;
+      }
+    } catch (error: any) {
+      primaryError = String(error?.message || error);
+      console.error('public tutor primary', primaryError);
+    }
+    if (!raw) {
+      const limited = /rate[- ]limit|too many requests|\b429\b/i.test(primaryError);
+      return json(res, limited ? 429 : 502, { error: limited ? 'A IA recebeu muitas solicitações agora. Aguarde alguns segundos e tente novamente.' : 'A IA ficou temporariamente indisponível. Tente novamente.' });
+    }
 
     let first: any;
     try { first = parseJson(raw); } catch { return json(res, 502, { error: 'A resposta ficou incompleta. Tente novamente.' }); }
@@ -388,7 +423,7 @@ export default async function handler(req: any, res: any) {
       learningFocus: focus,
       offerPlan,
       needsBetterImage,
-      model: mode === 'search' ? SEARCH_MODEL : mode === 'review' ? REVIEW_MODEL : MODEL,
+      model: mode === 'search' ? SEARCH_MODEL : mode === 'review' ? REVIEW_MODEL : primaryModel,
       searchMode: mode,
       webVerified: mode === 'search' && sources.length > 0,
       sources,
