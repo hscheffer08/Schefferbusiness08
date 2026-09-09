@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 const MODEL = 'openai/gpt-5.6-luna';
 const REVIEW_MODEL = 'google/gemini-3.6-flash';
 const SEARCH_MODEL = 'google/gemini-2.5-flash-lite';
-const FALLBACK_MODELS = ['google/gemini-3.6-flash', 'openai/gpt-5.4-mini'];
+const FALLBACK_MODELS = ['google/gemini-3.6-flash', 'anthropic/claude-fable-5', 'openai/gpt-5.4-mini'];
 const DIRECT_MODEL = 'gemini-2.5-flash';
 const FALLBACK_SUPABASE_URL = 'https://kmognvgnfisdchzffkgh.supabase.co';
 const FALLBACK_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
@@ -63,6 +63,14 @@ function hard(value: string) {
 
 function unexpectedScript(value: string) {
   return /[\u0400-\u052f\u0590-\u08ff\u0900-\u109f\u3040-\u30ff\u3400-\u9fff]/u.test(value);
+}
+
+export function sanitizeUnexpectedScript(value: string) {
+  return value
+    .replace(/[\u0400-\u052f\u0590-\u08ff\u0900-\u109f\u3040-\u30ff\u3400-\u9fff]+/gu, ' ')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/ *\n */g, '\n')
+    .trim();
 }
 
 function parseJson(raw: string) {
@@ -260,7 +268,7 @@ export default async function handler(req: any, res: any) {
       provenance: provenance(question),
     }));
 
-    const system = `Você é a IA Conectaê, tutor educacional brasileiro rigoroso, didático e intelectualmente honesto. Responda em português do Brasil. A IA é pública: não peça login e nunca fale em sessão expirada. Releia o comando e confira EXCETO/incorreta/sempre/nunca, domínio, sinais, unidades, causalidade e alternativas. Não exponha cadeia interna. Se faltar informação indispensável em uma imagem, diga o que falta e não invente. PROVA: ${EXAM_FINGERPRINTS[exam] || 'Use a taxonomia da prova ativa quando houver contexto.'} Nunca invente ano, número, banca ou fonte. CONTEXTO DO ALUNO: ${JSON.stringify(student)} HABILIDADES CANDIDATAS: ${JSON.stringify(candidates.map(skill => ({ area: skill.area, skill_code: skill.skill_code, skill_name: skill.skill_name, parent_skill_code: skill.parent_skill_code || null })))} EXEMPLOS RECUPERADOS: ${JSON.stringify(examplesSafe)} Retorne APENAS JSON válido: {"answer":"resposta curta e didática","confidence":0.0,"confidence_reason":"uma frase objetiva","self_check_passed":true,"needs_external_check":false,"answerable":true,"resolved_doubt":true,"needs_better_image":false,"uncertainty_reason":null,"assumptions":[],"learning_focus":{"area":"","skill_code":"","skill_name":"","plan_skill_code":null,"confidence":0.0,"reason":""},"offer_plan":false}`;
+    const system = `Você é a IA Conectaê, tutor educacional brasileiro rigoroso, didático e intelectualmente honesto. Responda em português do Brasil usando apenas alfabeto latino, algarismos e símbolos matemáticos usuais. A IA é pública: não peça login e nunca fale em sessão expirada. Releia o comando e confira EXCETO/incorreta/sempre/nunca, domínio, sinais, unidades, causalidade e alternativas. Não exponha cadeia interna. Se faltar informação indispensável em uma imagem, diga o que falta e não invente. PROVA: ${EXAM_FINGERPRINTS[exam] || 'Use a taxonomia da prova ativa quando houver contexto.'} Nunca invente ano, número, banca ou fonte. CONTEXTO DO ALUNO: ${JSON.stringify(student)} HABILIDADES CANDIDATAS: ${JSON.stringify(candidates.map(skill => ({ area: skill.area, skill_code: skill.skill_code, skill_name: skill.skill_name, parent_skill_code: skill.parent_skill_code || null })))} EXEMPLOS RECUPERADOS: ${JSON.stringify(examplesSafe)} Retorne APENAS JSON válido: {"answer":"resposta curta e didática","confidence":0.0,"confidence_reason":"uma frase objetiva","self_check_passed":true,"needs_external_check":false,"answerable":true,"resolved_doubt":true,"needs_better_image":false,"uncertainty_reason":null,"assumptions":[],"learning_focus":{"area":"","skill_code":"","skill_name":"","plan_skill_code":null,"confidence":0.0,"reason":""},"offer_plan":false}`;
 
     const modelMessages: any[] = safe.map((message, index) => index === safe.length - 1 && message.role === 'user' && hasImage
       ? { role: 'user', content: [{ type: 'text', text: message.content }, { type: 'image', image: imageDataUrl }] }
@@ -367,6 +375,7 @@ export default async function handler(req: any, res: any) {
     let answer = trim(final.answer, 6000).trim();
     if (!answer) return json(res, 502, { error: 'A resposta ficou incompleta. Tente novamente.' });
     if (unexpectedScript(answer)) {
+      const originalAnswer = answer;
       try {
         answer = trim((await generateText({
           model: REVIEW_MODEL,
@@ -374,9 +383,15 @@ export default async function handler(req: any, res: any) {
           messages: [{ role: 'user', content: answer }],
           maxOutputTokens: 800,
           abortSignal: AbortSignal.timeout(25_000),
+          providerOptions: { gateway: { models: ['anthropic/claude-fable-5', 'openai/gpt-5.4-mini'], ...(gatewayUser ? { user: gatewayUser } : {}), tags: ['feature:education-tutor-public', 'script-repair'] } },
         } as any)).text, 6000);
-      } catch {}
-      if (unexpectedScript(answer)) return json(res, 502, { error: 'A resposta ficou com caracteres inválidos. Tente novamente.' });
+      } catch (error: any) {
+        console.warn('public tutor script repair', String(error?.message || error).slice(0, 300));
+      }
+      if (!answer || unexpectedScript(answer)) answer = sanitizeUnexpectedScript(answer || originalAnswer);
+      if (!answer) answer = 'Não consegui ler a resposta com segurança. Reenvie a foto com a questão centralizada e mais próxima.';
+      final.confidence = Math.min(clamp(final.confidence), 0.79);
+      final.uncertainty_reason = final.uncertainty_reason || 'A resposta original continha caracteres incompatíveis e foi normalizada automaticamente.';
     }
 
     const answerable = Boolean(final.answerable ?? true);
