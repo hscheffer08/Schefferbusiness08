@@ -14,7 +14,7 @@ function allowed(raw:unknown){
   try{const u=new URL(String(raw||''));return u.protocol==='https:'&&ALLOWED_HOSTS.has(u.hostname)&&/\.pdf$/i.test(u.pathname)?u.toString():''}catch{return''}
 }
 function norm(s:string){return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase()}
-function clean(s:string){return s.replace(/[\u0000-\u001f]+/g,' ').replace(/\s+/g,' ').trim()}
+function clean(s:string){return s.replace(new RegExp('[\\u0000-\\u001f]+','g'),' ').replace(/\s+/g,' ').trim()}
 
 function shiftedAscii(raw:string){
   let out='';
@@ -28,9 +28,10 @@ function shiftedAscii(raw:string){
 function decodeCmmgToken(token:string){
   if(token.length<3)return token;
   const candidate=shiftedAscii(token);
-  const bad=(candidate.match(/[\^`\[\\\]]/g)||[]).length;
+  const bad=[...candidate].filter(ch=>'`^[\\]'.includes(ch)).length;
   const letters=(candidate.match(/[A-Za-zÀ-ÿ]/g)||[]).length;
-  const originalOdd=(token.match(/[\$%&'()*+,-.\/0-9:;<=>?@\[\\\]^_]/g)||[]).length;
+  const oddChars="$%&'()*+,-./0123456789:;<=>?@[\\]^_";
+  const originalOdd=[...token].filter(ch=>oddChars.includes(ch)).length;
   if(bad)return token;
   if(letters/Math.max(candidate.length,1)<.62)return token;
   if(originalOdd>0||/^[A-Z]{4,}$/.test(token))return candidate;
@@ -115,7 +116,7 @@ function contextRanges(lines:Line[]){
   const result:{from:number;to:number;start:number;end:number}[]=[];
   for(let i=0;i<lines.length;i++){
     const t=lines[i].text;
-    let m=t.match(/(?:quest[oõ]es|questions)\s+(?:de\s+|from\s+)?0?(\d{1,3})\s+(?:a|to|até|-)\s+0?(\d{1,3})/i);
+    const m=t.match(/(?:quest[oõ]es|questions)\s+(?:de\s+|from\s+)?0?(\d{1,3})\s+(?:a|to|até|-)\s+0?(\d{1,3})/i);
     if(!m)continue;
     const from=Number(m[1]),to=Number(m[2]);if(!from||!to||to<from||to-from>20)continue;
     let end=i+1;
@@ -132,9 +133,9 @@ function parseAll(lines:Line[],refs:Ref[]){
   const ranges=contextRanges(lines);
   const out:Parsed[]=[];
   for(const ref of refs){
-    const m=byNumber.get(ref.question_number);if(!m)continue;
-    const next=[...markers].find(x=>x.index>m.index&&x.n===ref.question_number+1)||markers.find(x=>x.index>m.index);
-    const chunk=lines.slice(m.index,next?next.index:Math.min(lines.length,m.index+120));
+    const marker=byNumber.get(ref.question_number);if(!marker)continue;
+    const next=markers.find(x=>x.index>marker.index&&x.n===ref.question_number+1)||markers.find(x=>x.index>marker.index);
+    const chunk=lines.slice(marker.index,next?next.index:Math.min(lines.length,marker.index+120));
     const first=stripMarker(chunk[0]?.text||'',ref.question_number);
     const bodies=[first,...chunk.slice(1).map(x=>x.text)].filter(Boolean);
     const parsed=splitOptions(bodies);if(!parsed)continue;
@@ -146,7 +147,7 @@ function parseAll(lines:Line[],refs:Ref[]){
     }
     const options=[parsed.opts.A,parsed.opts.B,parsed.opts.C,parsed.opts.D,parsed.opts.E].filter(Boolean);
     if(prompt.length<8||options.length<4)continue;
-    out.push({question_number:ref.question_number,prompt,option_a:parsed.opts.A,option_b:parsed.opts.B,option_c:parsed.opts.C,option_d:parsed.opts.D,option_e:parsed.opts.E,source_page:m.page,needs_image:imageDependent(`${prompt} ${options.join(' ')}`)});
+    out.push({question_number:ref.question_number,prompt,option_a:parsed.opts.A,option_b:parsed.opts.B,option_c:parsed.opts.C,option_d:parsed.opts.D,option_e:parsed.opts.E,source_page:marker.page,needs_image:imageDependent(`${prompt} ${options.join(' ')}`)});
   }
   return out;
 }
