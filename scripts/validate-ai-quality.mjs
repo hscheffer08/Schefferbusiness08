@@ -40,6 +40,7 @@ for(const marker of ['gpt-5.6-luna','adversarial-review','external-verification'
 for(const exam of ['enem','fuvest','cmmg','insper','link'])if(!tutor.includes(`${exam}:`))throw new Error(`Tutor v2 sem perfil explícito: ${exam}.`);
 
 for(const marker of ['gpt-5.6-luna','adversarial-review','external-verification','unexpectedScript','agrees_with_preliminary','self_check_passed','uncertainty_reason','confidenceLabel','answerable','rankPractice','web_verified === true','needsBetterImage','student_seen_questions','source_exam_year','source_question_number','publicAccess: true','dailyQuestionLimit: null'])if(!tutorPublic.includes(marker))throw new Error(`Tutor público sem proteção obrigatória: ${marker}.`);
+for(const marker of ['GOOGLE_GENERATIVE_AI_API_KEY','google(DIRECT_MODEL)','anonymousClientId','placeholder(url.hostname)','anon-${clientId}'])if(!tutorPublic.includes(marker))throw new Error(`Tutor público sem resiliência obrigatória: ${marker}.`);
 for(const exam of ['enem','fuvest','cmmg','insper','link','ibmec','einstein'])if(!tutorPublic.includes(`${exam}:`))throw new Error(`Tutor público sem perfil explícito: ${exam}.`);
 if(!tutorPublic.includes("const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : ''"))throw new Error('Tutor público precisa aceitar requisições sem Authorization.');
 
@@ -50,6 +51,7 @@ for(const exam of ['ibmec','einstein'])if(!analyzerV3.includes(`${exam}:`))throw
 for(const marker of ['gpt-5.6-luna','visual-review','self_check_passed','uncertainty_reason','agrees_with_preliminary','Taxonomia','origin_hint','needs_better_photo'])if(!analyzer.includes(marker))throw new Error(`Analisador v2 sem proteção obrigatória: ${marker}.`);
 for(const exam of ['enem','fuvest','cmmg','insper','link'])if(!analyzer.includes(`${exam}:`))throw new Error(`Analisador v2 sem perfil explícito: ${exam}.`);
 for(const marker of ["fetch('/api/education-tutor'",'confidenceReason','data.sources','Fontes:','Acesso livre','IA liberada para todos'])if(!tutorUi.includes(marker))throw new Error(`Interface da IA pública sem integração obrigatória: ${marker}.`);
+if(!tutorUi.includes('clientId: tutorClientId()'))throw new Error('Interface da IA pública precisa separar o limite dos visitantes anônimos.');
 
 const coverage=JSON.parse(fs.readFileSync(new URL('../tests/exam-ai-coverage.json',import.meta.url),'utf8'));
 for(const exam of ['enem','cmmg'])if(!coverage.exams?.[exam])throw new Error(`Cobertura ausente: ${exam}.`);
