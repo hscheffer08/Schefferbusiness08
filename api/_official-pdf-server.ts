@@ -20,6 +20,7 @@ function shiftedAscii(raw:string){
 }
 function decodeCmmgToken(token:string){
   if(token.length<2)return token;
+  if(/^\d+[.,;:)]?$/.test(token)||/^[A-E][).:]$/.test(token))return token;
   const candidate=shiftedAscii(token);
   const bad=[...candidate].filter(ch=>'`^[\\]'.includes(ch)).length;
   const letters=(candidate.match(/[A-Za-zÀ-ÿ]/g)||[]).length;
