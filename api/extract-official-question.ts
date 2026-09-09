@@ -30,6 +30,28 @@ export function normalizeRequestedQuestion(parsed:any,questionNumber:number){
   }
   return {...parsed,prompt:lines.slice(0,starts[0].index).join('\n').trim(),option_a:options.A,option_b:options.B,option_c:options.C,option_d:options.D,option_e:options.E};
 }
+
+function normalizeOutputQuestion(parsed:any,questionNumber:number){
+  const p=normalizeRequestedQuestion(parsed,questionNumber);
+  const optionCount=['option_a','option_b','option_c','option_d','option_e'].filter((key)=>String(p?.[key]||'').trim()).length;
+  const found=p?.found!==false&&String(p?.prompt||'').trim().length>10&&optionCount>=2;
+  return {
+    question_number:questionNumber,
+    found,
+    prompt:found?String(p.prompt||'').trim():'',
+    option_a:found?String(p.option_a||'').trim()||null:null,
+    option_b:found?String(p.option_b||'').trim()||null:null,
+    option_c:found?String(p.option_c||'').trim()||null:null,
+    option_d:found?String(p.option_d||'').trim()||null:null,
+    option_e:found?String(p.option_e||'').trim()||null:null,
+    needs_source_image:Boolean(p?.needs_source_image),
+    image_note:p?.image_note?String(p.image_note).slice(0,500):null,
+    source_page:Number.isInteger(Number(p?.source_page))&&Number(p.source_page)>0?Number(p.source_page):undefined,
+    confidence:Math.max(0,Math.min(.99,Number(p?.confidence)||0)),
+    source:'official-exam-pdf'
+  };
+}
+
 const reply=(res:any,status:number,body:any)=>{res.setHeader('Cache-Control',status===200?'public, s-maxage=2592000, stale-while-revalidate=7776000':'no-store');return res.status(status).json(body)};
 
 async function generateOnce(model:any,args:{prompt:string;sourceUrl:string;maxOutputTokens:number;timeoutMs:number;exam:string;tag:string},gateway=false){
@@ -89,9 +111,37 @@ export default async function handler(req:any,res:any){
     const mode=String(input?.mode||'question');
     const sourceUrl=allowedUrl(input?.sourceUrl);
     const questionNumber=Math.max(1,Math.min(250,Number(input?.questionNumber)||0));
+    const fromQuestion=Math.max(1,Math.min(250,Number(input?.fromQuestion)||0));
+    const requestedTo=Math.max(1,Math.min(250,Number(input?.toQuestion)||0));
+    const toQuestion=Math.min(fromQuestion+7,requestedTo||fromQuestion+7);
     const exam=String(input?.exam||'').slice(0,80);
     const year=Number(input?.year)||null;
-    if(!sourceUrl||!questionNumber)return reply(res,400,{error:'Fonte oficial ou número da questão inválido.'});
+    if(!sourceUrl)return reply(res,400,{error:'Fonte oficial inválida.'});
+
+    if(mode==='batch'){
+      if(!fromQuestion||toQuestion<fromQuestion)return reply(res,400,{error:'Intervalo de questões inválido.'});
+      const prompt=`Você está lendo uma PROVA OFICIAL${year?` da edição ${year}`:''}${exam?` de ${exam}`:''}. Extraia SOMENTE as questões objetivas de ${fromQuestion} a ${toQuestion}, inclusive.
+
+Regras obrigatórias:
+1) Para cada número solicitado, preserve fielmente o enunciado necessário para resolver e as alternativas A, B, C, D e E exatamente como aparecem quando existirem.
+2) Não misture textos, alternativas ou imagens de questões diferentes.
+3) Inclua textos auxiliares indispensáveis da própria questão. Se uma imagem/gráfico for indispensável e não puder ser convertido com fidelidade, marque needs_source_image=true, descreva em image_note o que precisa ser exibido e informe source_page (página do PDF, começando em 1). Não invente valores.
+4) Ignore instruções gerais da prova e qualquer questão fora do intervalo.
+5) Não resolva, não indique gabarito e não acrescente explicações.
+6) Se um número não puder ser localizado com segurança, devolva found=false para ele.
+
+Retorne APENAS JSON válido neste formato: {"questions":[{"question_number":${fromQuestion},"found":true,"prompt":"...","option_a":"...","option_b":"...","option_c":"...","option_d":"...","option_e":"...","needs_source_image":false,"image_note":null,"source_page":1,"confidence":0.0}]}. Inclua um objeto para CADA número de ${fromQuestion} a ${toQuestion}.`;
+      const parsed=await runJson({prompt,sourceUrl,maxOutputTokens:16000,timeoutMs:90000,exam,tag:'feature:official-question-batch'});
+      const raw=Array.isArray(parsed?.questions)?parsed.questions:[];
+      const questions=[];
+      for(let n=fromQuestion;n<=toQuestion;n++){
+        const candidate=raw.find((q:any)=>Number(q?.question_number)===n)||{found:false,prompt:''};
+        questions.push(normalizeOutputQuestion(candidate,n));
+      }
+      return reply(res,200,{questions,from_question:fromQuestion,to_question:toQuestion,source:'official-exam-pdf-batch'});
+    }
+
+    if(!questionNumber)return reply(res,400,{error:'Número da questão inválido.'});
 
     if(mode==='answer'){
       const prompt=`Leia APENAS o gabarito oficial anexado. Localize a questão ${questionNumber}${year?` da edição ${year}`:''}${exam?` de ${exam}`:''}. Retorne somente JSON válido no formato {"correct_option":"A|B|C|D|E|null","confidence":0.0}. Não invente resposta: se a numeração não puder ser localizada com segurança, use null.`;
@@ -112,23 +162,7 @@ Regras obrigatórias:
 
 Retorne APENAS JSON válido: {"found":true,"prompt":"...","option_a":"...","option_b":"...","option_c":"...","option_d":"...","option_e":"...","needs_source_image":false,"image_note":null,"source_page":1,"confidence":0.0}.`;
     const generated=await runJson({prompt,sourceUrl,maxOutputTokens:2600,timeoutMs:60000,exam,tag:'feature:official-question-extract'});
-    const p=normalizeRequestedQuestion(generated,questionNumber);
-    const optionCount=['option_a','option_b','option_c','option_d','option_e'].filter((key)=>String(p[key]||'').trim()).length;
-    const found=p.found!==false&&String(p.prompt||'').trim().length>10&&optionCount>=2;
-    return reply(res,200,{
-      found,
-      prompt:found?String(p.prompt||'').trim():'',
-      option_a:found?String(p.option_a||'').trim()||null:null,
-      option_b:found?String(p.option_b||'').trim()||null:null,
-      option_c:found?String(p.option_c||'').trim()||null:null,
-      option_d:found?String(p.option_d||'').trim()||null:null,
-      option_e:found?String(p.option_e||'').trim()||null:null,
-      needs_source_image:Boolean(p.needs_source_image),
-      image_note:p.image_note?String(p.image_note).slice(0,500):null,
-      source_page:Number.isInteger(Number(p.source_page))&&Number(p.source_page)>0?Number(p.source_page):undefined,
-      confidence:Math.max(0,Math.min(.99,Number(p.confidence)||0)),
-      source:'official-exam-pdf'
-    });
+    return reply(res,200,normalizeOutputQuestion(generated,questionNumber));
   }catch(error:any){
     console.error('extract-official-question failed',error?.message||error);
     return reply(res,503,{error:'A questão oficial está temporariamente indisponível. Tente novamente em alguns segundos.'});
