@@ -2,6 +2,10 @@ import fs from 'node:fs';
 
 function patchFile(path, patches) {
   let src = fs.readFileSync(path, 'utf8');
+  if (path.endsWith('OfficialQuestionWorkspaceV5.tsx') && src.includes('conectae:official-v16:')) {
+    console.log('Official question visuals are current.');
+    return;
+  }
   for (const { from, to, label } of patches) {
     if (src.includes(to)) continue;
     if (!src.includes(from)) {
