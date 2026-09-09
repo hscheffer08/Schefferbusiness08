@@ -34,9 +34,15 @@ const InfoPages = lazy(() => import('./components/InfoPages.tsx'));
 const params = new URLSearchParams(window.location.search);
 const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
 const interviewOpen = pathname === '/treino-entrevista';
-const plannerOpen = params.get('planner') === 'aprovacao';
+const experienceByPath: Record<string, string> = {
+  '/vestibulares-oficiais': 'vestibulares-oficiais',
+  '/faculdades': 'faculdades',
+  '/vocacional': 'vocacional',
+  '/match-faculdades': 'match-faculdades',
+};
+const plannerOpen = params.get('planner') === 'aprovacao' || pathname === '/planejador-admissao';
 const courseArea = params.get('courseArea');
-const experienceMode = params.get('experience');
+const experienceMode = params.get('experience') ?? experienceByPath[pathname] ?? null;
 const legacyCollegeExperienceOpen =
   params.get('modo') === 'business' ||
   params.get('questionario') === 'faculdades' ||
@@ -84,6 +90,36 @@ if (interviewOpen) {
     'Estude para o Seriado UFMG em uma área separada do Curso, com conteúdos específicos do 1º, 2º e 3º anos e questões por componente curricular.',
     '/?planner=aprovacao&courseArea=ufmg',
   );
+} else if (plannerOpen) {
+  updateMeta(
+    'Plano de aprovação adaptativo | Conectaê',
+    'Monte um plano semanal adaptado à sua faculdade, prova, notas atuais e tempo disponível.',
+    '/planejador-admissao',
+  );
+} else if (experienceMode === 'vestibulares-oficiais') {
+  updateMeta(
+    'Questões oficiais de vestibulares | Conectaê',
+    'Pratique questões oficiais por vestibular, edição, matéria e número, com fonte e gabarito rastreados.',
+    '/vestibulares-oficiais',
+  );
+} else if (experienceMode === 'faculdades' || experienceMode === 'descoberta') {
+  updateMeta(
+    'Explore cursos e faculdades | Conectaê',
+    'Compare opções, descubra áreas profissionais e encontre faculdades compatíveis com o seu perfil.',
+    '/faculdades',
+  );
+} else if (experienceMode === 'vocacional') {
+  updateMeta(
+    'Teste vocacional | Conectaê',
+    'Explore áreas profissionais compatíveis com seus interesses, preferências e objetivos.',
+    '/vocacional',
+  );
+} else if (experienceMode === 'match-faculdades') {
+  updateMeta(
+    'Match de faculdades | Conectaê',
+    'Compare faculdades e encontre opções alinhadas ao seu perfil acadêmico e profissional.',
+    '/match-faculdades',
+  );
 } else if (infoPage) {
   const meta: Record<InfoPage, [string, string]> = {
     howitworks: ['Como funciona | Conectaê', 'Entenda como o Conectaê calcula compatibilidade de perfil com faculdades.'],
@@ -98,6 +134,7 @@ if (interviewOpen) {
 
 function navigateExperience(experience: string | null) {
   const url = new URL(window.location.href);
+  url.pathname = '/';
   url.searchParams.delete('planner');
   url.searchParams.delete('courseArea');
   url.searchParams.delete('modo');
@@ -109,6 +146,7 @@ function navigateExperience(experience: string | null) {
 
 const closePlanner = () => {
   const url = new URL(window.location.href);
+  url.pathname = '/';
   url.searchParams.delete('planner');
   url.searchParams.delete('courseArea');
   url.searchParams.delete('experience');
@@ -117,6 +155,7 @@ const closePlanner = () => {
 
 const backToCourse = () => {
   const url = new URL(window.location.href);
+  url.pathname = '/';
   url.searchParams.set('planner', 'aprovacao');
   url.searchParams.delete('courseArea');
   url.searchParams.delete('experience');
@@ -125,6 +164,7 @@ const backToCourse = () => {
 
 const openPlanner = () => {
   const url = new URL(window.location.href);
+  url.pathname = '/';
   url.searchParams.set('planner', 'aprovacao');
   url.searchParams.delete('courseArea');
   url.searchParams.delete('experience');
@@ -140,7 +180,8 @@ const loadingFallback = (
   </div>
 );
 
-const unknownPath = pathname !== '/' && !interviewOpen && !infoPage;
+const knownExperiencePath = Boolean(experienceByPath[pathname]);
+const unknownPath = pathname !== '/' && pathname !== '/planejador-admissao' && !knownExperiencePath && !interviewOpen && !infoPage;
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
