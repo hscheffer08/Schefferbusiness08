@@ -1,4 +1,9 @@
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { WorkerMessageHandler } from 'pdfjs-dist/legacy/build/pdf.worker.mjs';
+
+// PDF.js uses a fake worker in Node. Vercel may tree-shake the worker file unless
+// it is imported explicitly, so expose the handler before getDocument() runs.
+(globalThis as any).pdfjsWorker = { WorkerMessageHandler };
 
 const pdfCache = new Map<string, Promise<any>>();
 const OFFICIAL_HOSTS = new Set([
