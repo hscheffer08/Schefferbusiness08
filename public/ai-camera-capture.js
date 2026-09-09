@@ -1,6 +1,7 @@
 (() => {
   const ATTACH_SELECTOR = 'input[type="file"][accept*="image/jpeg"][accept*="image/png"][accept*="image/webp"]';
   const READY_ATTR = 'data-conectae-camera-ready';
+  const isAppleMobile = /iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
   const normalizeCameraFile = async (file) => {
     if (!file || ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return file;
@@ -58,7 +59,7 @@
     const button = document.createElement('button');
     button.type = 'button';
     button.className = label.className;
-    button.title = 'Tirar foto';
+    button.title = isAppleMobile ? 'Tirar foto no iPhone' : 'Tirar foto';
     button.setAttribute('aria-label', 'Tirar foto');
     button.setAttribute('data-conectae-camera-button', '1');
     button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4 16 7h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3l1.5-3h5Z"/><circle cx="12" cy="13" r="3"/></svg>';
@@ -67,12 +68,21 @@
       const cameraInput = document.createElement('input');
       cameraInput.type = 'file';
       cameraInput.accept = 'image/*';
-      cameraInput.setAttribute('capture', 'environment');
+
+      // iOS/Safari can render a black native camera preview when `capture`
+      // forces the rear camera from a web app/PWA. Let iOS present its own
+      // photo-source sheet instead; choosing "Tirar Foto" then opens the camera
+      // through the stable system path. Android keeps direct rear-camera capture.
+      if (!isAppleMobile) cameraInput.setAttribute('capture', 'environment');
+
       cameraInput.setAttribute('aria-hidden', 'true');
       cameraInput.tabIndex = -1;
       cameraInput.style.position = 'fixed';
       cameraInput.style.left = '-10000px';
       cameraInput.style.bottom = '-10000px';
+      cameraInput.style.width = '1px';
+      cameraInput.style.height = '1px';
+      cameraInput.style.opacity = '0';
       document.body.appendChild(cameraInput);
 
       const cleanup = () => cameraInput.remove();
