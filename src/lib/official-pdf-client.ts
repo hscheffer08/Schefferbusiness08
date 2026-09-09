@@ -26,20 +26,21 @@ export function isUsableOfficialQuestion(value:Partial<ParsedQuestion>|null|unde
   return true;
 }
 
-const PDFJS_URL='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';
-const PDFJS_WORKER='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+// PDF.js é empacotado localmente para funcionar também em navegadores embutidos.
 const SUPABASE_PDF_PROXY='https://kmognvgnfisdchzffkgh.supabase.co/functions/v1/official-pdf-proxy';
 let pdfjsPromise:Promise<any>|null=null;
 const pdfDocumentCache=new Map<string,Promise<any>>();
 
-function remoteImport(url:string){
-  const importer=new Function('u','return import(u)') as (u:string)=>Promise<any>;
-  return importer(url);
-}
-
 async function pdfjs(){
   if(!pdfjsPromise){
-    pdfjsPromise=remoteImport(PDFJS_URL).then((mod:any)=>{mod.GlobalWorkerOptions.workerSrc=PDFJS_WORKER;return mod;});
+    pdfjsPromise=(async()=>{
+      const mod:any=await import('pdfjs-dist/build/pdf.mjs');
+      if(typeof window!=='undefined'){
+        const worker:any=await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
+        mod.GlobalWorkerOptions.workerSrc=worker.default;
+      }
+      return mod;
+    })();
   }
   return pdfjsPromise;
 }
