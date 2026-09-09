@@ -4,7 +4,7 @@ import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 const docs=new Map<string,Promise<string[][]>>();
 const BROKEN=/[\uFFFD\u25A0-\u25FF\uE000-\uF8FF]/g;
 
-function clean(s:string){return s.replace(/\s+/g,' ').trim()}
+function clean(s:string){return s.replace(/¬/g,' ').replace(/\s+/g,' ').trim()}
 function norm(s:string){return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase()}
 function allowed(raw:string){
   try{
@@ -34,17 +34,22 @@ function decodeCmmg(raw:string){
   const mapped=[...raw].map(ch=>special[ch]??ch).join('');
   return mapped.split(/(\s+)/).map(part=>/^\s+$/.test(part)?part:decodeCmmgToken(part)).join('');
 }
-function linesFromItems(items:any[],cmmg:boolean){
-  const rows=new Map<number,{x:number;str:string}[]>();
+function linesFromItems(items:any[],cmmg:boolean,twoColumn:boolean){
+  const rows=new Map<string,{column:number;y:number;parts:{x:number;str:string}[]}>();
   for(const item of items){
-    let str=String(item?.str||'').trim();if(!str)continue;
+    let str=String(item?.str||'').replace(/¬/g,'').trim();if(!str)continue;
     if(cmmg)str=decodeCmmg(str);
     const tr=item?.transform||[];const x=Number(tr[4]||0),y=Number(tr[5]||0);
-    const key=Math.round(y/2)*2;
-    if(!rows.has(key))rows.set(key,[]);
-    rows.get(key)!.push({x,str});
+    const column=twoColumn&&x>=300?1:0;
+    const roundedY=Math.round(y/2)*2;
+    const key=`${column}:${roundedY}`;
+    if(!rows.has(key))rows.set(key,{column,y:roundedY,parts:[]});
+    rows.get(key)!.parts.push({x,str});
   }
-  return [...rows.entries()].sort((a,b)=>b[0]-a[0]).map(([,parts])=>clean(parts.sort((a,b)=>a.x-b.x).map(p=>p.str).join(' '))).filter(Boolean);
+  return [...rows.values()]
+    .sort((a,b)=>a.column-b.column||b.y-a.y)
+    .map(row=>clean(row.parts.sort((a,b)=>a.x-b.x).map(p=>p.str).join(' ')))
+    .filter(Boolean);
 }
 async function load(sourceUrl:string){
   if(!allowed(sourceUrl))throw new Error('Fonte oficial inválida');
@@ -55,10 +60,10 @@ async function load(sourceUrl:string){
     const buffer=await r.arrayBuffer();
     if(!buffer.byteLength||buffer.byteLength>35*1024*1024)throw new Error('PDF inválido ou grande demais');
     const pdf=await getDocument({data:new Uint8Array(buffer),isEvalSupported:false,useSystemFonts:true,disableFontFace:false}).promise;
-    const pages:string[][]=[];const cmmg=new URL(sourceUrl).hostname==='vestibular.cmmg.edu.br';
+    const pages:string[][]=[];const host=new URL(sourceUrl).hostname;const cmmg=host==='vestibular.cmmg.edu.br';const twoColumn=!cmmg;
     for(let p=1;p<=pdf.numPages;p++){
       const page=await pdf.getPage(p);const content=await page.getTextContent();
-      pages.push(linesFromItems((content as any).items||[],cmmg));
+      pages.push(linesFromItems((content as any).items||[],cmmg,twoColumn));
     }
     return pages;
   })();
@@ -67,13 +72,15 @@ async function load(sourceUrl:string){
 }
 
 function marker(line:string,n:number){
-  const s=norm(line).replace(/[^A-Z0-9 ]+/g,' ');
+  const s=norm(line).replace(/[^A-Z0-9{} ]+/g,' ');
   return new RegExp(`\\bQUEST(?:AO|A0)\\s+0*${n}\\b`).test(s)
+    ||new RegExp(`^\\s*\\{\\s*0*${n}\\s*\\}\\s*`).test(line)
     ||new RegExp(`^\\s*0*${n}\\s*[.)-]\\s+\\S`,'i').test(line)
     ||new RegExp(`^\\s*0*${n}\\s*$`).test(line);
 }
 function stripMarker(line:string,n:number){
   return line.replace(new RegExp(`^\\s*QUEST(?:Ã|A)O\\s+0*${n}\\s*[.):-]?\\s*`,'i'),'')
+    .replace(new RegExp(`^\\s*\\{\\s*0*${n}\\s*\\}\\s*`),'')
     .replace(new RegExp(`^\\s*0*${n}\\s*[.):-]?\\s*`,'i'),'').trim();
 }
 function splitOptions(lines:string[]){
@@ -120,7 +127,7 @@ export async function extractOfficialQuestionServer(sourceUrl:string,questionNum
       if(!started){if(marker(line,questionNumber)){started=true;sourcePage=p+1;const rest=stripMarker(line,questionNumber);if(rest)collected.push(rest)}continue}
       if(marker(line,questionNumber+1)){
         const parsed=splitOptions(collected);
-        if(parsed&&usable(parsed.prompt,parsed.opts))return {found:true,prompt:parsed.prompt,option_a:parsed.opts.A,option_b:parsed.opts.B,option_c:parsed.opts.C,option_d:parsed.opts.D,option_e:parsed.opts.E,needs_source_image:/\b(figura|imagem|gr[aá]fico|tabela|mapa|esquema|fotografia|charge|tirinha|texto anterior)\b/i.test(parsed.prompt),image_note:null,source_page:sourcePage,confidence:.94,source:'official-pdf-server'};
+        if(parsed&&usable(parsed.prompt,parsed.opts))return {found:true,prompt:parsed.prompt,option_a:parsed.opts.A,option_b:parsed.opts.B,option_c:parsed.opts.C,option_d:parsed.opts.D,option_e:parsed.opts.E,needs_source_image:/\b(figura|imagem|gr[aá]fico|tabela|mapa|esquema|fotografia|charge|tirinha|texto anterior|#####)\b/i.test(parsed.prompt),image_note:null,source_page:sourcePage,confidence:.94,source:'official-pdf-server'};
         return {found:false};
       }
       collected.push(line);
@@ -129,7 +136,7 @@ export async function extractOfficialQuestionServer(sourceUrl:string,questionNum
   }
   if(started){
     const parsed=splitOptions(collected);
-    if(parsed&&usable(parsed.prompt,parsed.opts))return {found:true,prompt:parsed.prompt,option_a:parsed.opts.A,option_b:parsed.opts.B,option_c:parsed.opts.C,option_d:parsed.opts.D,option_e:parsed.opts.E,needs_source_image:/\b(figura|imagem|gr[aá]fico|tabela|mapa|esquema|fotografia|charge|tirinha|texto anterior)\b/i.test(parsed.prompt),image_note:null,source_page:sourcePage,confidence:.9,source:'official-pdf-server'};
+    if(parsed&&usable(parsed.prompt,parsed.opts))return {found:true,prompt:parsed.prompt,option_a:parsed.opts.A,option_b:parsed.opts.B,option_c:parsed.opts.C,option_d:parsed.opts.D,option_e:parsed.opts.E,needs_source_image:/\b(figura|imagem|gr[aá]fico|tabela|mapa|esquema|fotografia|charge|tirinha|texto anterior|#####)\b/i.test(parsed.prompt),image_note:null,source_page:sourcePage,confidence:.9,source:'official-pdf-server'};
   }
   return {found:false};
 }
