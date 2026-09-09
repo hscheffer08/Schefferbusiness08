@@ -62,7 +62,11 @@ assert.match(embedded,/extractOfficialQuestionRemotely/);
 assert.match(embedded,/extractOfficialAnswerRemotely/);
 assert.match(embedded,/isUsableOfficialQuestion/);
 assert.match(embedded,/id: "fuvest", label: "FUVEST", official: true/);
-assert.match(embedded,/ext\.images\.map/);
+assert.match(embedded,/officialVisuals\.map/);
+assert.match(embedded,/enem-question-visuals/);
+assert.match(embedded,/Imagem da página oficial da questão/);
+assert.match(embedded,/onError=\{\(\) => markVisualFailed/);
+assert.match(embedded,/image_url,image_alt,image_credit/);
 assert.match(embedded,/q\.series_id !== "cmmg"/);
 
 console.log('Official question validation passed: ENEM 2019-2025, CMMG numbering/options, subject filters, full pagination, answer hiding and local proxy priority.');
