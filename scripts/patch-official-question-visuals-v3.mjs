@@ -2,6 +2,10 @@ import fs from 'node:fs';
 
 const path='src/components/OfficialQuestionWorkspaceV3.tsx';
 let src=fs.readFileSync(path,'utf8');
+if(src.includes('conectae:official-v16:')){
+  console.log('Active official question visuals are current.');
+  process.exit(0);
+}
 function patch(from,to,label){
   if(src.includes(to))return;
   if(!src.includes(from))throw new Error(`Active visual patch failed: ${label}`);
