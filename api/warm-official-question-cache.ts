@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { extractOfficialQuestionServer } from './_official-pdf-server';
+import { extractOfficialQuestionServer } from './_official-pdf-server.js';
 
 const SUPABASE_URL='https://kmognvgnfisdchzffkgh.supabase.co';
 const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
