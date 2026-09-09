@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL='https://kmognvgnfisdchzffkgh.supabase.co';
-const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJrdW1vZ252Z25maXNkY2h6ZmZrZ2giLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc4NjczOTE2OSwiZXhwIjoyMTAyMzE1MTY5fQ.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
+const SUPABASE_ANON_KEY=process.env.SUPABASE_ANON_KEY||process.env.VITE_SUPABASE_ANON_KEY||'';
 const supabase=createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
 const ALLOWED_HOSTS=new Set(['download.inep.gov.br','vestibular.cmmg.edu.br','www.fuvest.br','fuvest.br']);
 function allowed(raw:unknown){try{const u=new URL(String(raw||''));return u.protocol==='https:'&&ALLOWED_HOSTS.has(u.hostname)&&/\.pdf$/i.test(u.pathname)?u.toString():''}catch{return''}}
@@ -13,6 +13,7 @@ export default async function handler(req:any,res:any){
   if(req.method!=='GET'&&req.method!=='POST')return res.status(405).json({error:'Método não permitido.'});
   const input=req.method==='POST'?req.body:req.query,series=String(input?.series||'').toLowerCase(),sourceUrl=allowed(input?.sourceUrl),from=Math.max(1,Math.min(250,Math.trunc(Number(input?.from)||0))),requestedTo=Math.max(from,Math.min(250,Math.trunc(Number(input?.to)||from+3))),to=Math.min(from+3,requestedTo);
   if(!['enem','cmmg','fuvest'].includes(series)||!sourceUrl||!from)return res.status(400).json({error:'Parâmetros inválidos.'});
+  if(!SUPABASE_ANON_KEY)return res.status(500).json({error:'Supabase key ausente no ambiente.'});
   try{
     const refs=await supabase.from('official_vestibular_question_bank').select('question_id,series_id,year,question_number,source_pdf_url,prompt_text,option_a,option_b,option_c,option_d,option_e').eq('series_id',series).eq('source_pdf_url',sourceUrl).gte('question_number',from).lte('question_number',to).order('question_number');if(refs.error)throw refs.error;const rows=(refs.data||[]) as any[];
     if(!rows.length)return res.status(404).json({error:'Nenhuma questão encontrada nesse intervalo.'});const pending=rows.filter(q=>!usable({found:true,prompt:q.prompt_text,option_a:q.option_a,option_b:q.option_b,option_c:q.option_c,option_d:q.option_d,option_e:q.option_e}));if(!pending.length)return res.status(200).json({series,from,to,skipped:rows.length,saved:0,failed:0,done:true});
