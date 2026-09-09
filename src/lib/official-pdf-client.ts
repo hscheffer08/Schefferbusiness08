@@ -13,6 +13,11 @@ export type ParsedQuestion={
 };
 
 const BROKEN_GLYPHS=/[\uFFFD\u25A0-\u25FF\uE000-\uF8FF]/g;
+const INEP_PDF_HOST='download.inep.gov.br';
+
+function isInepPdf(sourceUrl:string){
+  try{return new URL(sourceUrl).hostname===INEP_PDF_HOST}catch{return false}
+}
 
 /** Rejects partial or font-corrupted PDF text before it reaches the UI. */
 export function isUsableOfficialQuestion(value:Partial<ParsedQuestion>|null|undefined){
@@ -49,6 +54,7 @@ function clean(s:string){return s.replace(/\s+/g,' ').trim()}
 function normalize(s:string){return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase()}
 
 async function fetchPdfBytes(sourceUrl:string){
+  if(isInepPdf(sourceUrl))throw new Error('O ENEM usa a fonte estruturada e não depende do PDF do INEP no servidor.');
   let last='';
   try{
     const parts:Uint8Array[]=[];
@@ -94,7 +100,7 @@ async function callExtractionApi(body:Record<string,unknown>){
 }
 
 export async function extractOfficialQuestionRemotely(sourceUrl:string,questionNumber:number,exam:string,year:number):Promise<ParsedQuestion>{
-  return callExtractionApi({mode:'question',sourceUrl,questionNumber,exam,year,extractorVersion:'2026-09-09-v4'}) as Promise<ParsedQuestion>;
+  return callExtractionApi({mode:'question',sourceUrl,questionNumber,exam,year,extractorVersion:'2026-09-09-v5'}) as Promise<ParsedQuestion>;
 }
 
 export async function extractOfficialAnswerRemotely(sourceUrl:string,questionNumber:number,exam:string,year:number):Promise<string|null>{
@@ -189,7 +195,10 @@ function parsedResult(parsed:{prompt:string;opts:Record<string,string|null>},con
   };
 }
 
+const EMPTY_PARSED_QUESTION:ParsedQuestion={found:false,prompt:'',option_a:null,option_b:null,option_c:null,option_d:null,option_e:null,needs_source_image:false,image_note:null,confidence:0};
+
 export async function extractOfficialQuestion(sourceUrl:string,questionNumber:number):Promise<ParsedQuestion>{
+  if(isInepPdf(sourceUrl))return {...EMPTY_PARSED_QUESTION};
   const pdf=await loadPdf(sourceUrl);
   const collected:string[]=[]; let started=false; let pagesAfterStart=0;
   let sourcePage=1;
@@ -200,18 +209,18 @@ export async function extractOfficialQuestion(sourceUrl:string,questionNumber:nu
       if(isQuestionMarker(line,questionNumber+1)){
         const parsed=splitOptions(collected);
         if(parsed){const result=parsedResult(parsed,.92,sourcePage);if(isUsableOfficialQuestion(result))return result;}
-        return {found:false,prompt:'',option_a:null,option_b:null,option_c:null,option_d:null,option_e:null,needs_source_image:false,image_note:null,confidence:0};
+        return {...EMPTY_PARSED_QUESTION};
       }
       collected.push(line);
     }
     if(started&&++pagesAfterStart>=3)break;
   }
   if(started){const parsed=splitOptions(collected);if(parsed){const result=parsedResult(parsed,.88,sourcePage);if(isUsableOfficialQuestion(result))return result;}}
-  return {found:false,prompt:'',option_a:null,option_b:null,option_c:null,option_d:null,option_e:null,needs_source_image:false,image_note:null,confidence:0};
+  return {...EMPTY_PARSED_QUESTION};
 }
 
 export async function renderOfficialPdfPage(sourceUrl:string,pageNumber:number):Promise<string|null>{
-  if(typeof document==='undefined'||!Number.isFinite(pageNumber)||pageNumber<1)return null;
+  if(typeof document==='undefined'||!Number.isFinite(pageNumber)||pageNumber<1||isInepPdf(sourceUrl))return null;
   const pdf=await loadPdf(sourceUrl);
   if(pageNumber>pdf.numPages)return null;
   const page=await pdf.getPage(pageNumber);
@@ -226,6 +235,7 @@ export async function renderOfficialPdfPage(sourceUrl:string,pageNumber:number):
 }
 
 export async function extractOfficialAnswer(sourceUrl:string,questionNumber:number):Promise<string|null>{
+  if(isInepPdf(sourceUrl))return null;
   const pdf=await loadPdf(sourceUrl);
   const flat:string[]=[];
   for(let p=1;p<=pdf.numPages;p++){
