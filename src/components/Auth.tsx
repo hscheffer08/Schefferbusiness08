@@ -14,6 +14,7 @@ interface AuthProps {
 }
 
 type Mode = 'login' | 'signup' | 'reset' | 'update';
+type CompactAccessMethod = 'username' | 'email';
 
 function normalizeCourseUsername(value: string) {
   return value
@@ -34,6 +35,8 @@ function courseUsernameEmail(username: string) {
 export default function Auth({ onBack, onSuccess, onPrivacy, onTerms, compact = false, initialMode = 'login' }: AuthProps) {
   const { signIn, signUp, resendConfirmation, resetPassword, updatePassword } = useAuth();
   const [mode, setMode] = useState<Mode>(initialMode);
+  const [compactAccessMethod, setCompactAccessMethod] = useState<CompactAccessMethod>('username');
+  const [compactEmailRecovery, setCompactEmailRecovery] = useState(false);
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState(() => {
     if (typeof window === 'undefined') return '';
@@ -56,6 +59,16 @@ export default function Auth({ onBack, onSuccess, onPrivacy, onTerms, compact = 
     setPassword('');
     setConfirmPassword('');
     if (next !== 'login') setPendingConfirmationEmail(null);
+  };
+
+  const changeCompactMethod = (next: CompactAccessMethod) => {
+    setCompactAccessMethod(next);
+    setCompactEmailRecovery(false);
+    setMode('login');
+    setPassword('');
+    setConfirmPassword('');
+    setError(null);
+    setSuccess(null);
   };
 
   const rememberCourseUsername = (value: string) => {
@@ -99,10 +112,7 @@ export default function Auth({ onBack, onSuccess, onPrivacy, onTerms, compact = 
           throw new Error('Não foi possível criar esse usuário agora. Tente outro nome ou tente novamente.');
         }
         const createdUsername = normalizeCourseUsername(String((data as any)?.username || normalized));
-        const { error: loginError } = await supabase.auth.signInWithPassword({
-          email: courseUsernameEmail(createdUsername),
-          password,
-        });
+        const { error: loginError } = await supabase.auth.signInWithPassword({ email: courseUsernameEmail(createdUsername), password });
         if (loginError) throw new Error('Usuário criado. Tente entrar agora com o usuário e a senha escolhidos.');
         setUsername(createdUsername);
         rememberCourseUsername(createdUsername);
@@ -110,10 +120,7 @@ export default function Auth({ onBack, onSuccess, onPrivacy, onTerms, compact = 
         trackEvent('login_completed', { method: 'course_username' });
         onSuccess();
       } else {
-        const { error: loginError } = await supabase.auth.signInWithPassword({
-          email: courseUsernameEmail(normalized),
-          password,
-        });
+        const { error: loginError } = await supabase.auth.signInWithPassword({ email: courseUsernameEmail(normalized), password });
         if (loginError) throw new Error('Usuário ou senha inválidos.');
         rememberCourseUsername(normalized);
         trackEvent('login_completed', { method: 'course_username' });
@@ -126,62 +133,128 @@ export default function Auth({ onBack, onSuccess, onPrivacy, onTerms, compact = 
     }
   };
 
+  const handleCompactEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      setError('Digite seu e-mail.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (compactEmailRecovery) {
+        const { error: recoveryError } = await resetPassword(normalizedEmail);
+        if (recoveryError) setError(recoveryError);
+        else setSuccess('Enviamos um link de recuperação para esse e-mail, se ele estiver cadastrado.');
+      } else {
+        const { error: loginError } = await signIn(normalizedEmail, password);
+        if (loginError) setError(loginError);
+        else {
+          trackEvent('login_completed', { method: 'legacy_email' });
+          onSuccess();
+        }
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (compact) {
     const courseMode: 'login' | 'signup' = mode === 'signup' ? 'signup' : 'login';
+    const usingUsername = compactAccessMethod === 'username';
+
     return (
       <div className="relative overflow-hidden">
         <main className="relative z-10 px-5 pb-8">
           <div className="w-full max-w-md mx-auto">
             <div className="text-center mb-5">
               <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 mb-3 shadow-lg shadow-brand-500/20">
-                <KeyRound className="w-5 h-5 text-ink-950" strokeWidth={2.5} />
+                {usingUsername ? <KeyRound className="w-5 h-5 text-ink-950" strokeWidth={2.5} /> : <Mail className="w-5 h-5 text-ink-950" strokeWidth={2.5} />}
               </div>
-              <h1 className="text-2xl font-bold tracking-tight mb-1">{courseMode === 'login' ? 'Entrar no Curso' : 'Criar meu acesso'}</h1>
-              <p className="text-sm text-ink-400">Sem e-mail. Use apenas um usuário e uma senha.</p>
+              <h1 className="text-2xl font-bold tracking-tight mb-1">{usingUsername ? (courseMode === 'login' ? 'Entrar no Curso' : 'Criar meu acesso') : (compactEmailRecovery ? 'Recuperar conta antiga' : 'Entrar com e-mail')}</h1>
+              <p className="text-sm text-ink-400">{usingUsername ? 'Use seu usuário e senha.' : 'Para contas criadas anteriormente com e-mail.'}</p>
+            </div>
+
+            <div className="mb-5 grid grid-cols-2 rounded-xl border border-ink-700 bg-ink-900/60 p-1">
+              <button type="button" onClick={() => changeCompactMethod('username')} className={`rounded-lg px-3 py-2.5 text-xs font-bold transition ${usingUsername ? 'bg-brand-500 text-ink-950' : 'text-ink-400 hover:text-ink-100'}`}>Usuário</button>
+              <button type="button" onClick={() => changeCompactMethod('email')} className={`rounded-lg px-3 py-2.5 text-xs font-bold transition ${!usingUsername ? 'bg-brand-500 text-ink-950' : 'text-ink-400 hover:text-ink-100'}`}>E-mail · conta antiga</button>
             </div>
 
             {error && <div className="mb-4 flex items-start gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-sm text-red-300"><AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /><span>{error}</span></div>}
             {success && <div className="mb-4 flex items-start gap-2 p-3 rounded-xl bg-green-500/10 border border-green-500/30 text-sm text-green-300"><CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" /><span>{success}</span></div>}
 
-            <form onSubmit={handleCourseSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-ink-400 mb-1.5">Usuário</label>
-                <div className="relative">
-                  <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" />
-                  <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="seu_usuario" required autoComplete="username" autoCapitalize="none" spellCheck={false} maxLength={32} className="w-full pl-11 pr-4 py-3 rounded-xl bg-ink-800/50 border border-ink-700 text-ink-100 placeholder-ink-600 focus:outline-none focus:border-brand-500 focus:bg-ink-800 transition-colors" />
+            {usingUsername ? <>
+              <form onSubmit={handleCourseSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-ink-400 mb-1.5">Usuário</label>
+                  <div className="relative">
+                    <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" />
+                    <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="seu_usuario" required autoComplete="username" autoCapitalize="none" spellCheck={false} maxLength={32} className="w-full pl-11 pr-4 py-3 rounded-xl bg-ink-800/50 border border-ink-700 text-ink-100 placeholder-ink-600 focus:outline-none focus:border-brand-500 focus:bg-ink-800 transition-colors" />
+                  </div>
                 </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-ink-400 mb-1.5">Senha</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" />
+                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={8} autoComplete={courseMode === 'login' ? 'current-password' : 'new-password'} className="w-full pl-11 pr-4 py-3 rounded-xl bg-ink-800/50 border border-ink-700 text-ink-100 placeholder-ink-600 focus:outline-none focus:border-brand-500 focus:bg-ink-800 transition-colors" />
+                  </div>
+                </div>
+
+                {courseMode === 'signup' && <div>
+                  <label className="block text-xs font-medium text-ink-400 mb-1.5">Confirmar senha</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" />
+                    <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" required minLength={8} autoComplete="new-password" className="w-full pl-11 pr-4 py-3 rounded-xl bg-ink-800/50 border border-ink-700 text-ink-100 placeholder-ink-600 focus:outline-none focus:border-brand-500 focus:bg-ink-800 transition-colors" />
+                  </div>
+                </div>}
+
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-400">
+                  <input type="checkbox" checked={rememberUsername} onChange={(e) => setRememberUsername(e.target.checked)} className="h-4 w-4 rounded border-ink-600 bg-ink-800" />
+                  Lembrar meu usuário neste aparelho
+                </label>
+
+                <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-ink-950 font-semibold transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : courseMode === 'login' ? 'Entrar no meu Curso' : 'Criar acesso e entrar'}
+                </button>
+              </form>
+
+              <p className="mt-3 text-center text-[11px] leading-relaxed text-ink-500">Seu usuário fica lembrado neste aparelho. A senha não é gravada em texto pelo Conectaê.</p>
+              <div className="mt-5 text-center text-sm text-ink-400">
+                {courseMode === 'login' ? <p>Primeira vez? <button type="button" onClick={() => changeMode('signup')} className="text-brand-400 hover:text-brand-300 font-medium">Criar usuário</button></p> : <p>Já tem usuário? <button type="button" onClick={() => changeMode('login')} className="text-brand-400 hover:text-brand-300 font-medium">Entrar</button></p>}
               </div>
-
-              <div>
-                <label className="block text-xs font-medium text-ink-400 mb-1.5">Senha</label>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" />
-                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={8} autoComplete={courseMode === 'login' ? 'current-password' : 'new-password'} className="w-full pl-11 pr-4 py-3 rounded-xl bg-ink-800/50 border border-ink-700 text-ink-100 placeholder-ink-600 focus:outline-none focus:border-brand-500 focus:bg-ink-800 transition-colors" />
+            </> : <>
+              <form onSubmit={handleCompactEmailSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-ink-400 mb-1.5">E-mail</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" />
+                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" required autoComplete="email" className="w-full pl-11 pr-4 py-3 rounded-xl bg-ink-800/50 border border-ink-700 text-ink-100 placeholder-ink-600 focus:outline-none focus:border-brand-500 focus:bg-ink-800 transition-colors" />
+                  </div>
                 </div>
+
+                {!compactEmailRecovery && <div>
+                  <label className="block text-xs font-medium text-ink-400 mb-1.5">Senha</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" />
+                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required autoComplete="current-password" className="w-full pl-11 pr-4 py-3 rounded-xl bg-ink-800/50 border border-ink-700 text-ink-100 placeholder-ink-600 focus:outline-none focus:border-brand-500 focus:bg-ink-800 transition-colors" />
+                  </div>
+                </div>}
+
+                <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-ink-950 font-semibold transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : compactEmailRecovery ? 'Enviar link de recuperação' : 'Entrar com minha conta antiga'}
+                </button>
+              </form>
+
+              <div className="mt-5 text-center space-y-2 text-sm text-ink-400">
+                {compactEmailRecovery ? <p>Lembrou a senha? <button type="button" onClick={() => { setCompactEmailRecovery(false); setError(null); setSuccess(null); }} className="text-brand-400 hover:text-brand-300 font-medium">Voltar para entrar</button></p> : <p>Esqueceu a senha? <button type="button" onClick={() => { setCompactEmailRecovery(true); setPassword(''); setError(null); setSuccess(null); }} className="text-brand-400 hover:text-brand-300 font-medium">Recuperar por e-mail</button></p>}
+                <p>Não tinha conta antiga? <button type="button" onClick={() => changeCompactMethod('username')} className="text-brand-400 hover:text-brand-300 font-medium">Criar usuário</button></p>
               </div>
+            </>}
 
-              {courseMode === 'signup' && <div>
-                <label className="block text-xs font-medium text-ink-400 mb-1.5">Confirmar senha</label>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" />
-                  <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" required minLength={8} autoComplete="new-password" className="w-full pl-11 pr-4 py-3 rounded-xl bg-ink-800/50 border border-ink-700 text-ink-100 placeholder-ink-600 focus:outline-none focus:border-brand-500 focus:bg-ink-800 transition-colors" />
-                </div>
-              </div>}
-
-              <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-400">
-                <input type="checkbox" checked={rememberUsername} onChange={(e) => setRememberUsername(e.target.checked)} className="h-4 w-4 rounded border-ink-600 bg-ink-800" />
-                Lembrar meu usuário neste aparelho
-              </label>
-
-              <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-ink-950 font-semibold transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : courseMode === 'login' ? 'Entrar no meu Curso' : 'Criar acesso e entrar'}
-              </button>
-            </form>
-
-            <p className="mt-3 text-center text-[11px] leading-relaxed text-ink-500">Seu acesso permanece conectado neste aparelho. A senha não é gravada em texto pelo Conectaê.</p>
-            <div className="mt-5 text-center text-sm text-ink-400">
-              {courseMode === 'login' ? <p>Primeira vez? <button type="button" onClick={() => changeMode('signup')} className="text-brand-400 hover:text-brand-300 font-medium">Criar usuário</button></p> : <p>Já tem usuário? <button type="button" onClick={() => changeMode('login')} className="text-brand-400 hover:text-brand-300 font-medium">Entrar</button></p>}
-            </div>
             <button type="button" onClick={onBack} className="mt-5 w-full text-center text-xs font-semibold text-ink-500 hover:text-ink-300">Voltar</button>
           </div>
         </main>
