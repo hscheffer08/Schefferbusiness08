@@ -62,5 +62,71 @@ patch(
   'avoid wrong first-page fallback',
 );
 
+// V14: a imagem oficial é parte obrigatória da questão, não uma descrição opcional.
+patch(
+  `const key=\`conectae:official-v13:\${q.question_id}\`;`,
+  `const key=\`conectae:official-v14:\${q.question_id}\`;`,
+  'visual cache v14',
+);
+
+patch(
+  `try{const cached=JSON.parse(sessionStorage.getItem(key)||'null');if(isUsableOfficialQuestion(cached)){setExtracted(cached);return}}catch{}`,
+  `try{const cached=JSON.parse(sessionStorage.getItem(key)||'null');if(isUsableOfficialQuestion(cached)){setExtracted(cached);setExtracting(false);return}}catch{}`,
+  'cached question loading state',
+);
+
+patch(
+  `images:q.image_url?[q.image_url]:undefined,source_page:undefined};if(isUsableOfficialQuestion(stored))value=stored;`,
+  `images:q.image_url?[q.image_url]:undefined,source_page:q.source_page??undefined};if(isUsableOfficialQuestion(stored))value=stored;`,
+  'use known source page immediately',
+);
+
+patch(
+  `      // Mostra o texto imediatamente; o gráfico/foto é carregado sem bloquear a questão.\n      setExtracted(value);setExtracting(false);\n      if(value.needs_source_image&&!value.images?.length&&!value.source_page&&q.source_pdf_url){\n        try{const localMeta=await extractOfficialQuestion(q.source_pdf_url,q.question_number);if(localMeta?.source_page)value={...value,source_page:localMeta.source_page,image_note:value.image_note||localMeta.image_note||null}}catch(e){console.warn('official visual page lookup failed',e)}\n      }`,
+  `      // Questões visuais só aparecem completas: primeiro localizamos a página original.\n      if(value.needs_source_image&&!value.images?.length&&!value.source_page&&q.source_pdf_url){\n        try{\n          const response=await fetch(\`/api/locate-official-question-page?sourceUrl=\${encodeURIComponent(q.source_pdf_url)}&questionNumber=\${q.question_number}\`);\n          const data=await response.json().catch(()=>({}));\n          const sourcePage=Number(data?.source_page);\n          if(response.ok&&Number.isInteger(sourcePage)&&sourcePage>0)value={...value,source_page:sourcePage};\n        }catch(e){console.warn('official deterministic page locator failed',e)}\n      }\n      // Se a página já é conhecida, o texto abre na hora e o screenshot é hidratado em seguida.\n      setExtracted(value);setExtracting(false);\n      if(value.needs_source_image&&!value.images?.length&&!value.source_page&&q.source_pdf_url){\n        try{const localMeta=await extractOfficialQuestion(q.source_pdf_url,q.question_number);if(localMeta?.source_page)value={...value,source_page:localMeta.source_page,image_note:value.image_note||localMeta.image_note||null}}catch(e){console.warn('official visual page lookup failed',e)}\n      }`,
+  'deterministic visual page locator',
+);
+
+patch(
+  `setExtracted(value);try{sessionStorage.setItem(key,JSON.stringify(value))}catch{}`,
+  `setExtracted(value);if(!value.needs_source_image||value.images?.length){try{sessionStorage.setItem(key,JSON.stringify(value))}catch{}}`,
+  'do not cache incomplete visual questions',
+);
+
+patch(
+  `activeOfficial&&extracted?.needs_source_image&&<div className="mt-3 rounded-xl border border-amber-300/25 bg-amber-300/[.06] p-3 text-xs text-[#9fb5d4]">`,
+  `activeOfficial&&extracted?.needs_source_image&&!extracted.images?.length&&!extracted.source_page&&<div className="mt-3 rounded-xl border border-amber-300/25 bg-amber-300/[.06] p-3 text-xs text-[#9fb5d4]">`,
+  'hide description when original visual is available',
+);
+
 fs.writeFileSync(path,src);
+
+// Bundle PDF.js and its worker with the app. Instagram/Safari no longer depend on jsDelivr to render screenshots.
+const pdfPath='src/lib/official-pdf-client.ts';
+let pdfSrc=fs.readFileSync(pdfPath,'utf8');
+function patchPdf(from,to,label){
+  if(pdfSrc.includes(to))return;
+  if(!pdfSrc.includes(from))throw new Error(`PDF visual patch failed: ${label}`);
+  pdfSrc=pdfSrc.replace(from,to);
+}
+
+patchPdf(
+  `export type ParsedQuestion={`,
+  `import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';\n\nexport type ParsedQuestion={`,
+  'bundled worker import',
+);
+
+patchPdf(
+  `const PDFJS_URL='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';\nconst PDFJS_WORKER='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';`,
+  `// PDF.js é empacotado localmente para funcionar também em navegadores embutidos.`,
+  'remove remote PDF.js CDN',
+);
+
+patchPdf(
+  `function remoteImport(url:string){\n  const importer=new Function('u','return import(u)') as (u:string)=>Promise<any>;\n  return importer(url);\n}\n\nasync function pdfjs(){\n  if(!pdfjsPromise){\n    pdfjsPromise=remoteImport(PDFJS_URL).then((mod:any)=>{mod.GlobalWorkerOptions.workerSrc=PDFJS_WORKER;return mod;});\n  }\n  return pdfjsPromise;\n}`,
+  `async function pdfjs(){\n  if(!pdfjsPromise){\n    pdfjsPromise=import('pdfjs-dist/build/pdf.mjs').then((mod:any)=>{mod.GlobalWorkerOptions.workerSrc=pdfWorkerUrl;return mod;});\n  }\n  return pdfjsPromise;\n}`,
+  'bundle PDF.js runtime',
+);
+
+fs.writeFileSync(pdfPath,pdfSrc);
 console.log('Active official question visual patch applied.');
