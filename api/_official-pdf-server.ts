@@ -57,7 +57,7 @@ function splitOptions(lines:string[]){
   const hits:{i:number;letter:string;rest:string}[]=[];
   for(let i=0;i<lines.length;i++){
     const line=lines[i].trim();
-    let m=line.match(/^([A-E])\s*[).:\-]\s*(.*)$/i);
+    let m=line.match(/^([A-E])\s*[).:-]\s*(.*)$/i);
     if(!m)m=line.match(/^([A-E])\s+(.+)$/i);
     if(m)hits.push({i,letter:m[1].toUpperCase(),rest:m[2]||''});
   }
