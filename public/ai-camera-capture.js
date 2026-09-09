@@ -1,7 +1,93 @@
 (() => {
   const ATTACH_SELECTOR = 'input[type="file"][accept*="image/jpeg"][accept*="image/png"][accept*="image/webp"]';
   const READY_ATTR = 'data-conectae-camera-ready';
-  const isAppleMobile = /iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const ua = navigator.userAgent || '';
+  const isAppleMobile = /iPad|iPhone|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isInstagramInApp = /Instagram/i.test(ua);
+  const isMetaInApp = /Instagram|FBAN|FBAV|FB_IAB/i.test(ua);
+
+  const copyCurrentLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      return true;
+    } catch {
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = window.location.href;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        const ok = document.execCommand('copy');
+        textarea.remove();
+        return ok;
+      } catch {
+        return false;
+      }
+    }
+  };
+
+  const openExternalBrowser = async () => {
+    const current = window.location.href;
+
+    if (isAppleMobile) {
+      const safariScheme = current.startsWith('https://')
+        ? `x-safari-https://${current.slice('https://'.length)}`
+        : `x-safari-http://${current.slice('http://'.length)}`;
+
+      window.location.href = safariScheme;
+
+      setTimeout(async () => {
+        if (document.visibilityState === 'visible') {
+          const copied = await copyCurrentLink();
+          window.alert(copied
+            ? 'O Instagram bloqueou a abertura automática. O link foi copiado. Toque em ••• no Instagram > Abrir no navegador e, se precisar, cole o link no Safari.'
+            : 'Toque em ••• no Instagram e escolha Abrir no navegador para usar câmera e upload sem erro.');
+        }
+      }, 900);
+      return;
+    }
+
+    const withoutProtocol = current.replace(/^https?:\/\//, '');
+    window.location.href = `intent://${withoutProtocol}#Intent;scheme=https;package=com.android.chrome;end`;
+  };
+
+  const buildInstagramNotice = (label) => {
+    if (!isInstagramInApp || label.parentElement?.querySelector('[data-conectae-instagram-notice="1"]')) return;
+
+    const notice = document.createElement('div');
+    notice.setAttribute('data-conectae-instagram-notice', '1');
+    notice.style.display = 'flex';
+    notice.style.alignItems = 'center';
+    notice.style.gap = '8px';
+    notice.style.flexWrap = 'wrap';
+    notice.style.marginTop = '8px';
+    notice.style.padding = '10px 12px';
+    notice.style.border = '1px solid rgba(59,130,246,.35)';
+    notice.style.borderRadius = '12px';
+    notice.style.background = 'rgba(15,23,42,.72)';
+    notice.style.fontSize = '12px';
+    notice.style.lineHeight = '1.35';
+    notice.style.color = 'inherit';
+
+    const text = document.createElement('span');
+    text.style.flex = '1 1 190px';
+    text.textContent = 'O navegador do Instagram limita câmera e upload. Para tirar foto sem tela preta, abra esta página no Safari/Chrome.';
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = isAppleMobile ? 'Abrir no Safari' : 'Abrir no navegador';
+    button.style.border = '0';
+    button.style.borderRadius = '9px';
+    button.style.padding = '8px 10px';
+    button.style.fontWeight = '700';
+    button.style.cursor = 'pointer';
+    button.addEventListener('click', openExternalBrowser);
+
+    notice.append(text, button);
+    label.parentElement?.appendChild(notice);
+  };
 
   const normalizeCameraFile = async (file) => {
     if (!file || ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return file;
@@ -112,10 +198,19 @@
 
       label.setAttribute(READY_ATTR, '1');
 
+      if (isMetaInApp) {
+        // Meta in-app browsers (especially Instagram on iOS) may hand off
+        // camera/upload to a constrained WKWebView and show a black preview.
+        // Keep only the original React input and explicitly route camera use
+        // to the external browser instead of creating a second camera input.
+        input.accept = 'image/jpeg,image/png,image/webp';
+        input.removeAttribute('capture');
+        label.title = 'Anexar foto. Para tirar uma nova foto, abra no Safari/Chrome.';
+        buildInstagramNotice(label);
+        return;
+      }
+
       if (isAppleMobile) {
-        // On iPhone/iPad, do not create or click a second synthetic file input.
-        // Use the original React input so iOS opens its own source chooser
-        // (Tirar Foto / Fototeca / Arquivos) through the stable native path.
         input.accept = 'image/*';
         input.removeAttribute('capture');
         label.title = 'Adicionar foto: escolha Tirar Foto, Fototeca ou Arquivos';
