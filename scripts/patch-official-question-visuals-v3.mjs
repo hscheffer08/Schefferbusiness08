@@ -99,6 +99,31 @@ patch(
   'hide description when original visual is available',
 );
 
+// V15: ENEM usa as mídias originais já recortadas; evita depender do PDF do INEP no navegador embutido do Instagram.
+patch(
+  `const key=\`conectae:official-v14:\${q.question_id}\`;`,
+  `const key=\`conectae:official-v15:\${q.question_id}\`;`,
+  'visual cache v15',
+);
+
+patch(
+  `      // Questões visuais só aparecem completas: primeiro localizamos a página original.\n      if(value.needs_source_image&&!value.images?.length&&!value.source_page&&q.source_pdf_url){`,
+  `      // No ENEM, buscamos a fotografia/figura recortada e também imagens das alternativas.\n      if(q.series_id==='enem'&&value.needs_source_image&&!value.images?.length){\n        try{\n          const mediaResponse=await fetch(\`/api/enem-question-visuals?year=\${q.year}&questionNumber=\${q.question_number}&prompt=\${encodeURIComponent(value.prompt||q.prompt_text||'')}\`);\n          const media=await mediaResponse.json().catch(()=>({}));\n          const mediaImages=Array.isArray(media?.images)?media.images.filter((url:any)=>typeof url==='string'&&url.startsWith('https://')):[];\n          const optionImages=media?.option_images&&typeof media.option_images==='object'?media.option_images:{};\n          if(mediaResponse.ok&&(mediaImages.length||Object.keys(optionImages).length)){value={...value,images:mediaImages.length?mediaImages:value.images,option_images:optionImages};}\n        }catch(e){console.warn('ENEM original media lookup failed',e)}\n      }\n      // Para as demais provas, ou se o recorte não existir, localizamos a página original.\n      if(value.needs_source_image&&!value.images?.length&&!value.source_page&&q.source_pdf_url){`,
+  'ENEM original visual media',
+);
+
+patch(
+  `activeOfficial&&extracted?.needs_source_image&&!extracted.images?.length&&!extracted.source_page&&<div className="mt-3 rounded-xl border border-amber-300/25 bg-amber-300/[.06] p-3 text-xs text-[#9fb5d4]">`,
+  `activeOfficial&&extracted?.needs_source_image&&!extracted.images?.length&&!Object.keys(extracted.option_images||{}).length&&!extracted.source_page&&<div className="mt-3 rounded-xl border border-amber-300/25 bg-amber-300/[.06] p-3 text-xs text-[#9fb5d4]">`,
+  'description only without visual media',
+);
+
+patch(
+  `activeOfficial?.source_pdf_url&&extracted?.needs_source_image&&!extracted.images?.length&&Boolean(extracted.source_page)&&<iframe`,
+  `activeOfficial?.source_pdf_url&&extracted?.needs_source_image&&!extracted.images?.length&&!Object.keys(extracted.option_images||{}).length&&Boolean(extracted.source_page)&&<iframe`,
+  'avoid PDF when cropped option media exists',
+);
+
 fs.writeFileSync(path,src);
 
 // Bundle PDF.js with the app. The worker URL is loaded only in browsers, so Node validators keep working.
