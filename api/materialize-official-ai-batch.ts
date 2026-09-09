@@ -17,7 +17,8 @@ export default async function handler(req:any,res:any){
   const series=String(input?.series||'').toLowerCase();
   const sourceUrl=allowed(input?.sourceUrl);
   const from=Math.max(1,Math.min(250,Math.trunc(Number(input?.from)||0)));
-  const to=Math.min(from+7,Math.max(from,Math.min(250,Math.trunc(Number(input?.to)||from+7))));
+  const requestedTo=Math.max(from,Math.min(250,Math.trunc(Number(input?.to)||from+3)));
+  const to=Math.min(from+3,requestedTo);
   if(!['enem','cmmg','fuvest'].includes(series)||!sourceUrl||!from)return res.status(400).json({error:'Parâmetros inválidos.'});
   try{
     const refs=await supabase.from('official_vestibular_question_bank')
@@ -29,10 +30,8 @@ export default async function handler(req:any,res:any){
     const pending=rows.filter(q=>!usable({found:true,prompt:q.prompt_text,option_a:q.option_a,option_b:q.option_b,option_c:q.option_c,option_d:q.option_d,option_e:q.option_e}));
     if(!pending.length)return res.status(200).json({series,from,to,skipped:rows.length,saved:0,failed:0,done:true});
     const year=rows[0]?.year;
-    const r=await fetch(`${root(req)}/api/extract-official-question`,{
-      method:'POST',headers:{'content-type':'application/json'},signal:AbortSignal.timeout(110000),
-      body:JSON.stringify({mode:'batch',sourceUrl,fromQuestion:from,toQuestion:to,exam:series.toUpperCase(),year})
-    });
+    const params=new URLSearchParams({mode:'batch',sourceUrl,fromQuestion:String(from),toQuestion:String(to),exam:series.toUpperCase(),year:String(year||'')});
+    const r=await fetch(`${root(req)}/api/extract-official-question?${params.toString()}`,{method:'GET',signal:AbortSignal.timeout(110000)});
     const text=await r.text();let payload:any={};try{payload=JSON.parse(text)}catch{throw new Error(`Resposta inválida da extração (${r.status})`)}
     if(!r.ok)throw new Error(payload?.error||`Extração HTTP ${r.status}`);
     const questions=Array.isArray(payload?.questions)?payload.questions:[];
