@@ -12,7 +12,7 @@ type Step = 'areas' | 'quiz' | 'results';
 
 const AREA_PHOTOS = [
   'https://images.unsplash.com/photo-1538108149393-fbbd81895907?auto=format&fit=crop&w=900&q=78',
-  'https://images.unsplash.com/photo-1516321318423-f06f85e504b3d57bc86b40?auto=format&fit=crop&w=900&q=78',
+  'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=78',
   'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=900&q=78',
   'https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=900&q=78',
   'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=900&q=78',
