@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, ArrowRight, BrainCircuit, Clock3, Crosshair, Gauge, Loader2, Microscope, Sparkles, TrendingUp, TriangleAlert } from 'lucide-react';
+import { ArrowRight, BrainCircuit, Crosshair, Gauge, Loader2, Microscope, Sparkles, TrendingUp, TriangleAlert } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
 
@@ -11,7 +11,6 @@ import { supabase } from '@/lib/supabase';
  type PlanProgress = { exam_id:string; week_start:string; completed_sessions:string[] };
 
 const clamp=(n:number,min=0,max=100)=>Math.max(min,Math.min(max,n));
-const pct=(n:number)=>`${Math.round(n)}%`;
 const normalize=(v:string)=>v.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 const errorLabels:Record<string,string>={
   conteudo:'Conteúdo',interpretacao:'Interpretação',calculo:'Cálculo/procedimento',distracao:'Desatenção',tempo:'Gestão de tempo',estrategia:'Estratégia',outro:'Outro'

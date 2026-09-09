@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import type { MatchResult } from '@/types';
-import { getSubScoreValue, getSubScoreLabel, getStudentProfileAttributes, getCompatibilityBand, type MatchingData } from '@/lib/matching-engine';
+import { getSubScoreValue, getSubScoreLabel, getCompatibilityBand } from '@/lib/matching-engine';
 import type { AnswerMap } from '@/types';
 import type { DatabaseData } from '@/lib/api';
 

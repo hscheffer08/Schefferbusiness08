@@ -15,7 +15,6 @@ import type {
   MatchResult,
   AnswerMap,
   SavedUniversity,
-  UserFeedback,
   AdminSettings,
   SharingConsent,
   ConsentStatus,

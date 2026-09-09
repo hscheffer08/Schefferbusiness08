@@ -50,7 +50,7 @@ export default function CourseHome() {
             <button onClick={openCollegeTools} className="transition hover:text-white">Faculdades</button>
             <button onClick={openCollegeTools} className="transition hover:text-white">Teste vocacional</button>
           </nav>
-          <button onClick={openCourse} className="rounded-xl bg-[#246cff] px-4 py-2.5 text-sm font-extrabold shadow-lg shadow-[#246cff]/20 transition hover:bg-[#3678ff]">Entrar no Curso</button>
+          <div className="w-24 sm:w-44" aria-hidden="true" />
         </div>
       </header>
 

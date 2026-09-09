@@ -12,7 +12,7 @@ type Step = 'areas' | 'quiz' | 'results';
 
 const AREA_PHOTOS = [
   'https://images.unsplash.com/photo-1538108149393-fbbd81895907?auto=format&fit=crop&w=900&q=78',
-  'https://images.unsplash.com/photo-1516321318423-f06f85e504b3d57bc86b40?auto=format&fit=crop&w=900&q=78',
+  'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=78',
   'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=900&q=78',
   'https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=900&q=78',
   'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=900&q=78',
@@ -27,7 +27,7 @@ const CARD_TONES = [
 ];
 
 export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
-  const fallback = ACADEMIC_AREAS.map((a,index)=>({ ...a, dimensionWeights:{}, questions:[], universities:a.universities.map((u,i)=>({...u,areaUniversityId:index*20+i,dataConfidence:40,evidenceCount:0})) }));
+  const fallback = useMemo(() => ACADEMIC_AREAS.map((a,index)=>({ ...a, dimensionWeights:{}, questions:[], universities:a.universities.map((u,i)=>({...u,areaUniversityId:index*20+i,dataConfidence:40,evidenceCount:0})) })), []);
   const [areas, setAreas] = useState<ProfessionalArea[]>(fallback);
   const [step, setStep] = useState<Step>(initialAreaId ? 'quiz' : 'areas');
   const [area, setArea] = useState<ProfessionalArea | null>(fallback.find(a=>a.id===initialAreaId) ?? null);
@@ -47,7 +47,7 @@ export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
       setDataReady(true);
     });
     return () => { active = false; };
-  }, [initialAreaId]);
+  }, [fallback, initialAreaId]);
 
   const baseQuestions = area ? (area.questions?.length ? area.questions : professionalQuestionsForArea(area as AcademicArea)) : [];
   const questions = questionOrder.length

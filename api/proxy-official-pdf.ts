@@ -10,6 +10,43 @@ function allowed(raw: unknown) {
   }
 }
 
+const SUPABASE_PDF_PROXY = 'https://kmognvgnfisdchzffkgh.supabase.co/functions/v1/official-pdf-proxy';
+
+async function fetchOfficialPdf(url: string, range: string | null) {
+  const candidates = [
+    url,
+    `${SUPABASE_PDF_PROXY}?url=${encodeURIComponent(url)}`,
+  ];
+  let lastError = 'A fonte oficial não respondeu.';
+
+  for (const candidate of candidates) {
+    try {
+      const response = await fetch(candidate, {
+        redirect: 'follow',
+        signal: AbortSignal.timeout(30000),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; ConectaeOfficialReader/1.1)',
+          Accept: 'application/pdf,*/*;q=0.8',
+          ...(range && candidate === url ? { Range: range } : {}),
+        },
+      });
+      if (!response.ok) {
+        lastError = `PDF HTTP ${response.status}`;
+        continue;
+      }
+      const type = response.headers.get('content-type') || '';
+      if (!type.toLowerCase().includes('pdf')) {
+        lastError = 'A fonte retornou um arquivo inválido.';
+        continue;
+      }
+      return response;
+    } catch (error: any) {
+      lastError = String(error?.message || error);
+    }
+  }
+  throw new Error(lastError);
+}
+
 export default async function handler(req: any, res: any) {
   if (!['GET', 'HEAD'].includes(req.method)) return res.status(405).json({ error: 'Método não permitido.' });
   const url = allowed(req.query?.url);
@@ -24,25 +61,20 @@ export default async function handler(req: any, res: any) {
     : null;
 
   try {
-    const response = await fetch(url, {
-      redirect: 'follow',
-      signal: AbortSignal.timeout(30000),
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; ConectaeOfficialReader/1.0)',
-        Accept: 'application/pdf,*/*;q=0.8',
-        ...(chunked ? { Range: `bytes=${start}-${end}` } : {}),
-      },
-    });
-    if (!response.ok) return res.status(502).json({ error: 'A fonte oficial não respondeu.' });
-    const type = response.headers.get('content-type') || '';
-    if (!type.toLowerCase().includes('pdf')) return res.status(502).json({ error: 'A fonte retornou um arquivo inválido.' });
+    const response = await fetchOfficialPdf(url, chunked ? `bytes=${start}-${end}` : null);
     const buffer = Buffer.from(await response.arrayBuffer());
     if (!buffer.length || buffer.length > 30 * 1024 * 1024) return res.status(502).json({ error: 'PDF oficial inválido ou grande demais.' });
 
     const upstreamRange = response.headers.get('content-range') || '';
     const totalFromRange = Number(upstreamRange.match(/\/(\d+)$/)?.[1]);
     const total = Number.isFinite(totalFromRange) ? totalFromRange : Number(response.headers.get('content-length')) || buffer.length;
-    const payload = chunked ? buffer.subarray(0, Math.min(buffer.length, end! - start + 1)) : buffer;
+    const upstreamHonoredRange = response.status === 206 && /^bytes\s+\d+-\d+\//i.test(upstreamRange);
+    const payload = !chunked
+      ? buffer
+      : upstreamHonoredRange
+        ? buffer.subarray(0, Math.min(buffer.length, end! - start + 1))
+        : buffer.subarray(start, Math.min(buffer.length, end! + 1));
+    if (!payload.length) return res.status(416).json({ error: 'Trecho do PDF fora do arquivo.' });
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Length', String(payload.length));

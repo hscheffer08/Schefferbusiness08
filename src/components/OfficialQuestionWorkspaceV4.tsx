@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, no-empty */
 import { useEffect, useMemo, useState } from "react";
 import {
   Bot,

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 export type ParsedQuestion={
   found:boolean;
   prompt:string;
@@ -31,6 +30,7 @@ const PDFJS_URL='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.m
 const PDFJS_WORKER='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
 const SUPABASE_PDF_PROXY='https://kmognvgnfisdchzffkgh.supabase.co/functions/v1/official-pdf-proxy';
 let pdfjsPromise:Promise<any>|null=null;
+const pdfDocumentCache=new Map<string,Promise<any>>();
 
 function remoteImport(url:string){
   const importer=new Function('u','return import(u)') as (u:string)=>Promise<any>;
@@ -103,9 +103,15 @@ export async function extractOfficialAnswerRemotely(sourceUrl:string,questionNum
 }
 
 async function loadPdf(sourceUrl:string){
-  const lib=await pdfjs();
-  const data=await fetchPdfBytes(sourceUrl);
-  return lib.getDocument({data:new Uint8Array(data),useWorkerFetch:true,isEvalSupported:false}).promise;
+  let cached=pdfDocumentCache.get(sourceUrl);
+  if(cached)return cached;
+  cached=(async()=>{
+    const lib=await pdfjs();
+    const data=await fetchPdfBytes(sourceUrl);
+    return lib.getDocument({data:new Uint8Array(data),useWorkerFetch:true,isEvalSupported:false}).promise;
+  })();
+  pdfDocumentCache.set(sourceUrl,cached);
+  try{return await cached}catch(error){pdfDocumentCache.delete(sourceUrl);throw error}
 }
 
 function pageLines(items:any[]){
@@ -208,7 +214,7 @@ export async function renderOfficialPdfPage(sourceUrl:string,pageNumber:number):
   const pdf=await loadPdf(sourceUrl);
   if(pageNumber>pdf.numPages)return null;
   const page=await pdf.getPage(pageNumber);
-  const viewport=page.getViewport({scale:1.5});
+  const viewport=page.getViewport({scale:1.75});
   const canvas=document.createElement('canvas');
   canvas.width=Math.ceil(viewport.width);
   canvas.height=Math.ceil(viewport.height);
