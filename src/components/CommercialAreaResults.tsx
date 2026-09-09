@@ -43,7 +43,7 @@ export default function CommercialAreaResults({area,answers,matches,onBack,onHom
   const [feedbackSent,setFeedbackSent]=useState(false);
 
   useEffect(()=>{const top=matches[0];trackEvent('area_match_completed',{area_id:area.id,area_name:area.name,top_university:top?.university.name,top_score:top?.score,result_count:matches.length});},[area.id,area.name,matches]);
-  useEffect(()=>{(async()=>{if(!supabase)return;const {data:{user}}=await supabase.auth.getUser();if(!user)return;const {data}=await supabase.from('student_saved_programs').select('program_key').eq('user_id',user.id);if(data?.length){const merged=Array.from(new Set([...shortlist,...data.map((r:any)=>String(r.program_key))]));setShortlist(merged);try{localStorage.setItem('conectae_shortlist',JSON.stringify(merged))}catch{}}})();},[]);
+  useEffect(()=>{(async()=>{if(!supabase)return;const {data:{user}}=await supabase.auth.getUser();if(!user)return;const {data}=await supabase.from('student_saved_programs').select('program_key').eq('user_id',user.id);if(data?.length){setShortlist(current=>{const merged=Array.from(new Set([...current,...data.map((r:any)=>String(r.program_key))]));try{localStorage.setItem('conectae_shortlist',JSON.stringify(merged))}catch{}return merged;});}})();},[]);
 
   const profile=useMemo(()=>studentProfileSummary(area,answers),[area,answers]);
   const modalities=useMemo(()=>Array.from(new Set(matches.map(m=>m.university.modality?.trim()).filter((x):x is string=>Boolean(x)))).sort(),[matches]);

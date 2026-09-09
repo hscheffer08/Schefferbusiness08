@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { jsPDF } from 'jspdf';
 import {
-  ArrowLeft, BarChart3, BookOpen, BrainCircuit, CalendarDays, Camera, CheckCircle2,
-  ChevronRight, Clock3, Database, Download, ExternalLink, FileScan, Flame,
+  ArrowLeft, BarChart3, BookOpen, BrainCircuit, CalendarDays, Camera,
+  Clock3, Database, Download, ExternalLink, FileScan, Flame,
   GraduationCap, Loader2, PlayCircle, Save, ShieldCheck, Sparkles, Target,
-  TimerReset, TrendingUp, Video, XCircle,
+  TrendingUp, Video, XCircle,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 

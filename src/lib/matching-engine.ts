@@ -344,7 +344,7 @@ function computePillarScores(
   dimensionScores: Map<string, DimensionScore>,
   uniDimWeights: Map<string, number>,
   dimensions: Dimension[],
-  pillarWeightMap: Map<string, number>
+  _pillarWeightMap: Map<string, number>
 ): Record<string, number> {
   const pillarSums = new Map<string, { sum: number; count: number }>();
 
@@ -473,7 +473,7 @@ function computeMismatchPoint(
 function computeSubScores(
   dimensionScores: Map<string, DimensionScore>,
   uniDimWeights: Map<string, number>,
-  dimensions: Dimension[]
+  _dimensions: Dimension[]
 ): Record<string, number> {
   const result: Record<string, number> = {};
   for (const [key, dimIds] of Object.entries(SUBSCORE_DIMENSIONS)) {

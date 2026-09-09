@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bot,
@@ -42,6 +41,9 @@ type O = {
   option_c: string | null;
   option_d: string | null;
   option_e: string | null;
+  image_url: string | null;
+  image_alt: string | null;
+  source_page: number | null;
 };
 type P = {
   id: number;
@@ -196,9 +198,9 @@ export default function OfficialQuestionWorkspaceV5() {
       if (cfg.official) {
         for (let from = 0; from < 2500; from += 500) {
           const r = await supabase
-            .from("official_vestibular_question_bank")
+            .from("official_vestibular_question_bank_v2")
             .select(
-              "question_id,series_id,year,question_number,area,subject,skill_name,correct_option,source_pdf_url,answer_key_url,prompt_text,option_a,option_b,option_c,option_d,option_e",
+              "question_id,series_id,year,question_number,area,subject,skill_name,correct_option,source_pdf_url,answer_key_url,prompt_text,option_a,option_b,option_c,option_d,option_e,image_url,image_alt,source_page",
             )
             .eq("series_id", exam)
             .order("year", { ascending: false })
@@ -312,7 +314,7 @@ export default function OfficialQuestionWorkspaceV5() {
     setAo(q);
     setAp(null);
     setExtracting(true);
-    const key = `conectae:official-v8:${q.question_id}`;
+    const key = `conectae:official-v11:${q.question_id}`;
     try {
       try {
         const cached = JSON.parse(sessionStorage.getItem(key) || "null");
@@ -322,6 +324,11 @@ export default function OfficialQuestionWorkspaceV5() {
         }
       } catch {}
       let v: E | null = null;
+      const visualCue = /\b(figura|imagem|gr[aá]fico|tabela|mapa|esquema|fotografia|charge|tirinha|diagrama|cartum|quadrinho|ilustra[cç][aã]o)\b/i.test(
+        [q.prompt_text, q.option_a, q.option_b, q.option_c, q.option_d, q.option_e]
+          .filter(Boolean)
+          .join(" "),
+      );
       const stored = {
         found: true,
         prompt: q.prompt_text || "",
@@ -331,9 +338,15 @@ export default function OfficialQuestionWorkspaceV5() {
         option_d: q.option_d,
         option_e: q.option_e,
         correct_option: q.correct_option,
-        needs_source_image: false,
-        image_note: null,
+        needs_source_image: Boolean(q.image_url || q.image_alt || visualCue),
+        image_note:
+          q.image_alt ||
+          (visualCue ? "Esta questão contém elemento visual da prova oficial." : null),
         confidence: 1,
+        images: q.image_url ? [q.image_url] : undefined,
+        // source_page antigo pode ter sido produzido por extratores anteriores;
+        // para questões visuais sem asset, localizamos a página novamente antes de exibir.
+        source_page: undefined,
       };
       if (isUsableOfficialQuestion(stored)) v = stored;
       if (!v && q.series_id === "enem" && q.year >= 2019 && q.year <= 2023) {
@@ -380,12 +393,63 @@ export default function OfficialQuestionWorkspaceV5() {
         throw new Error(
           "Não consegui carregar esta questão completa agora. Tente novamente em alguns segundos.",
         );
+
+      // O texto abre imediatamente. O visual é hidratado em seguida, sem travar o modal.
+      setExt(v);
+      setExtracting(false);
+
+      if (
+        v.needs_source_image &&
+        !v.images?.length &&
+        !v.source_page &&
+        q.source_pdf_url
+      ) {
+        try {
+          const localMeta = await extractOfficialQuestion(
+            q.source_pdf_url,
+            q.question_number,
+          );
+          if (localMeta?.source_page) {
+            v = {
+              ...v,
+              source_page: localMeta.source_page,
+              image_note: v.image_note || localMeta.image_note || null,
+            };
+          }
+        } catch (e) {
+          console.warn("official visual page lookup failed", e);
+        }
+      }
+      if (
+        v.needs_source_image &&
+        !v.images?.length &&
+        !v.source_page &&
+        q.source_pdf_url
+      ) {
+        try {
+          const remoteMeta = await extractOfficialQuestionRemotely(
+            q.source_pdf_url,
+            q.question_number,
+            cfg.label,
+            q.year,
+          );
+          if (remoteMeta?.source_page) {
+            v = {
+              ...v,
+              source_page: remoteMeta.source_page,
+              image_note: v.image_note || remoteMeta.image_note || null,
+            };
+          }
+        } catch (e) {
+          console.warn("official remote visual page lookup failed", e);
+        }
+      }
+
       if (
         v.needs_source_image &&
         !v.images?.length &&
         v.source_page &&
-        q.source_pdf_url &&
-        !/download\.inep\.gov\.br/i.test(q.source_pdf_url)
+        q.source_pdf_url
       ) {
         try {
           const image = await renderOfficialPdfPage(
@@ -717,7 +781,7 @@ export default function OfficialQuestionWorkspaceV5() {
                   {ext?.needs_source_image && (
                     <div className="mt-3 rounded-xl border border-amber-300/25 bg-amber-300/[.06] p-3 text-xs text-amber-100">
                       {ext.image_note ||
-                        "Confira também o elemento visual na prova oficial."}
+                        "Gráfico, foto, mapa, tabela ou outro elemento visual da página oficial exibido acima."}
                     </div>
                   )}
                   {isObj ? (

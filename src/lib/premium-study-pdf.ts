@@ -39,7 +39,6 @@ type Args = {
 const NAVY: [number, number, number] = [8, 17, 31];
 const CYAN: [number, number, number] = [33, 202, 230];
 const PURPLE: [number, number, number] = [139, 92, 246];
-const PALE: [number, number, number] = [241, 245, 249];
 const SLATE: [number, number, number] = [71, 85, 105];
 const GREEN: [number, number, number] = [16, 185, 129];
 

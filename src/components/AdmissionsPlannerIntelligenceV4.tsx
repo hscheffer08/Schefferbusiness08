@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { jsPDF } from 'jspdf';
 import {
-  ArrowLeft, BookOpen, BrainCircuit, CalendarDays, CheckCircle2, ChevronRight,
-  Clock3, Database, Download, ExternalLink, FileText, Flame, GraduationCap,
-  Loader2, PlayCircle, Save, Sparkles, Target, TrendingUp, Video, X, XCircle,
+  ArrowLeft, BookOpen, BrainCircuit, CalendarDays, CheckCircle2,
+  Database, Download, ExternalLink, FileText, Flame,
+  Loader2, PlayCircle, Save, Sparkles, Target, TrendingUp, Video, XCircle,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 

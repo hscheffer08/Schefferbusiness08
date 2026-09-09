@@ -1,4 +1,3 @@
-/* eslint-disable no-useless-escape */
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 const docs=new Map<string,Promise<string[][]>>();
@@ -23,7 +22,6 @@ function decodeCmmgToken(token:string){
   if(/^\d+[.,;:)]?$/.test(token)||/^[A-E][).:]$/.test(token))return token;
   const candidate=shiftedAscii(token);
   const bad=[...candidate].filter(ch=>'`^[\\]'.includes(ch)).length;
-  const letters=(candidate.match(/[A-Za-zÀ-ÿ]/g)||[]).length;
   const odd="$%&'()*+,-./0123456789:;<=>?@[\\]^_";
   const originalOdd=[...token].filter(ch=>odd.includes(ch)||ch.charCodeAt(0)<32).length;
   const candidateUseful=(candidate.match(/[A-Za-z0-9À-ÿ]/g)||[]).length/Math.max(candidate.length,1);

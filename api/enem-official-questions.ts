@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 type EnemAlternative={letter?:string;text?:string;file?:string|null;isCorrect?:boolean};
 type EnemQuestion={index?:number;year?:number;language?:string|null;context?:string|null;files?:string[];correctAlternative?:string|null;alternativesIntroduction?:string|null;alternatives?:EnemAlternative[]};
 

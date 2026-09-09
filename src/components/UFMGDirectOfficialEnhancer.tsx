@@ -212,13 +212,13 @@ export default function UFMGDirectOfficialEnhancer() {
   }, []);
 
   const language = target ? activeLanguage(target.page) : 'ingles';
-  const question = useMemo(() => target ? patchedQuestion(target.questionNumber, language) : null, [target?.questionNumber, target?.page, language]);
+  const question = useMemo(() => target ? patchedQuestion(target.questionNumber, language) : null, [target, language]);
 
   useEffect(() => {
     if (!target || !question) return;
     setChosen(readChosen(target.questionNumber));
     setShowSource(question.showSourceByDefault);
-  }, [target?.questionNumber, target?.page, question?.showSourceByDefault]);
+  }, [target, question]);
 
   useEffect(() => {
     if (!target) return;

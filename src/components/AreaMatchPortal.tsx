@@ -27,7 +27,7 @@ const CARD_TONES = [
 ];
 
 export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
-  const fallback = ACADEMIC_AREAS.map((a,index)=>({ ...a, dimensionWeights:{}, questions:[], universities:a.universities.map((u,i)=>({...u,areaUniversityId:index*20+i,dataConfidence:40,evidenceCount:0})) }));
+  const fallback = useMemo(() => ACADEMIC_AREAS.map((a,index)=>({ ...a, dimensionWeights:{}, questions:[], universities:a.universities.map((u,i)=>({...u,areaUniversityId:index*20+i,dataConfidence:40,evidenceCount:0})) })), []);
   const [areas, setAreas] = useState<ProfessionalArea[]>(fallback);
   const [step, setStep] = useState<Step>(initialAreaId ? 'quiz' : 'areas');
   const [area, setArea] = useState<ProfessionalArea | null>(fallback.find(a=>a.id===initialAreaId) ?? null);
@@ -47,7 +47,7 @@ export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
       setDataReady(true);
     });
     return () => { active = false; };
-  }, [initialAreaId]);
+  }, [fallback, initialAreaId]);
 
   const baseQuestions = area ? (area.questions?.length ? area.questions : professionalQuestionsForArea(area as AcademicArea)) : [];
   const questions = questionOrder.length

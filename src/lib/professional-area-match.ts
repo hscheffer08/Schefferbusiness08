@@ -46,16 +46,6 @@ export interface ProfessionalMatchResult {
   watchouts: string[];
 }
 
-const CATEGORY_MAP: Record<string, keyof ProfessionalMatchResult['breakdown']> = {
-  academic: 'academic',
-  learning: 'learning',
-  environment: 'environment',
-  career: 'career',
-  global: 'globalPurpose',
-  purpose: 'globalPurpose',
-  outcomes: 'academic',
-};
-
 const QUESTION_DIMENSION_MAP: Record<string, string[]> = {
   rigor: ['academic_rigor'],
   practical: ['practical_learning','project_based'],

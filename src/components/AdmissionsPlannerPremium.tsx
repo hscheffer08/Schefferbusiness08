@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowLeft, BookOpen, BrainCircuit, CalendarDays, CheckCircle2, ChevronRight,
-  Clock3, Database, Download, ExternalLink, Flame, GraduationCap, Loader2,
-  PlayCircle, Save, Sparkles, Target, TrendingUp, XCircle,
+  ArrowLeft, BookOpen, BrainCircuit, CheckCircle2, ChevronRight,
+  Database, Download, ExternalLink, GraduationCap, Loader2,
+  PlayCircle, Save, Sparkles, Target, XCircle,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { downloadPremiumStudyPdf, type PdfWeek } from '@/lib/premium-study-pdf';
