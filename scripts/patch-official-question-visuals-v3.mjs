@@ -101,7 +101,7 @@ patch(
 
 fs.writeFileSync(path,src);
 
-// Bundle PDF.js and its worker with the app. Instagram/Safari no longer depend on jsDelivr to render screenshots.
+// Bundle PDF.js with the app. The worker URL is loaded only in browsers, so Node validators keep working.
 const pdfPath='src/lib/official-pdf-client.ts';
 let pdfSrc=fs.readFileSync(pdfPath,'utf8');
 function patchPdf(from,to,label){
@@ -111,12 +111,6 @@ function patchPdf(from,to,label){
 }
 
 patchPdf(
-  `export type ParsedQuestion={`,
-  `import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';\n\nexport type ParsedQuestion={`,
-  'bundled worker import',
-);
-
-patchPdf(
   `const PDFJS_URL='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';\nconst PDFJS_WORKER='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';`,
   `// PDF.js é empacotado localmente para funcionar também em navegadores embutidos.`,
   'remove remote PDF.js CDN',
@@ -124,7 +118,7 @@ patchPdf(
 
 patchPdf(
   `function remoteImport(url:string){\n  const importer=new Function('u','return import(u)') as (u:string)=>Promise<any>;\n  return importer(url);\n}\n\nasync function pdfjs(){\n  if(!pdfjsPromise){\n    pdfjsPromise=remoteImport(PDFJS_URL).then((mod:any)=>{mod.GlobalWorkerOptions.workerSrc=PDFJS_WORKER;return mod;});\n  }\n  return pdfjsPromise;\n}`,
-  `async function pdfjs(){\n  if(!pdfjsPromise){\n    pdfjsPromise=import('pdfjs-dist/build/pdf.mjs').then((mod:any)=>{mod.GlobalWorkerOptions.workerSrc=pdfWorkerUrl;return mod;});\n  }\n  return pdfjsPromise;\n}`,
+  `async function pdfjs(){\n  if(!pdfjsPromise){\n    pdfjsPromise=(async()=>{\n      const mod:any=await import('pdfjs-dist/build/pdf.mjs');\n      if(typeof window!=='undefined'){\n        const worker:any=await import('pdfjs-dist/build/pdf.worker.min.mjs?url');\n        mod.GlobalWorkerOptions.workerSrc=worker.default;\n      }\n      return mod;\n    })();\n  }\n  return pdfjsPromise;\n}`,
   'bundle PDF.js runtime',
 );
 
