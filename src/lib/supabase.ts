@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type Session } from '@supabase/supabase-js';
 
 function cleanEnv(value: string | undefined): string {
   return (value ?? '')
@@ -17,6 +17,24 @@ function normalizeSupabaseUrl(value: string | undefined): string {
     return raw.replace(/\/+$/, '');
   }
 }
+
+const CANONICAL_ORIGIN = 'https://xn--conecta-pya.app';
+const LEGACY_PRODUCTION_HOSTS = new Set([
+  'businessschoolfit.vercel.app',
+  'schefferbusiness08.vercel.app',
+  'businessschoolfit-henrique-0176.vercel.app',
+  'www.xn--conecta-pya.app',
+]);
+
+function normalizeProductionOrigin() {
+  if (typeof window === 'undefined') return;
+  const host = window.location.hostname.toLowerCase();
+  if (!LEGACY_PRODUCTION_HOSTS.has(host)) return;
+  const target = `${CANONICAL_ORIGIN}${window.location.pathname}${window.location.search}${window.location.hash}`;
+  window.location.replace(target);
+}
+
+normalizeProductionOrigin();
 
 const publicFallbackUrl = 'https://kmognvgnfisdchzffkgh.supabase.co';
 const publicFallbackAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
@@ -42,9 +60,95 @@ const baseClient = url && anonKey
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
+        flowType: 'pkce',
       },
     })
   : null;
+
+let refreshInFlight: Promise<Session | null> | null = null;
+let recoveryStarted = false;
+
+const wait = (ms: number) => new Promise(resolve => window.setTimeout(resolve, ms));
+
+async function refreshSessionSafely(session: Session): Promise<Session | null> {
+  if (!baseClient) return null;
+
+  const attempt = async () => {
+    const refreshed = await baseClient.auth.refreshSession(session);
+    if (!refreshed.error && refreshed.data.session) return refreshed.data.session;
+    return null;
+  };
+
+  try {
+    const first = await attempt();
+    if (first) return first;
+  } catch (error) {
+    console.warn('Supabase session refresh attempt failed', error);
+  }
+
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return session;
+
+  try {
+    await wait(650);
+    return await attempt();
+  } catch (error) {
+    console.warn('Supabase session refresh retry failed', error);
+    return null;
+  }
+}
+
+export async function ensureFreshSession(forceRefresh = false): Promise<Session | null> {
+  if (!baseClient) return null;
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = (async () => {
+    const current = await baseClient.auth.getSession();
+    const session = current.data.session;
+    if (!session) return null;
+
+    const expiresAt = Number(session.expires_at || 0) * 1000;
+    const shouldRefresh = forceRefresh || !expiresAt || expiresAt - Date.now() < 5 * 60 * 1000;
+    if (!shouldRefresh) return session;
+
+    const refreshed = await refreshSessionSafely(session);
+    if (refreshed) return refreshed;
+
+    // A temporary network/app-resume failure should not instantly erase a session
+    // that is still valid. Supabase can retry again on the next focus/online event.
+    if (expiresAt > Date.now()) return session;
+    return null;
+  })().finally(() => {
+    refreshInFlight = null;
+  });
+
+  return refreshInFlight;
+}
+
+export function startGlobalSessionRecovery() {
+  if (!baseClient || recoveryStarted || typeof window === 'undefined') return;
+  recoveryStarted = true;
+
+  const recover = (force = false) => {
+    void ensureFreshSession(force).catch(error => {
+      console.warn('Global auth session recovery failed', error);
+    });
+  };
+
+  recover(false);
+
+  window.addEventListener('focus', () => recover(true), { passive: true });
+  window.addEventListener('pageshow', () => recover(true), { passive: true });
+  window.addEventListener('online', () => recover(true), { passive: true });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') recover(true);
+  });
+
+  window.setInterval(() => {
+    if (document.visibilityState === 'visible') recover(false);
+  }, 4 * 60 * 1000);
+}
+
+startGlobalSessionRecovery();
 
 // These tables enrich the match result, but a policy/schema issue in any one of
 // them must never take the whole public site offline. Core tables remain strict.
