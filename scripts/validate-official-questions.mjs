@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {normalizeEnemQuestion} from '../api/enem-official-questions.ts';
+import {normalizeRequestedQuestion} from '../api/extract-official-question.ts';
 import {isQuestionMarker,isUsableOfficialQuestion,splitOptions} from '../src/lib/official-pdf-client.ts';
 import {ENEM_INTERACTIVE_TOTAL,isEnemInteractiveQuestion} from '../src/lib/enem-official-availability.ts';
 
@@ -32,6 +33,10 @@ assert.equal(cmmg?.prompt,'Assinale a alternativa CORRETA.');
 assert.equal(cmmg?.opts.D,'quarta');
 assert.equal(isUsableOfficialQuestion({found:true,prompt:'Enunciado correto e completo.',option_a:'Uma alternativa',option_b:'Outra alternativa'}),true);
 assert.equal(isUsableOfficialQuestion({found:true,prompt:'$VVLQDOH D DOWHUQDWLYD CORRETA ��',option_a:'FRUSR ��',option_b:'texto'}),false);
+const isolated=normalizeRequestedQuestion({prompt:'Texto da questão 10.\nA) errada\nB) errada\n11. Ao longo de seu romance, Carla Madeira utiliza-se de trechos de outras obras.\nA) Crime e Castigo\nB) A escrava Isaura\nC) Cem anos de solidão\nD) Grande Sertão: Veredas',option_a:'alternativa da questão 10'},11);
+assert.equal(isolated.prompt,'Ao longo de seu romance, Carla Madeira utiliza-se de trechos de outras obras.');
+assert.equal(isolated.option_a,'Crime e Castigo');
+assert.equal(isolated.option_d,'Grande Sertão: Veredas');
 
 const workspace=await readFile(new URL('../src/components/OfficialQuestionWorkspaceV3.tsx',import.meta.url),'utf8');
 const publicPage=await readFile(new URL('../src/components/OfficialVestibularBankPage.tsx',import.meta.url),'utf8');

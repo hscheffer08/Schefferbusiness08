@@ -93,7 +93,7 @@ async function callExtractionApi(body:Record<string,unknown>){
 }
 
 export async function extractOfficialQuestionRemotely(sourceUrl:string,questionNumber:number,exam:string,year:number):Promise<ParsedQuestion>{
-  return callExtractionApi({mode:'question',sourceUrl,questionNumber,exam,year}) as Promise<ParsedQuestion>;
+  return callExtractionApi({mode:'question',sourceUrl,questionNumber,exam,year,extractorVersion:'2026-09-09-v4'}) as Promise<ParsedQuestion>;
 }
 
 export async function extractOfficialAnswerRemotely(sourceUrl:string,questionNumber:number,exam:string,year:number):Promise<string|null>{

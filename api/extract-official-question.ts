@@ -14,6 +14,22 @@ function parseJson(raw:string){
   const a=s.indexOf('{'),b=s.lastIndexOf('}');
   return JSON.parse(a>=0&&b>a?s.slice(a,b+1):s);
 }
+
+export function normalizeRequestedQuestion(parsed:any,questionNumber:number){
+  const raw=String(parsed?.prompt||'').replace(/\r/g,'').trim();
+  const marker=new RegExp(`(?:^|\\n)\\s*0*${questionNumber}\\s*[.)-]\\s+`,'i');
+  const found=marker.exec(raw);
+  const isolated=found?raw.slice((found.index||0)+found[0].length).trim():raw;
+  const lines=isolated.split('\n').map((line)=>line.trim()).filter(Boolean);
+  const starts=lines.map((line,index)=>{const m=line.match(/^([A-E])\s*[).:-]\s+(.+)$/i);return m?{index,letter:m[1].toUpperCase(),text:m[2]}:null}).filter(Boolean) as {index:number;letter:string;text:string}[];
+  if(starts.length<2)return {...parsed,prompt:isolated};
+  const options:Record<string,string|null>={A:null,B:null,C:null,D:null,E:null};
+  for(let i=0;i<starts.length;i++){
+    const current=starts[i],end=i+1<starts.length?starts[i+1].index:lines.length;
+    options[current.letter]=[current.text,...lines.slice(current.index+1,end)].join(' ').trim()||null;
+  }
+  return {...parsed,prompt:lines.slice(0,starts[0].index).join('\n').trim(),option_a:options.A,option_b:options.B,option_c:options.C,option_d:options.D,option_e:options.E};
+}
 const reply=(res:any,status:number,body:any)=>{res.setHeader('Cache-Control',status===200?'public, s-maxage=2592000, stale-while-revalidate=7776000':'no-store');return res.status(status).json(body)};
 
 async function generateOnce(model:any,args:{prompt:string;sourceUrl:string;maxOutputTokens:number;timeoutMs:number;exam:string;tag:string},gateway=false){
@@ -95,7 +111,8 @@ Regras obrigatórias:
 6) Não inclua resposta correta, comentário ou solução.
 
 Retorne APENAS JSON válido: {"found":true,"prompt":"...","option_a":"...","option_b":"...","option_c":"...","option_d":"...","option_e":"...","needs_source_image":false,"image_note":null,"source_page":1,"confidence":0.0}.`;
-    const p=await runJson({prompt,sourceUrl,maxOutputTokens:2600,timeoutMs:60000,exam,tag:'feature:official-question-extract'});
+    const generated=await runJson({prompt,sourceUrl,maxOutputTokens:2600,timeoutMs:60000,exam,tag:'feature:official-question-extract'});
+    const p=normalizeRequestedQuestion(generated,questionNumber);
     const optionCount=['option_a','option_b','option_c','option_d','option_e'].filter((key)=>String(p[key]||'').trim()).length;
     const found=p.found!==false&&String(p.prompt||'').trim().length>10&&optionCount>=2;
     return reply(res,200,{
