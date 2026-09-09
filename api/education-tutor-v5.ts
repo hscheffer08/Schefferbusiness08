@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import tutorV4 from './education-tutor-v4.js';
+import tutorPublic from './education-tutor-public.js';
 
 const FALLBACK_SUPABASE_URL='https://kmognvgnfisdchzffkgh.supabase.co';
 const FALLBACK_SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
@@ -93,15 +93,16 @@ export default async function handler(req:any,res:any){
       model:'openai/gpt-5.6-luna',
       reviewModel:'google/gemini-3.6-flash',
       searchModel:'google/gemini-2.5-flash-lite',
-      retrieval:'practice+taxonomy+skill-reference+official-question-bank+exam-profile+study-resources+exam-resources+student-twin+web-verification',
+      retrieval:'practice+taxonomy+skill-reference+official-question-bank+exam-profile+study-resources+exam-resources+student-context+web-verification',
       capabilities:['resolver questões','explicar matérias','resumos','revisões','dicas e mnemônicos','exemplos','exercícios e quizzes','estratégia de estudo','análise de imagem'],
       supportedExams:['enem','fuvest','cmmg','insper','link','ibmec','einstein'],
-      dailyQuestionLimit:20,
-      adminAccess:'unlimited',
+      publicAccess:true,
+      dailyQuestionLimit:null,
+      loginRequired:false,
     });
   }
   if(req?.method==='POST'){
     try{await enrich(req)}catch(error:any){console.warn('full-corpus enrichment skipped',error?.message||error)}
   }
-  return tutorV4(req,res);
+  return tutorPublic(req,res);
 }
