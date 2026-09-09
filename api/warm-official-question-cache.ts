@@ -4,14 +4,18 @@ const SUPABASE_URL='https://kmognvgnfisdchzffkgh.supabase.co';
 const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
 const supabase=createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
 const ALLOWED_SERIES=new Set(['enem','cmmg','fuvest']);
-const VERSION='2026-09-09-v1';
+const VERSION='2026-09-09-v2';
 
-type Ref={question_id:string;series_id:string;year:number;question_number:number;source_pdf_url:string|null;answer_key_url:string|null;correct_option:string|null};
+type Ref={question_id:string;series_id:string;year:number;question_number:number;source_pdf_url:string|null;answer_key_url:string|null;correct_option:string|null;prompt_text:string|null;option_a:string|null;option_b:string|null;option_c:string|null;option_d:string|null;option_e:string|null};
 
 function baseUrl(req:any){
   const host=String(req.headers?.['x-forwarded-host']||req.headers?.host||'businessschoolfit.vercel.app');
   const proto=String(req.headers?.['x-forwarded-proto']||'https');
   return `${proto}://${host}`;
+}
+function usable(q:Ref){
+  const options=[q.option_a,q.option_b,q.option_c,q.option_d,q.option_e].filter(v=>String(v||'').trim()).length;
+  return String(q.prompt_text||'').trim().length>10&&options>=2;
 }
 async function getJson(url:string,init?:RequestInit){
   const r=await fetch(url,{...init,signal:AbortSignal.timeout(75000)});
@@ -35,27 +39,25 @@ async function extractOne(req:any,q:Ref){
     });
   }
   if(!d?.found||String(d.prompt||'').trim().length<10)throw new Error('Extração incompleta');
-  const row={
-    question_id:q.question_id,series_id:q.series_id,year:q.year,question_number:q.question_number,
+  const options=[d.option_a,d.option_b,d.option_c,d.option_d,d.option_e].filter((v:any)=>String(v||'').trim()).length;
+  if(options<2)throw new Error('Alternativas incompletas');
+  const needsImage=Boolean(d.needs_source_image||d.images?.length||Object.keys(d.option_images||{}).length);
+  const imageNote=d.image_note?String(d.image_note).slice(0,500):null;
+  const update={
     prompt_text:String(d.prompt||'').trim(),
     option_a:d.option_a?String(d.option_a).trim():null,
     option_b:d.option_b?String(d.option_b).trim():null,
     option_c:d.option_c?String(d.option_c).trim():null,
     option_d:d.option_d?String(d.option_d).trim():null,
     option_e:d.option_e?String(d.option_e).trim():null,
-    correct_option:/^[A-E]$/.test(String(d.correct_option||q.correct_option||'').toUpperCase())?String(d.correct_option||q.correct_option).toUpperCase():null,
-    needs_source_image:Boolean(d.needs_source_image||d.images?.length||Object.keys(d.option_images||{}).length),
-    image_note:d.image_note?String(d.image_note).slice(0,500):null,
     source_page:Number.isInteger(Number(d.source_page))&&Number(d.source_page)>0?Number(d.source_page):null,
-    images:Array.isArray(d.images)?d.images:null,
-    option_images:d.option_images&&typeof d.option_images==='object'?d.option_images:null,
-    extraction_source:d.source?String(d.source):null,
-    extraction_version:VERSION,
-    updated_at:new Date().toISOString(),
+    image_url:Array.isArray(d.images)&&d.images[0]?String(d.images[0]):null,
+    image_alt:needsImage?(imageNote||'Esta questão usa um elemento visual da prova oficial.'):null,
   };
-  const {error}=await supabase.from('official_question_materialized_cache').upsert(row,{onConflict:'question_id'});
-  if(error)throw new Error(`Cache DB: ${error.message}`);
-  return row;
+  const saved=await supabase.from('official_exam_items').update(update).eq('id',q.question_id).select('id').maybeSingle();
+  if(saved.error)throw new Error(`Banco: ${saved.error.message}`);
+  if(!saved.data)throw new Error('Banco não confirmou atualização');
+  return {question_id:q.question_id,year:q.year,question_number:q.question_number,needs_image:needsImage,source_page:update.source_page};
 }
 async function pool<T,R>(items:T[],size:number,fn:(item:T)=>Promise<R>){
   const out:Array<{ok:true;value:R}|{ok:false;error:string}>=[];
@@ -77,18 +79,15 @@ export default async function handler(req:any,res:any){
   const offset=Math.max(0,Math.trunc(Number(input?.offset)||0));
   const limit=Math.max(1,Math.min(80,Math.trunc(Number(input?.limit)||30)));
   const concurrency=Math.max(1,Math.min(10,Math.trunc(Number(input?.concurrency)||6)));
+  const force=String(input?.force||'')==='1';
   try{
     const {data,error}=await supabase.from('official_vestibular_question_bank')
-      .select('question_id,series_id,year,question_number,source_pdf_url,answer_key_url,correct_option')
+      .select('question_id,series_id,year,question_number,source_pdf_url,answer_key_url,correct_option,prompt_text,option_a,option_b,option_c,option_d,option_e')
       .eq('series_id',series).order('year',{ascending:false}).order('question_number',{ascending:true}).range(offset,offset+limit-1);
     if(error)throw error;
     const refs=(data||[]) as Ref[];
     if(!refs.length)return res.status(200).json({series,offset,limit,processed:0,success:0,failed:0,done:true});
-    const ids=refs.map(x=>x.question_id);
-    const cached=await supabase.from('official_question_materialized_cache').select('question_id').in('question_id',ids);
-    if(cached.error)throw cached.error;
-    const have=new Set((cached.data||[]).map((x:any)=>x.question_id));
-    const pending=refs.filter(x=>!have.has(x.question_id));
+    const pending=force?refs:refs.filter(q=>!usable(q));
     const results=await pool(pending,concurrency,(q)=>extractOne(req,q));
     const success=results.filter(x=>x?.ok).length;
     const failures=results.map((x,i)=>x&&!x.ok?{question_id:pending[i]?.question_id,year:pending[i]?.year,question_number:pending[i]?.question_number,error:x.error}:null).filter(Boolean);
