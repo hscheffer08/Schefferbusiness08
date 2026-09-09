@@ -13,10 +13,31 @@ function allowed(raw:string){
     return ['download.inep.gov.br','vestibular.cmmg.edu.br','www.fuvest.br','fuvest.br'].includes(u.hostname)&&/\.pdf$/i.test(u.pathname);
   }catch{return false}
 }
-function linesFromItems(items:any[]){
+function shiftedAscii(raw:string){
+  let out='';
+  for(const ch of raw){const code=ch.charCodeAt(0);out+=code>=32&&code<=93?String.fromCharCode(code+29):ch}
+  return out;
+}
+function decodeCmmgToken(token:string){
+  if(token.length<3)return token;
+  const candidate=shiftedAscii(token);
+  const bad=[...candidate].filter(ch=>'`^[\\]'.includes(ch)).length;
+  const letters=(candidate.match(/[A-Za-zÀ-ÿ]/g)||[]).length;
+  const odd="$%&'()*+,-./0123456789:;<=>?@[\\]^_";
+  const originalOdd=[...token].filter(ch=>odd.includes(ch)).length;
+  if(bad||letters/Math.max(candidate.length,1)<.62)return token;
+  return originalOdd>0||/^[A-Z]{4,}$/.test(token)?candidate:token;
+}
+function decodeCmmg(raw:string){
+  const special:Record<string,string>={'¿':'f','À':'ç','È':'É','Ê':'Ê','Ë':'Ë'};
+  const mapped=[...raw].map(ch=>special[ch]??ch).join('');
+  return mapped.split(/(\s+)/).map(part=>/^\s+$/.test(part)?part:decodeCmmgToken(part)).join('');
+}
+function linesFromItems(items:any[],cmmg:boolean){
   const rows=new Map<number,{x:number;str:string}[]>();
   for(const item of items){
-    const str=String(item?.str||'').trim();if(!str)continue;
+    let str=String(item?.str||'').trim();if(!str)continue;
+    if(cmmg)str=decodeCmmg(str);
     const tr=item?.transform||[];const x=Number(tr[4]||0),y=Number(tr[5]||0);
     const key=Math.round(y/2)*2;
     if(!rows.has(key))rows.set(key,[]);
@@ -33,10 +54,10 @@ async function load(sourceUrl:string){
     const buffer=await r.arrayBuffer();
     if(!buffer.byteLength||buffer.byteLength>35*1024*1024)throw new Error('PDF inválido ou grande demais');
     const pdf=await getDocument({data:new Uint8Array(buffer),isEvalSupported:false,useSystemFonts:true,disableFontFace:false}).promise;
-    const pages:string[][]=[];
+    const pages:string[][]=[];const cmmg=new URL(sourceUrl).hostname==='vestibular.cmmg.edu.br';
     for(let p=1;p<=pdf.numPages;p++){
       const page=await pdf.getPage(p);const content=await page.getTextContent();
-      pages.push(linesFromItems((content as any).items||[]));
+      pages.push(linesFromItems((content as any).items||[],cmmg));
     }
     return pages;
   })();
@@ -64,19 +85,14 @@ function splitOptions(lines:string[]){
   }
   for(let start=0;start<hits.length;start++){
     if(hits[start].letter!=='A')continue;
-    const chosen:{i:number;letter:string;rest:string}[]=[];
-    let cursor=start;
+    const chosen:{i:number;letter:string;rest:string}[]=[];let cursor=start;
     for(const want of ['A','B','C','D','E']){
-      while(cursor<hits.length&&hits[cursor].letter!==want){
-        if(hits[cursor].letter==='A'&&want!=='A')break;
-        cursor++;
-      }
+      while(cursor<hits.length&&hits[cursor].letter!==want){if(hits[cursor].letter==='A'&&want!=='A')break;cursor++}
       if(cursor>=hits.length||hits[cursor].letter!==want)break;
       chosen.push(hits[cursor]);cursor++;
     }
     if(chosen.length<4)continue;
-    const first=chosen[0].i;
-    const opts:Record<string,string|null>={A:null,B:null,C:null,D:null,E:null};
+    const first=chosen[0].i;const opts:Record<string,string|null>={A:null,B:null,C:null,D:null,E:null};
     for(let k=0;k<chosen.length;k++){
       const cur=chosen[k],end=k+1<chosen.length?chosen[k+1].i:lines.length;
       opts[cur.letter]=clean([cur.rest,...lines.slice(cur.i+1,end)].filter(Boolean).join(' '))||null;
@@ -96,14 +112,10 @@ function usable(prompt:string,opts:Record<string,string|null>){
 }
 
 export async function extractOfficialQuestionServer(sourceUrl:string,questionNumber:number){
-  const pages=await load(sourceUrl);
-  const collected:string[]=[];let started=false,sourcePage=1,pagesAfter=0;
+  const pages=await load(sourceUrl);const collected:string[]=[];let started=false,sourcePage=1,pagesAfter=0;
   for(let p=0;p<pages.length;p++){
     for(const line of pages[p]){
-      if(!started){
-        if(marker(line,questionNumber)){started=true;sourcePage=p+1;const rest=stripMarker(line,questionNumber);if(rest)collected.push(rest)}
-        continue;
-      }
+      if(!started){if(marker(line,questionNumber)){started=true;sourcePage=p+1;const rest=stripMarker(line,questionNumber);if(rest)collected.push(rest)}continue}
       if(marker(line,questionNumber+1)){
         const parsed=splitOptions(collected);
         if(parsed&&usable(parsed.prompt,parsed.opts))return {found:true,prompt:parsed.prompt,option_a:parsed.opts.A,option_b:parsed.opts.B,option_c:parsed.opts.C,option_d:parsed.opts.D,option_e:parsed.opts.E,needs_source_image:/\b(figura|imagem|gr[aá]fico|tabela|mapa|esquema|fotografia|charge|tirinha|texto anterior)\b/i.test(parsed.prompt),image_note:null,source_page:sourcePage,confidence:.94,source:'official-pdf-server'};
