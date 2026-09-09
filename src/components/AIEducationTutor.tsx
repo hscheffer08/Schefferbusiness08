@@ -49,6 +49,19 @@ const INTERNAL_RESPONSE_DIRECTIVE = `INSTRUÇÃO INTERNA DE QUALIDADE — NÃO R
 Antes de responder, desconfie da primeira conclusão. Releia o comando, confira dados, sinais, unidades, condicionais, palavras como EXCETO/incorreta/respectivamente e teste a conclusão contra o enunciado. Se faltar informação indispensável, diga exatamente o que falta em vez de chutar.
 Não exponha cadeia interna, auditoria ou bastidores. Entregue resposta objetiva e didática. Em questão objetiva, prefira “Resposta: X) ...” e uma explicação curta. Em dúvida conceitual, responda diretamente e dê um exemplo quando ajudar.`;
 
+function tutorClientId() {
+  const storageKey = 'conectae:tutor-client-id';
+  try {
+    const existing = localStorage.getItem(storageKey);
+    if (existing && /^[a-z0-9_-]{8,80}$/i.test(existing)) return existing;
+    const created = globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem(storageKey, created);
+    return created;
+  } catch {
+    return '';
+  }
+}
+
 function normalizeHistory(value: unknown): Message[] {
   if (!Array.isArray(value)) return [];
   const clean = value
@@ -223,7 +236,7 @@ export default function AIEducationTutor({ mobileDocked = false }: { mobileDocke
     const requestMessages = recent.map((message, index) => index === recent.length - 1 && message.role === 'user'
       ? { ...message, content: `${message.content}\n\n${INTERNAL_RESPONSE_DIRECTIVE}` }
       : message);
-    const payload = { messages: requestMessages, context: { ...studentContext, ...context }, imageDataUrl: image || undefined };
+    const payload = { messages: requestMessages, context: { ...studentContext, ...context }, imageDataUrl: image || undefined, clientId: tutorClientId() || undefined };
 
     try {
       const response = await tutorRequest(payload);
