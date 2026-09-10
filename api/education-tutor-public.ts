@@ -1,6 +1,5 @@
 import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
-import { createClient } from '@supabase/supabase-js';
 
 const MODEL = 'openai/gpt-5.6-sol';
 const REVIEW_MODEL = 'anthropic/claude-opus-5';
@@ -53,20 +52,35 @@ function parseJson(raw: string) {
   throw new Error('invalid-json');
 }
 function config() {
-  const raw = cleanEnv(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || FALLBACK_SUPABASE_URL);
-  const envKey = cleanEnv(process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY);
-  let origin = FALLBACK_SUPABASE_URL;
-  try { const u = new URL(raw.startsWith('http') ? raw : `https://${raw}`); origin = u.origin; } catch {}
-  const key = origin === FALLBACK_SUPABASE_URL ? FALLBACK_SUPABASE_ANON_KEY : (envKey || FALLBACK_SUPABASE_ANON_KEY);
-  return { url: origin, key };
+  // Match the Course's trusted public project; never send user tokens to a
+  // placeholder or an unrelated server configured through stale environment vars.
+  const raw = cleanEnv(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
+  if (raw && raw.replace(/\/+$/, '') !== FALLBACK_SUPABASE_URL) {
+    console.warn('tutor auth: ignored mismatched Supabase URL');
+  }
+  return { url: FALLBACK_SUPABASE_URL, key: FALLBACK_SUPABASE_ANON_KEY };
 }
 async function verifyToken(url: string, key: string, token: string) {
   if (!token) return '';
   try {
-    const client = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false } });
-    const { data, error } = await client.auth.getUser(token);
-    return !error && data?.user?.id ? String(data.user.id) : '';
-  } catch { return ''; }
+    const response = await fetch(`${url}/auth/v1/user`, {
+      headers: { apikey: key, Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (response.status === 401 || response.status === 403) {
+      const detail = await response.json().catch(() => ({}));
+      if (detail?.code === 'bad_jwt' || detail?.code === 'session_not_found' ||
+          detail?.code === 'user_not_found' || /expired|invalid.*jwt/i.test(String(detail?.msg || detail?.message || ''))) return '';
+      console.error('tutor auth upstream rejected request', { status: response.status, code: detail?.code || 'unknown' });
+      throw new Error('auth-service-unavailable');
+    }
+    if (!response.ok) throw new Error('auth-service-unavailable');
+    const user = await response.json();
+    return typeof user?.id === 'string' ? user.id : '';
+  } catch (error) {
+    console.error('tutor auth service failed', { message: error instanceof Error ? error.message : 'unknown' });
+    throw new Error('auth-service-unavailable');
+  }
 }
 async function fetchRows(url: string, headers: Record<string, string>) {
   try { const r = await fetch(url, { headers, signal: AbortSignal.timeout(9000) }); if (!r.ok) return []; const d = await r.json(); return Array.isArray(d) ? d : []; } catch { return []; }
@@ -227,6 +241,7 @@ export default async function handler(req: any, res: any) {
     });
   } catch (error: any) {
     console.error('education-tutor-public failed', error);
+    if (String(error?.message || '').includes('auth-service-unavailable')) return json(res, 503, { code: 'AUTH_SERVICE_UNAVAILABLE', error: 'A conexão com o serviço de contas está temporariamente indisponível. Sua mensagem e imagem foram mantidas. Tente novamente em instantes.' });
     if (String(error?.message || '').includes('usage-reservation-failed')) return json(res, 503, { error: 'Não consegui validar seu limite diário agora. Tente novamente.' });
     return json(res, 500, { error: 'A IA encontrou uma falha inesperada. Tente novamente.' });
   }
