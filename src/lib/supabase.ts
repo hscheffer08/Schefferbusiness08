@@ -37,7 +37,7 @@ function normalizeProductionOrigin() {
 normalizeProductionOrigin();
 
 const publicFallbackUrl = 'https://kmognvgnfisdchzffkgh.supabase.co';
-const publicFallbackAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
+const publicFallbackAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
 
 const configuredUrl = normalizeSupabaseUrl(import.meta.env.VITE_SUPABASE_URL);
 const configuredAnonKey = cleanEnv(
@@ -74,8 +74,13 @@ async function refreshSessionSafely(session: Session): Promise<Session | null> {
   if (!baseClient) return null;
 
   const attempt = async () => {
-    const refreshed = await baseClient.auth.refreshSession(session);
-    if (!refreshed.error && refreshed.data.session) return refreshed.data.session;
+    const implicit = await baseClient.auth.refreshSession();
+    if (!implicit.error && implicit.data.session) return implicit.data.session;
+
+    if (session.refresh_token) {
+      const explicit = await baseClient.auth.refreshSession({ refresh_token: session.refresh_token });
+      if (!explicit.error && explicit.data.session) return explicit.data.session;
+    }
     return null;
   };
 
@@ -89,7 +94,7 @@ async function refreshSessionSafely(session: Session): Promise<Session | null> {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return session;
 
   try {
-    await wait(650);
+    await wait(500);
     return await attempt();
   } catch (error) {
     console.warn('Supabase session refresh retry failed', error);
@@ -107,15 +112,13 @@ export async function ensureFreshSession(forceRefresh = false): Promise<Session 
     if (!session) return null;
 
     const expiresAt = Number(session.expires_at || 0) * 1000;
-    const shouldRefresh = forceRefresh || !expiresAt || expiresAt - Date.now() < 5 * 60 * 1000;
+    const shouldRefresh = forceRefresh || !expiresAt || expiresAt - Date.now() < 10 * 60 * 1000;
     if (!shouldRefresh) return session;
 
     const refreshed = await refreshSessionSafely(session);
     if (refreshed) return refreshed;
 
-    // A temporary network/app-resume failure should not instantly erase a session
-    // that is still valid. Supabase can retry again on the next focus/online event.
-    if (expiresAt > Date.now()) return session;
+    if (!forceRefresh && expiresAt - Date.now() > 2 * 60 * 1000) return session;
     return null;
   })().finally(() => {
     refreshInFlight = null;
@@ -150,8 +153,6 @@ export function startGlobalSessionRecovery() {
 
 startGlobalSessionRecovery();
 
-// These tables enrich the match result, but a policy/schema issue in any one of
-// them must never take the whole public site offline. Core tables remain strict.
 const optionalReferenceTables = new Set([
   'cultural_axes',
   'text_rubrics',
