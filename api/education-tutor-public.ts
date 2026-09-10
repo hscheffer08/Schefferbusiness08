@@ -6,9 +6,10 @@ const MODEL = 'openai/gpt-5.6-sol';
 const REVIEW_MODEL = 'anthropic/claude-opus-5';
 const SEARCH_MODEL = 'google/gemini-3.6-flash';
 const FALLBACK_MODELS = ['anthropic/claude-opus-5', 'google/gemini-3.6-flash', 'openai/gpt-5.6-luna'];
+const EMERGENCY_MODEL = 'google/gemini-3.5-flash-lite';
 const DAILY_LIMIT = 10;
 const FALLBACK_SUPABASE_URL = 'https://kmognvgnfisdchzffkgh.supabase.co';
-const FALLBACK_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
+const FALLBACK_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 type Practice = {
@@ -114,9 +115,13 @@ function sourceList(value: unknown) {
   if (!Array.isArray(value)) return [];
   return value.slice(0, 5).map((s: any) => { try { const u = new URL(String(s?.url || '')); return { title: trim(s?.title || u.hostname, 140), url: u.toString() }; } catch { return null; } }).filter(Boolean);
 }
+function gatewayBillingFailure(error: any) {
+  const msg = String(error?.message || error || '').toLowerCase();
+  return msg.includes('free tier') || msg.includes('paid credits') || msg.includes('rate-limited') || msg.includes('rate limited') || msg.includes('no access to this model');
+}
 
 export default async function handler(req: any, res: any) {
-  if (req.method === 'GET') return json(res, 200, { ok: true, service: 'IA Conectaê Premium', model: MODEL, reviewModel: REVIEW_MODEL, searchModel: SEARCH_MODEL, access: 'authenticated', dailyQuestionLimit: DAILY_LIMIT, supportedExams: Object.keys(EXAM_FINGERPRINTS) });
+  if (req.method === 'GET') return json(res, 200, { ok: true, service: 'IA Conectaê Premium', model: MODEL, reviewModel: REVIEW_MODEL, searchModel: SEARCH_MODEL, emergencyModel:EMERGENCY_MODEL, access: 'authenticated', dailyQuestionLimit: DAILY_LIMIT, supportedExams: Object.keys(EXAM_FINGERPRINTS) });
   if (req.method !== 'POST') return json(res, 405, { error: 'Método não permitido.' });
 
   try {
@@ -157,18 +162,28 @@ export default async function handler(req: any, res: any) {
     const gateway = { user: userId, tags: ['feature:education-tutor-premium', `exam:${exam}`] };
 
     let primary: any;
+    let primaryModelUsed = MODEL;
     try {
       const r = await generateText({ model: MODEL, system, messages: modelMessages, maxOutputTokens: 2200, abortSignal: AbortSignal.timeout(55_000), providerOptions: { gateway: { ...gateway, models: FALLBACK_MODELS } } } as any);
       primary = parseJson(String(r.text || ''));
     } catch (e: any) {
       console.error('premium tutor primary', e?.message || e);
-      return json(res, 502, { error: 'A IA não conseguiu concluir a resposta agora. Tente novamente em instantes.', remainingQuestions: quota.remaining });
+      if (!gatewayBillingFailure(e)) return json(res, 502, { error: 'A IA não conseguiu concluir a resposta agora. Tente novamente em instantes.', remainingQuestions: quota.remaining });
+      try {
+        const r = await generateText({ model: EMERGENCY_MODEL, system, messages: modelMessages, maxOutputTokens: 2200, abortSignal: AbortSignal.timeout(55_000), providerOptions: { gateway: { ...gateway, tags:[...gateway.tags,'billing-fallback'] } } } as any);
+        primary = parseJson(String(r.text || ''));
+        primaryModelUsed = EMERGENCY_MODEL;
+        console.warn('premium tutor billing fallback activated');
+      } catch (fallbackError: any) {
+        console.error('premium tutor emergency fallback', fallbackError?.message || fallbackError);
+        return json(res, 502, { error: 'A IA está temporariamente sem capacidade disponível no provedor. Tente novamente em instantes.', remainingQuestions: quota.remaining });
+      }
     }
 
     const explicitLookup = /\b(gabarito|fonte|banca|prova|vestibular|quest[aã]o\s*\d+|20\d{2})\b/i.test(`${latest} ${contextQuestion}`);
-    let final = primary; let mode: 'review' | 'search' = 'review'; let sources: any[] = [];
+    let final = primary; let mode: 'review' | 'search' | 'fallback' = primaryModelUsed === EMERGENCY_MODEL ? 'fallback' : 'review'; let sources: any[] = [];
 
-    if (explicitLookup || primary.needs_external_check === true) {
+    if (primaryModelUsed !== EMERGENCY_MODEL && (explicitLookup || primary.needs_external_check === true)) {
       try {
         const r = await generateText({
           model: SEARCH_MODEL,
@@ -181,7 +196,7 @@ export default async function handler(req: any, res: any) {
       } catch (e: any) { console.warn('premium tutor search', e?.message || e); }
     }
 
-    if (mode !== 'search') {
+    if (mode === 'review') {
       try {
         const r = await generateText({
           model: REVIEW_MODEL,
@@ -206,7 +221,7 @@ export default async function handler(req: any, res: any) {
       answer, educational:true, publicAccess:false, resolvedDoubt, answerable, confidence, confidenceLabel:confidenceLabel(confidence),
       confidenceReason:trim(final.confidence_reason ?? primary.confidence_reason, 320), uncertaintyReason:trim(final.uncertainty_reason ?? primary.uncertainty_reason, 420) || null,
       assumptions:list(final.assumptions ?? primary.assumptions, 4), selfChecked, learningFocus:final.learning_focus ?? primary.learning_focus ?? null,
-      offerPlan:Boolean(final.offer_plan ?? primary.offer_plan), needsBetterImage, model:mode === 'search' ? SEARCH_MODEL : REVIEW_MODEL, primaryModel:MODEL,
+      offerPlan:Boolean(final.offer_plan ?? primary.offer_plan), needsBetterImage, model:mode === 'search' ? SEARCH_MODEL : primaryModelUsed, primaryModel:MODEL,
       reviewModel:REVIEW_MODEL, searchMode:mode, webVerified:mode === 'search' && sources.length > 0, sources, retrievalGrounded:examples.length > 0,
       retrievedExamples:examples.length, dailyQuestionLimit:DAILY_LIMIT, remainingQuestions:quota.remaining, adminUnlimited:false, premiumUnlimited:false,
     });
