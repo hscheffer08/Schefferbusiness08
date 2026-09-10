@@ -93,16 +93,16 @@ export default async function handler(req:any,res:any){
     res.setHeader('Cache-Control','no-store');
     return res.status(200).json({
       ok:true,
-      service:'IA Conectaê v5',
-      model:'openai/gpt-5.6-luna',
-      reviewModel:'google/gemini-3.6-flash',
-      searchModel:'google/gemini-2.5-flash-lite',
+      service:'IA Conectaê Premium',
+      model:'openai/gpt-5.6-sol',
+      reviewModel:'anthropic/claude-opus-5',
+      searchModel:'google/gemini-3.6-flash',
       retrieval:'practice+taxonomy+skill-reference+official-question-bank+exam-profile+study-resources+exam-resources+student-context+web-verification',
       capabilities:['resolver questões','explicar matérias','resumos','revisões','dicas e mnemônicos','exemplos','exercícios e quizzes','estratégia de estudo','análise de imagem'],
       supportedExams:['enem','fuvest','cmmg','insper','link','ibmec','einstein'],
-      publicAccess:true,
-      dailyQuestionLimit:null,
-      loginRequired:false,
+      publicAccess:false,
+      dailyQuestionLimit:10,
+      loginRequired:true,
     });
   }
   if(req?.method==='POST'){
