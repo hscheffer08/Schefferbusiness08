@@ -9,12 +9,16 @@ const STOP=new Set(['para','como','qual','quais','uma','umas','uns','que','por',
 const TUTOR_MODE='MODO TUTOR COMPLETO: a IA deve responder tanto questões específicas quanto dúvidas gerais de matéria. Pode ensinar do zero, explicar conceitos, fazer resumos, revisões, mapas mentais em texto, listas de fórmulas, dicas, macetes/mnemônicos, comparações, exemplos, exercícios, quizzes e estratégias de estudo. Não exija que a dúvida venha de uma questão do banco. Quando o pedido for resumo ou revisão, organize por tópicos e destaque o essencial; quando for dica, seja prática; quando for conceito, explique em linguagem adequada ao aluno e dê exemplo; quando for exercício, não chame material autoral de oficial. Use o banco recuperado como contexto, mas complete conteúdos estáveis de ensino médio com conhecimento acadêmico consolidado quando o banco não tiver um trecho suficiente. Para fatos de prova, gabaritos, datas, regras ou informações que possam mudar, mantenha a verificação externa já existente.';
 
 function clean(v:unknown){return String(v??'').trim().replace(/^["']|["']$/g,'')}
+function placeholder(v:string){return /(?:^|[._-])(x{4,}|placeholder|changeme|seu-projeto|your-project)(?:[._-]|$)/i.test(v)}
 function clip(v:unknown,n:number){return String(v??'').replace(/\s+/g,' ').trim().slice(0,n)}
 function config(){
   const raw=clean(process.env.SUPABASE_URL||process.env.VITE_SUPABASE_URL||FALLBACK_SUPABASE_URL);
   const key=clean(process.env.SUPABASE_ANON_KEY||process.env.VITE_SUPABASE_ANON_KEY||process.env.VITE_SUPABASE_PUBLISHABLE_KEY||FALLBACK_SUPABASE_ANON_KEY);
-  try{const u=new URL(raw.startsWith('http')?raw:`https://${raw}`);if(key&&/^[a-z0-9-]+\.supabase\.co$/i.test(u.hostname))return{url:u.origin,key}}catch{}
-  return null;
+  try{
+    const u=new URL(raw.startsWith('http')?raw:`https://${raw}`);
+    if(key&&!placeholder(key)&&!placeholder(u.hostname)&&/^[a-z0-9-]+\.supabase\.co$/i.test(u.hostname))return{url:u.origin,key};
+  }catch{}
+  return{url:FALLBACK_SUPABASE_URL,key:FALLBACK_SUPABASE_ANON_KEY};
 }
 function words(text:string){
   const raw=(text.toLowerCase().match(/[\p{L}\p{N}]+/gu)||[]).filter(x=>x.length>=4&&!STOP.has(x));
@@ -42,7 +46,7 @@ async function enrich(req:any){
   const exam=String(context.exam||'enem').toLowerCase().slice(0,40);
   const auth=String(req.headers?.authorization||'');
   const cfg=config();
-  if(!cfg||!auth.startsWith('Bearer ')){
+  if(!auth.startsWith('Bearer ')){
     req.body={...body,context:{...context,currentQuestion:`${currentQuestion}\n\n[ORIENTAÇÃO DO TUTOR]\n${TUTOR_MODE}`.slice(0,2200)}};
     return;
   }
