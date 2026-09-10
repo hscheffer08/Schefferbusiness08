@@ -1,0 +1,151 @@
+/* Conectaê light-theme contrast hardening.
+   Loaded after the app theme tokens so legacy dark classes remain readable
+   on the current light-blue canvas. */
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  background: #f6f8ff;
+  color: #172344;
+}
+
+/* Secondary copy must stay readable on white/light-blue surfaces. */
+html body .text-ink-400 { color: #4f5d78 !important; }
+html body .text-ink-500 { color: #5b6880 !important; }
+html body .text-ink-600 { color: #68758b !important; }
+html body .text-ink-300,
+html body .text-ink-200,
+html body .text-ink-100 { color: #263654 !important; }
+
+/* Legacy dark translucent surfaces that were missed by the light-theme pass. */
+html body .bg-ink-900\/60,
+html body .bg-ink-900\/70,
+html body .bg-ink-900\/50,
+html body .bg-ink-800\/60,
+html body .bg-ink-800\/50,
+html body .bg-ink-800\/40 {
+  background-color: #ffffff !important;
+}
+
+/* Tabs and segmented controls. */
+html body .border-ink-700 { border-color: #cbd5e1 !important; }
+html body .border-ink-600 { border-color: #b7c2d6 !important; }
+html body .bg-ink-900\/60.border-ink-700,
+html body .bg-ink-900\/70.border-ink-700 {
+  background: #eef2ff !important;
+  border-color: #c7d2e8 !important;
+}
+
+/* Inactive tab labels and hover states. */
+html body button.text-ink-400,
+html body [role="tab"].text-ink-400 {
+  color: #40506c !important;
+}
+html body button.text-ink-400:hover,
+html body [role="tab"].text-ink-400:hover {
+  color: #172344 !important;
+}
+
+/* Form labels, icons and explanatory copy. */
+html body label.text-ink-400,
+html body p.text-ink-400,
+html body div.text-ink-400,
+html body span.text-ink-400 {
+  color: #4b5973 !important;
+}
+html body label .text-ink-500,
+html body .text-ink-500 {
+  color: #59667d !important;
+}
+
+/* Inputs stay crisp against the canvas. */
+html body input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html body select,
+html body textarea {
+  background: #ffffff !important;
+  color: #172344 !important;
+  border-color: #cfd8e8 !important;
+}
+html body input::placeholder,
+html body textarea::placeholder,
+html body .placeholder-ink-600::placeholder {
+  color: #7a879d !important;
+  opacity: 1 !important;
+}
+html body input:focus,
+html body select:focus,
+html body textarea:focus {
+  border-color: #3155e7 !important;
+  box-shadow: 0 0 0 3px rgba(49, 85, 231, 0.10) !important;
+}
+
+/* Checkboxes/radios must not fade into the background. */
+html body input[type="checkbox"],
+html body input[type="radio"] {
+  accent-color: #3155e7;
+  border-color: #8fa0bb !important;
+}
+
+/* Primary actions always keep white text over blue. */
+html body .bg-brand-500,
+html body .bg-brand-600,
+html body .bg-blue-500,
+html body .bg-blue-600,
+html body [class~="bg-[#246cff]"],
+html body [class~="bg-[#3155e7]"] {
+  background-color: #3155e7 !important;
+  color: #ffffff !important;
+}
+html body .bg-brand-500 *,
+html body .bg-brand-600 *,
+html body .bg-blue-500 *,
+html body .bg-blue-600 * {
+  color: inherit;
+}
+
+/* Brand links should be strong enough on white. */
+html body .text-brand-300,
+html body .text-brand-400,
+html body .text-blue-300 {
+  color: #2949cf !important;
+}
+html body .hover\:text-brand-300:hover,
+html body .hover\:text-brand-400:hover {
+  color: #1f3bb2 !important;
+}
+
+/* Feedback banners on the light canvas. */
+html body .text-red-300 { color: #b4233f !important; }
+html body .text-green-300 { color: #08785b !important; }
+html body .bg-red-500\/10 { background-color: #fff1f3 !important; }
+html body .bg-green-500\/10 { background-color: #ecfdf5 !important; }
+
+/* Safety net for muted custom colors used by legacy areas. */
+html body [class*="text-[#9fb5d4]"],
+html body [class*="text-[#a9bddc]"],
+html body [class*="text-[#b8cae4]"],
+html body [class*="text-[#8fa7c9]"],
+html body [class*="text-[#7891b4]"],
+html body [class*="text-[#8da5c5]"],
+html body [class*="text-[#839ab9]"],
+html body [class*="text-[#7691b5]"] {
+  color: #50607b !important;
+}
+
+/* Preserve deliberate dark hero/header regions: their explicit light text wins. */
+html body [class*="bg-[radial-gradient"] [class*="text-[#f7faff]"],
+html body [class*="bg-[radial-gradient"] [class*="text-[#d9e6ff]"],
+html body [class*="bg-[linear-gradient"] [class*="text-[#f7faff]"] {
+  color: #f7faff !important;
+}
+
+@media (max-width: 640px) {
+  html body .text-ink-400,
+  html body .text-ink-500 {
+    color: #4a5871 !important;
+  }
+}
