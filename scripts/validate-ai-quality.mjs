@@ -24,7 +24,8 @@ const analyzerV3=fs.readFileSync(new URL('../api/analyze-question-v3.ts',import.
 const analyzer=fs.readFileSync(new URL('../api/analyze-question-v2.ts',import.meta.url),'utf8');
 const tutorUi=fs.readFileSync(new URL('../src/components/AIEducationTutor.tsx',import.meta.url),'utf8');
 
-if(!tutorRoute.includes("export { default } from './education-tutor-v5.js'"))throw new Error('A rota principal precisa usar a IA v5 com corpus educacional completo.');
+const routesToV5=tutorRoute.includes("export { default } from './education-tutor-v5.js'")||tutorRoute.includes("import('./education-tutor-v5.js')");
+if(!routesToV5)throw new Error('A rota principal precisa usar a IA v5 com corpus educacional completo.');
 if(!tutorV5.includes("from './education-tutor-public.js'"))throw new Error('A IA v5 precisa delegar ao núcleo principal sem perder o corpus completo.');
 for(const marker of ['official_vestibular_question_bank_v2','exam_intelligence_profiles','exam_study_resources','exam_resources','MODO TUTOR COMPLETO','resumos','mnemônicos','BASE DE CONHECIMENTO RECUPERADA'])if(!tutorV5.includes(marker))throw new Error(`Tutor v5 sem corpus/capacidade obrigatória: ${marker}.`);
 
