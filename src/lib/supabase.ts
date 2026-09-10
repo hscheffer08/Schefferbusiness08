@@ -191,9 +191,29 @@ function wrapOptionalBuilder(builder: any, table: string): any {
   });
 }
 
+const authWithFreshSession = baseClient
+  ? new Proxy(baseClient.auth, {
+      get(target, prop, receiver) {
+        if (prop === 'getSession') {
+          return async () => {
+            try {
+              const session = await ensureFreshSession(false);
+              return { data: { session }, error: null };
+            } catch (error: any) {
+              console.warn('Fresh auth session lookup failed', error);
+              return { data: { session: null }, error };
+            }
+          };
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    })
+  : null;
+
 export const supabase = baseClient
   ? new Proxy(baseClient, {
       get(target, prop, receiver) {
+        if (prop === 'auth') return authWithFreshSession;
         if (prop === 'from') {
           return (table: string) => {
             const builder = target.from(table);
