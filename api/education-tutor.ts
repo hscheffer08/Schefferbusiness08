@@ -1,5 +1,5 @@
 const FALLBACK_SUPABASE_URL = 'https://kmognvgnfisdchzffkgh.supabase.co';
-const FALLBACK_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
+const FALLBACK_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
 
 function clean(value: unknown) {
   return String(value ?? '').trim().replace(/^["']|["']$/g, '');
@@ -37,9 +37,6 @@ function sanitizeSupabaseEnvironment() {
       ? viteKey
       : FALLBACK_SUPABASE_ANON_KEY;
 
-  // The tutor core reads SUPABASE_* first. Normalizing them here prevents a
-  // placeholder Vercel variable (for example xxxxxxxxxxxx.supabase.co) from
-  // turning a valid browser session into a server-side 401.
   process.env.SUPABASE_URL = chosenUrl;
   process.env.SUPABASE_ANON_KEY = chosenKey;
 }
