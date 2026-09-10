@@ -48,10 +48,10 @@ const stageDistribution: Partial<Record<SeriadoStage, AreaDistribution[]>> = {
 };
 
 const areaStyle: Record<SeriadoArea, string> = {
-  Linguagens: 'border-violet-300/25 bg-violet-300/[.08] text-violet-100',
-  Matemática: 'border-cyan-300/25 bg-cyan-300/[.08] text-cyan-100',
-  Natureza: 'border-emerald-300/25 bg-emerald-300/[.08] text-emerald-100',
-  Humanas: 'border-amber-300/25 bg-amber-300/[.08] text-amber-100',
+  Linguagens: 'border-[#c9b8f4] bg-[#f2edff] text-[#56349a]',
+  Matemática: 'border-[#9fc5ff] bg-[#eaf4ff] text-[#244fbe]',
+  Natureza: 'border-[#9edfcf] bg-[#e9f8f4] text-[#08745b]',
+  Humanas: 'border-[#f0d68f] bg-[#fff7df] text-[#8a5708]',
 };
 
 const officialPageMap: Record<number, number> = {
@@ -170,7 +170,7 @@ export default function UFMGCourseArea({ onBack }: { onBack: () => void }) {
   const setFilterArea = (value: 'Todas' | SeriadoArea) => { setArea(value); setComponent('Todos'); setAuthoredIndex(0); };
   const setFilterComponent = (value: string) => { setComponent(value); setAuthoredIndex(0); };
 
-  return <div className="min-h-screen bg-[#020817] text-white font-['Plus_Jakarta_Sans']">
+  return <div className="min-h-screen bg-[#020817] text-[#172344] font-['Plus_Jakarta_Sans']">
     <header className="sticky top-0 z-40 border-b border-[#173765] bg-[#020817]/95 backdrop-blur-xl">
       <div className="mx-auto flex max-w-[1180px] items-center justify-between gap-3 px-4 py-3 md:px-6">
         <button onClick={onBack} className="inline-flex items-center gap-2 rounded-xl border border-[#234576] bg-[#071a38] px-3 py-2 text-xs font-extrabold text-[#d1deef] hover:border-[#72a5ff]"><ArrowLeft size={16}/>Voltar ao Curso</button>
@@ -193,11 +193,11 @@ export default function UFMGCourseArea({ onBack }: { onBack: () => void }) {
       <section className="overflow-hidden rounded-[28px] border border-[#173765] bg-[radial-gradient(circle_at_85%_0%,rgba(36,108,255,.23),transparent_32%),linear-gradient(145deg,#081a38,#06152f)] p-6 md:p-8">
         <div className="grid gap-6 lg:grid-cols-[1.15fr_.85fr] lg:items-center">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#31588e] bg-[#0b2856] px-3 py-1.5 text-xs font-black text-[#9fc0ff]"><GraduationCap size={15}/>{STAGE_META[stage].label}</div>
-            <h1 className="mt-4 text-3xl font-black tracking-[-.045em] md:text-5xl">Seriado UFMG <span className="text-[#72a5ff]">{STAGE_META[stage].short}</span></h1>
-            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-[#a9bddc] md:text-base">{STAGE_META[stage].note}</p>
-            {stage === 'etapa2' && <p className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/[.07] p-3 text-xs font-bold leading-relaxed text-amber-100">A Etapa 2 é cumulativa: cobra conteúdos da 1ª e da 2ª séries, com maior ênfase nos conteúdos da 2ª série.</p>}
-            {stage === 'etapa3' && <p className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/[.07] p-3 text-xs font-bold leading-relaxed text-amber-100">A Etapa 3 acumula as três séries. No 2º dia, a área das discursivas depende do curso de graduação escolhido.</p>}
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#547fbd] bg-[#12376f] px-3 py-1.5 text-xs font-black text-[#d9e6ff]"><GraduationCap size={15}/>{STAGE_META[stage].label}</div>
+            <h1 className="mt-4 text-3xl font-black tracking-[-.045em] text-[#f7faff] md:text-5xl">Seriado UFMG <span className="text-[#8fb4ff]">{STAGE_META[stage].short}</span></h1>
+            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-[#c3d2e8] md:text-base">{STAGE_META[stage].note}</p>
+            {stage === 'etapa2' && <p className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/[.07] p-3 text-xs font-bold leading-relaxed text-[#ffe2a3]">A Etapa 2 é cumulativa: cobra conteúdos da 1ª e da 2ª séries, com maior ênfase nos conteúdos da 2ª série.</p>}
+            {stage === 'etapa3' && <p className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/[.07] p-3 text-xs font-bold leading-relaxed text-[#ffe2a3]">A Etapa 3 acumula as três séries. No 2º dia, a área das discursivas depende do curso de graduação escolhido.</p>}
           </div>
           <div className="rounded-2xl border border-[#234576] bg-[#041027]/85 p-5">
             <div className="text-[10px] font-black uppercase tracking-[.13em] text-[#7691b5]">Ordem recomendada</div>
@@ -251,7 +251,7 @@ export default function UFMGCourseArea({ onBack }: { onBack: () => void }) {
           {activeAuthored ? (() => { const selected = answers[activeAuthored.id]; const done = Boolean(corrected[activeAuthored.id]); const gotRight = selected === activeAuthored.answer; return <div className="mt-5"><div className="mb-4 flex items-center justify-between gap-3"><button disabled={authoredIndex === 0} onClick={() => setAuthoredIndex(index => Math.max(0, index - 1))} className="rounded-xl border border-[#31588e] bg-[#041027] p-2 disabled:opacity-30"><ChevronLeft size={18}/></button><div className="text-center"><div className="text-xs font-black text-[#72a5ff]">Questão {Math.min(authoredIndex + 1, visibleQuestions.length)} de {visibleQuestions.length}</div><div className="mt-1 h-1.5 w-44 overflow-hidden rounded-full bg-[#0b2856]"><div className="h-full bg-[#246cff]" style={{ width: `${visibleQuestions.length ? ((authoredIndex + 1) / visibleQuestions.length) * 100 : 0}%` }}/></div></div><button disabled={authoredIndex >= visibleQuestions.length - 1} onClick={() => setAuthoredIndex(index => Math.min(visibleQuestions.length - 1, index + 1))} className="rounded-xl border border-[#31588e] bg-[#041027] p-2 disabled:opacity-30"><ChevronRight size={18}/></button></div>
             <div className="flex flex-wrap items-center gap-2"><span className={`rounded-full border px-2.5 py-1 text-[10px] font-black ${areaStyle[activeAuthored.area]}`}>{activeAuthored.area}</span><span className="rounded-full border border-[#31588e] bg-[#071a38] px-2.5 py-1 text-[10px] font-black text-[#b9cbe4]">{activeAuthored.component}</span><span className="text-[10px] font-bold text-[#7691b5]">{activeAuthored.topic}</span></div>
             <h3 className="mt-4 text-lg font-bold leading-relaxed md:text-2xl">{activeAuthored.prompt}</h3>
-            <div className="mt-5 grid gap-3">{activeAuthored.options.map((option, index) => { const right = done && index === activeAuthored.answer; const wrong = done && selected === index && !right; return <button key={`${activeAuthored.id}-${index}`} disabled={done} onClick={() => chooseAuthorAnswer(activeAuthored.id, index)} className={`flex items-start gap-3 rounded-2xl border p-4 text-left text-sm font-bold transition ${right ? 'border-emerald-300/50 bg-emerald-300/10 text-emerald-50' : wrong ? 'border-rose-300/50 bg-rose-300/10 text-rose-50' : 'border-[#31588e] bg-[#041027] text-[#c4d4ea] hover:border-[#72a5ff]'}`}><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#0b2856] text-xs font-black">{String.fromCharCode(65 + index)}</span><span className="pt-1.5">{option}</span></button>; })}</div>
+            <div className="mt-5 grid gap-3">{activeAuthored.options.map((option, index) => { const right = done && index === activeAuthored.answer; const wrong = done && selected === index && !right; return <button key={`${activeAuthored.id}-${index}`} disabled={done} onClick={() => chooseAuthorAnswer(activeAuthored.id, index)} className={`flex items-start gap-3 rounded-2xl border p-4 text-left text-sm font-bold transition ${right ? 'border-emerald-300/50 bg-emerald-300/10 text-[#08745b]' : wrong ? 'border-rose-300/50 bg-rose-300/10 text-[#a61b46]' : 'border-[#31588e] bg-[#041027] text-[#c4d4ea] hover:border-[#72a5ff]'}`}><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#0b2856] text-xs font-black">{String.fromCharCode(65 + index)}</span><span className="pt-1.5">{option}</span></button>; })}</div>
             {done && <div className={`mt-5 rounded-2xl border p-4 ${gotRight ? 'border-emerald-300/25 bg-emerald-300/[.07]' : 'border-rose-300/25 bg-rose-300/[.07]'}`}><div className={`flex items-center gap-2 text-base font-black ${gotRight ? 'text-emerald-300' : 'text-rose-300'}`}>{gotRight ? <CheckCircle2 size={19}/> : <XCircle size={19}/>} {gotRight ? 'Resposta correta' : `Você errou. Gabarito: ${String.fromCharCode(65 + activeAuthored.answer)}`}</div><p className="mt-2 text-sm leading-relaxed text-[#c4d4ea]">{activeAuthored.explanation}</p><div className="mt-4 flex flex-wrap gap-2"><button onClick={() => retryAuthored(activeAuthored.id)} className="rounded-xl border border-[#31588e] bg-[#041027] px-3 py-2 text-xs font-black">Refazer</button>{authoredIndex < visibleQuestions.length - 1 && <button onClick={() => setAuthoredIndex(index => index + 1)} className="inline-flex items-center gap-2 rounded-xl bg-[#246cff] px-4 py-2 text-xs font-black">Próxima <ArrowRight size={14}/></button>}</div></div>}
           </div>; })() : <div className="mt-5 rounded-2xl border border-[#31588e] bg-[#041027] p-5 text-sm text-[#9fb5d4]">Nenhuma questão encontrada neste filtro.</div>}
         </section>
