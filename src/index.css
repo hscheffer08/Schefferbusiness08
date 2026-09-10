@@ -118,3 +118,114 @@ table{max-width:100%}
   main{padding-left:13px!important;padding-right:13px!important}
   h1{font-size:1.95rem!important}
 }
+
+/* Conectae light-blue canvas — shared across every product area */
+:root{
+  --cx-bg:#f6f8ff;
+  --cx-surface:#ffffff;
+  --cx-surface-2:#eef2ff;
+  --cx-line:#dbe2f0;
+  --cx-blue:#3155e7;
+  --cx-blue-2:#6c57e8;
+  --cx-text:#172344;
+  --cx-muted:#66738c;
+}
+
+html,body,#root{background:#f6f8ff;color:#172344}
+
+/* Page canvases and sticky chrome */
+.bg-ink-950,
+[class*="bg-[#020817]"],
+[class*="bg-[#070b16]"],
+[class*="bg-[#050916]"]{background-color:#f6f8ff!important}
+[class*="bg-[radial-gradient"][class*="#020817"]{background:#f6f8ff!important}
+
+/* Panels, cards and secondary sections */
+.bg-ink-900,.bg-ink-900\/90,.bg-ink-900\/80,.bg-ink-800,.bg-ink-800\/50,.bg-ink-800\/70,
+[class*="bg-[#06142e]"],
+[class*="bg-[#06152f]"],
+[class*="bg-[#071a38]"],
+[class*="bg-[#081a38]"],
+[class*="bg-[#041027]"],
+[class*="bg-[#051127]"],
+[class*="bg-[#07111d]"],
+[class*="bg-[#081d40]"],
+[class*="bg-[#0b1424]"],
+[class*="bg-[#06131c]"],
+[class*="bg-[#06162f]"],
+[class*="bg-[#031027]"],
+[class*="bg-[#0b1220]"]{background-color:#ffffff!important}
+
+[class*="bg-[#0b2856]"],
+[class*="bg-[#0d2d61]"],
+[class*="bg-[#102a54]"],
+[class*="bg-[#0a2450]"],
+[class*="bg-[#092047]"]{background-color:#e9edff!important}
+
+.bg-white\/\[0\.025\],.bg-white\/\[0\.03\],.bg-white\/\[0\.045\],.bg-white\/\[0\.055\],.bg-white\/5,.bg-white\/10,
+[class*="bg-white/[0.025]"],
+[class*="bg-white/[0.03]"],
+[class*="bg-white/[0.045]"],
+[class*="bg-white/[0.055]"]{background-color:#ffffff!important}
+
+/* Light-theme typography */
+.text-ink-50,.text-ink-100,.text-ink-200,.text-ink-300,.text-white{color:#172344!important}
+.text-ink-400,.text-ink-500,.text-ink-600,
+[class*="text-[#9fb5d4]"],
+[class*="text-[#a9bddc]"],
+[class*="text-[#b8cae4]"],
+[class*="text-[#c4d4ea]"],
+[class*="text-[#8fa7c9]"],
+[class*="text-[#7891b4]"],
+[class*="text-[#8da5c5]"],
+[class*="text-[#839ab9]"],
+[class*="text-[#7691b5]"]{color:#66738c!important}
+
+.text-brand-300,.text-brand-400,.text-blue-300,.text-cyan-100,.text-cyan-200,.text-cyan-300,
+[class*="text-[#72a5ff]"],
+[class*="text-[#72a5fb]"],
+[class*="text-[#8bb8ff]"]{color:#3155e7!important}
+
+.text-emerald-100,.text-emerald-200,.text-emerald-300{color:#087a5b!important}
+.text-violet-200,.text-violet-300,.text-fuchsia-200,.text-fuchsia-300{color:#6c45c8!important}
+.text-amber-200,.text-amber-300{color:#9a5b05!important}
+.text-rose-100,.text-rose-200{color:#b4234d!important}
+
+/* Borders become visible without looking heavy */
+.border-white\/\[0\.06\],.border-white\/\[0\.08\],.border-white\/\[0\.09\],.border-white\/\[0\.1\],.border-white\/\[0\.11\],.border-white\/10,
+[class*="border-[#173765]"],
+[class*="border-[#234576]"],
+[class*="border-[#31588e]"],
+[class*="border-[#193a68]"],
+[class*="border-[#183965]"],
+[class*="border-[#203d67]"]{border-color:#dbe2f0!important}
+
+/* Keep primary actions legible on the new canvas */
+.bg-brand-500,.bg-brand-600,.bg-blue-500,.bg-blue-600,
+[class~="bg-[#246cff]"],
+[class~="bg-[#3155e7]"],
+[class~="bg-[#172344]"]{background-color:#3155e7!important;color:#ffffff!important}
+.bg-brand-500 .text-white,.bg-brand-600 .text-white,.bg-blue-500 .text-white,.bg-blue-600 .text-white,
+[class~="bg-[#246cff]"] .text-white,
+[class~="bg-[#3155e7]"] .text-white,
+[class~="bg-[#172344]"] .text-white{color:#ffffff!important}
+
+/* Dark gradient tokens used by older screens become light surfaces */
+[class*="from-[#020817]"],[class*="from-[#070b16]"],[class*="from-[#06152f]"],[class*="from-[#0b2856]"]{
+  --tw-gradient-from:#eef2ff var(--tw-gradient-from-position)!important;
+  --tw-gradient-to:rgb(238 242 255 / 0) var(--tw-gradient-to-position)!important;
+  --tw-gradient-stops:var(--tw-gradient-from),var(--tw-gradient-to)!important;
+}
+[class*="to-[#020817]"],[class*="to-[#041027]"],[class*="to-[#051127]"],[class*="to-[#06152f]"]{--tw-gradient-to:#ffffff var(--tw-gradient-to-position)!important}
+
+.field,
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),select,textarea{
+  background-color:#ffffff!important;
+  border-color:#d7deee!important;
+  color:#172344!important;
+}
+.field::placeholder,input::placeholder,textarea::placeholder{color:#8a95aa!important}
+
+::-webkit-scrollbar-track{background:#eef2ff}
+::-webkit-scrollbar-thumb{background:#aebcff}
+::-webkit-scrollbar-thumb:hover{background:#879cff}
