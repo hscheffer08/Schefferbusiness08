@@ -8,7 +8,7 @@ const SEARCH_MODEL = 'google/gemini-3.6-flash';
 const FALLBACK_MODELS = ['anthropic/claude-opus-5', 'google/gemini-3.6-flash', 'openai/gpt-5.6-luna'];
 const DAILY_LIMIT = 10;
 const FALLBACK_SUPABASE_URL = 'https://kmognvgnfisdchzffkgh.supabase.co';
-const FALLBACK_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
+const FALLBACK_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 type Practice = {
@@ -53,8 +53,11 @@ function parseJson(raw: string) {
 }
 function config() {
   const raw = cleanEnv(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || FALLBACK_SUPABASE_URL);
-  const key = cleanEnv(process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || FALLBACK_SUPABASE_ANON_KEY);
-  try { const u = new URL(raw.startsWith('http') ? raw : `https://${raw}`); return { url: u.origin, key }; } catch { return { url: FALLBACK_SUPABASE_URL, key: FALLBACK_SUPABASE_ANON_KEY }; }
+  const envKey = cleanEnv(process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY);
+  let origin = FALLBACK_SUPABASE_URL;
+  try { const u = new URL(raw.startsWith('http') ? raw : `https://${raw}`); origin = u.origin; } catch {}
+  const key = origin === FALLBACK_SUPABASE_URL ? FALLBACK_SUPABASE_ANON_KEY : (envKey || FALLBACK_SUPABASE_ANON_KEY);
+  return { url: origin, key };
 }
 async function verifyToken(url: string, key: string, token: string) {
   if (!token) return '';
