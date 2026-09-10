@@ -1,3 +1,4 @@
-// Stable compatibility route. v5 preserves the complete learning corpus and now
-// delegates to the public tutor core, so login is optional for asking questions.
-export { default } from './education-tutor-v5.js';
+// Stable public tutor route.
+// Delegate directly to the resilient public core so stale/placeholder Supabase
+// environment values in older enrichment layers cannot break user requests.
+export { default } from './education-tutor-public.js';
