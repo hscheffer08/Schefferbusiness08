@@ -37,7 +37,7 @@ function normalizeProductionOrigin() {
 normalizeProductionOrigin();
 
 const publicFallbackUrl = 'https://kmognvgnfisdchzffkgh.supabase.co';
-const publicFallbackAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
+const publicFallbackAnonKey = 'sb_publishable_2DCxkYOlTKqsVjDxYg5pxg_pf5YqdTA';
 
 const configuredUrl = normalizeSupabaseUrl(import.meta.env.VITE_SUPABASE_URL);
 const configuredAnonKey = cleanEnv(
@@ -48,7 +48,7 @@ const configuredAnonKey = cleanEnv(
 const hasPlaceholder = !configuredUrl || /x{4,}|seu-projeto/i.test(configuredUrl);
 const hasPlaceholderKey = !configuredAnonKey || /x{4,}|sua-chave/i.test(configuredAnonKey);
 const url = hasPlaceholder ? publicFallbackUrl : configuredUrl;
-const anonKey = hasPlaceholderKey ? publicFallbackAnonKey : configuredAnonKey;
+const anonKey = url === publicFallbackUrl || hasPlaceholderKey ? publicFallbackAnonKey : configuredAnonKey;
 
 if (!url || !anonKey) {
   console.error('Supabase configuration is missing. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel.');

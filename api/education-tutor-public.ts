@@ -8,7 +8,7 @@ const FALLBACK_MODELS = ['anthropic/claude-opus-5', 'google/gemini-3.6-flash', '
 const EMERGENCY_MODEL = 'google/gemini-3.5-flash-lite';
 const DAILY_LIMIT = 10;
 const FALLBACK_SUPABASE_URL = 'https://kmognvgnfisdchzffkgh.supabase.co';
-const FALLBACK_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
+const FALLBACK_SUPABASE_ANON_KEY = 'sb_publishable_2DCxkYOlTKqsVjDxYg5pxg_pf5YqdTA';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 type Practice = {
