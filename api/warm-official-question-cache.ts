@@ -1,8 +1,9 @@
+/* eslint-disable no-control-regex */
 import { createClient } from '@supabase/supabase-js';
 import { extractOfficialQuestionServer } from './_official-pdf-server.js';
 
 const SUPABASE_URL='https://kmognvgnfisdchzffkgh.supabase.co';
-const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
+const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXAiLCJyZWYiOiJrbW9nbnZnbmZpc2RjaHpmamtnaCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzg2NzM5MTY5LCJleHAiOjIxMDIzMTUxNjl9.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
 const supabase=createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
 const ALLOWED_SERIES=new Set(['enem','cmmg','fuvest']);
 const VERSION='2026-09-11-v6';
