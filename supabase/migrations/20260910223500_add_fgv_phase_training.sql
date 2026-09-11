@@ -1,0 +1,56 @@
+-- FGV EAESP training content. These are original practice drills aligned to the
+-- public 2027.1 admissions format; they are intentionally not labelled as
+-- official FGV questions.
+
+insert into public.admission_phase_drills
+  (exam_id, phase, competency, title, prompt, instructions, rubric,
+   time_limit_minutes, response_mode, source_basis, active)
+values
+  ('fgv','1ª fase — Matemática','Raciocínio quantitativo','Decisão com função e margem',
+   'Uma empresa vende um produto com receita R(q)=120q-0,4q² e custo C(q)=30q+1800. Determine a quantidade que maximiza o lucro e explique, em poucas linhas, por que esse ponto é máximo.',
+   'Resolva sem calculadora, organize as etapas e destaque a resposta final.',
+   '[{"criterion":"modelagem","weight":30},{"criterion":"cálculo","weight":30},{"criterion":"justificativa","weight":25},{"criterion":"clareza","weight":15}]'::jsonb,12,'math',
+   'Treino autoral alinhado ao conteúdo quantitativo do Vestibular FGV EAESP 2027.1; não é questão oficial',true),
+  ('fgv','1ª fase — Matemática','Probabilidade e análise','Probabilidade em seleção',
+   'Uma empresa seleciona 2 pessoas, sem reposição, de um grupo com 5 candidatos de Finanças e 3 de Marketing. Calcule a probabilidade de selecionar exatamente uma pessoa de cada área e apresente o raciocínio.',
+   'Mostre a contagem ou a árvore de probabilidades e simplifique o resultado.',
+   '[{"criterion":"estratégia","weight":30},{"criterion":"cálculo","weight":30},{"criterion":"interpretação","weight":25},{"criterion":"clareza","weight":15}]'::jsonb,10,'math',
+   'Treino autoral alinhado ao conteúdo quantitativo do Vestibular FGV EAESP 2027.1; não é questão oficial',true),
+  ('fgv','1ª fase — Ciências Humanas','Atualidades e interpretação','Cadeia global e choque externo',
+   'Um choque geopolítico eleva o preço internacional do petróleo e encarece fretes. Explique dois canais pelos quais isso pode afetar inflação e atividade econômica no Brasil e indique uma possível resposta de política econômica.',
+   'Responda de forma objetiva, separando mecanismo, efeito e resposta.',
+   '[{"criterion":"conhecimento","weight":30},{"criterion":"causalidade","weight":30},{"criterion":"aplicação","weight":25},{"criterion":"clareza","weight":15}]'::jsonb,12,'text',
+   'Treino autoral alinhado a Ciências Humanas e Atualidades do Vestibular FGV EAESP 2027.1; não é questão oficial',true),
+  ('fgv','1ª fase — Língua Portuguesa','Interpretação e argumentação','Tese e evidência',
+   'Leia a afirmação: “Eficiência econômica e redução de desigualdades não são objetivos necessariamente incompatíveis.” Escreva um parágrafo identificando uma tese possível, uma evidência que a sustentaria e uma objeção relevante.',
+   'Não faça uma redação completa; foque em estrutura lógica e precisão verbal.',
+   '[{"criterion":"interpretação","weight":25},{"criterion":"argumentação","weight":30},{"criterion":"evidência","weight":25},{"criterion":"linguagem","weight":20}]'::jsonb,10,'text',
+   'Treino autoral alinhado a Língua Portuguesa do Vestibular FGV EAESP 2027.1; não é questão oficial',true),
+  ('fgv','2ª fase — Matemática discursiva','Resolução discursiva','Otimização sob restrição',
+   'Uma empresa dispõe de R$ 120 mil para investir em dois projetos. O projeto A exige R$ 20 mil por unidade e gera retorno esperado de R$ 6 mil; o B exige R$ 30 mil e gera R$ 10 mil. Por restrição operacional, podem ser executadas no máximo 5 unidades no total. Modele as restrições e encontre a combinação inteira que maximiza o retorno esperado.',
+   'Escreva como em uma questão discursiva: defina variáveis, restrições, compare alternativas viáveis e conclua.',
+   '[{"criterion":"modelagem","weight":30},{"criterion":"procedimento","weight":25},{"criterion":"resultado","weight":25},{"criterion":"comunicação_matemática","weight":20}]'::jsonb,20,'math',
+   'Treino autoral alinhado à prova discursiva de Matemática do Vestibular FGV EAESP Administração 2027.1; não é questão oficial',true),
+  ('fgv','2ª fase — Matemática discursiva','Raciocínio algébrico','Sistema e ponto de equilíbrio',
+   'Uma empresa tem custo fixo mensal de R$ 24.000 e custo variável de R$ 80 por unidade. O preço de venda é R$ 140 por unidade. Encontre o ponto de equilíbrio em unidades e em receita e explique o significado econômico do resultado.',
+   'Apresente as equações, a solução e uma interpretação final em linguagem clara.',
+   '[{"criterion":"equações","weight":30},{"criterion":"cálculo","weight":25},{"criterion":"interpretação","weight":25},{"criterion":"clareza","weight":20}]'::jsonb,18,'math',
+   'Treino autoral alinhado à prova discursiva de Matemática do Vestibular FGV EAESP Administração 2027.1; não é questão oficial',true),
+  ('fgv','2ª fase — Redação','Construção de tese','Redação: crescimento e produtividade',
+   'Produza uma redação dissertativo-argumentativa sobre o tema: “Os limites e as possibilidades do aumento de produtividade como caminho para o crescimento econômico brasileiro”.',
+   'Defina uma tese clara, desenvolva dois argumentos conectados a repertório pertinente e encerre com conclusão coerente. Priorize precisão e progressão argumentativa.',
+   '[{"criterion":"tese","weight":25},{"criterion":"argumentação","weight":30},{"criterion":"repertório","weight":20},{"criterion":"coesão","weight":15},{"criterion":"norma_culta","weight":10}]'::jsonb,60,'text',
+   'Treino autoral alinhado à Redação da 2ª fase do Vestibular FGV EAESP Administração 2027.1; não é tema oficial',true),
+  ('fgv','2ª fase — Redação','Análise de problema público','Redação: tecnologia e trabalho',
+   'Produza uma redação dissertativo-argumentativa sobre o tema: “Inteligência artificial, produtividade e transformação do mercado de trabalho: como equilibrar inovação e adaptação social?”.',
+   'Construa uma tese não genérica, use relações de causa e consequência e trate ao menos um contra-argumento.',
+   '[{"criterion":"tese","weight":25},{"criterion":"argumentação","weight":30},{"criterion":"complexidade","weight":20},{"criterion":"coesão","weight":15},{"criterion":"norma_culta","weight":10}]'::jsonb,60,'text',
+   'Treino autoral alinhado à Redação da 2ª fase do Vestibular FGV EAESP Administração 2027.1; não é tema oficial',true)
+on conflict (exam_id,phase,title,prompt) do update set
+  competency = excluded.competency,
+  instructions = excluded.instructions,
+  rubric = excluded.rubric,
+  time_limit_minutes = excluded.time_limit_minutes,
+  response_mode = excluded.response_mode,
+  source_basis = excluded.source_basis,
+  active = true;
