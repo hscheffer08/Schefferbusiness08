@@ -1,0 +1,41 @@
+name: Add FGV to question bank
+
+on:
+  push:
+    paths:
+      - '.github/workflows/add-fgv-to-question-bank.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add FGV exam filter
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/components/OfficialQuestionWorkspaceV5.tsx')
+          s = p.read_text()
+          old = '  "enem" | "cmmg" | "fuvest" | "insper" | "link" | "ibmec" | "einstein";'
+          new = '  "enem" | "cmmg" | "fuvest" | "fgv" | "insper" | "link" | "ibmec" | "einstein";'
+          if old in s:
+              s = s.replace(old, new, 1)
+          cfg_old = '  { id: "fuvest", label: "FUVEST", official: true },\n  { id: "insper", label: "Insper", official: false },'
+          cfg_new = '  { id: "fuvest", label: "FUVEST", official: true },\n  { id: "fgv", label: "FGV", official: false },\n  { id: "insper", label: "Insper", official: false },'
+          if cfg_old in s:
+              s = s.replace(cfg_old, cfg_new, 1)
+          if '"fgv"' not in s or '{ id: "fgv", label: "FGV", official: false }' not in s:
+              raise SystemExit('FGV patch did not apply')
+          p.write_text(s)
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/components/OfficialQuestionWorkspaceV5.tsx
+          git diff --cached --quiet || git commit -m 'Show FGV in question bank filters'
+          git push
