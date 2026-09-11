@@ -1,3 +1,4 @@
+/* eslint-disable no-control-regex */
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 const docs=new Map<string,Promise<string[][]>>();
