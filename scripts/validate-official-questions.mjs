@@ -18,10 +18,14 @@ assert.equal(normalized.correct_option,'C');
 assert.equal(normalized.option_e,'Alternativa E');
 assert.deepEqual(normalized.images,['https://enem.dev/2023/questions/24/visual.png']);
 assert.equal(normalized.prompt.includes('![]'),false);
-assert.equal(ENEM_INTERACTIVE_TOTAL,1166);
+assert.equal(ENEM_INTERACTIVE_TOTAL,1162);
 assert.equal(isEnemInteractiveQuestion(2023,24),true);
 assert.equal(isEnemInteractiveQuestion(2023,34),false);
 assert.equal(isEnemInteractiveQuestion(2024,1),true);
+assert.equal(isEnemInteractiveQuestion(2024,102),false);
+assert.equal(isEnemInteractiveQuestion(2025,115),false);
+assert.equal(isEnemInteractiveQuestion(2025,121),false);
+assert.equal(isEnemInteractiveQuestion(2025,178),false);
 assert.equal(isEnemInteractiveQuestion(2025,180),true);
 
 assert.equal(isQuestionMarker('01. Considerando o texto anterior, responda.',1),true);
