@@ -1,33 +1,22 @@
 -- FGV EAESP 2027.1 authorial practice bank for the Course of Approval.
 -- These are original Conectaê items aligned to the official exam structure; they are NOT official FGV questions.
 
-insert into public.admission_exam_models (
-  exam_id, label, institution, exam_date, format_summary, official_source_url,
-  official, scoring_model, stages, priorities, updated_at
+insert into public.course_exam_models (
+  id, university_name, course_label, exam_id, model, official_source_url, updated_at
 )
-values (
-  'fgv',
-  'Vestibular FGV EAESP 2027.1',
+select
+  coalesce(max(id),0)+1,
   'FGV EAESP',
-  '2026-10-18',
-  'Administração: 1ª fase objetiva com Matemática, Língua Portuguesa, Inglês e Ciências Humanas; 2ª fase discursiva com Matemática e Redação. Nota final com peso 2 para a 1ª fase e peso 3 para a 2ª fase.',
+  'Administração',
+  'fgv',
+  '{"type":"vestibular","phases":[{"label":"1ª fase objetiva","weight":2,"components":["Matemática","Língua Portuguesa","Inglês","Ciências Humanas"]},{"label":"2ª fase discursiva","weight":3,"components":["Matemática discursiva","Redação"]}],"components":[{"key":"Matemática objetiva","max":10,"unit":"desempenho","label":"Matemática — 1ª fase"},{"key":"Língua Portuguesa","max":10,"unit":"desempenho","label":"Língua Portuguesa — 1ª fase"},{"key":"Inglês","max":10,"unit":"desempenho","label":"Inglês — 1ª fase"},{"key":"Ciências Humanas","max":10,"unit":"desempenho","label":"Ciências Humanas — 1ª fase"},{"key":"Matemática discursiva","max":10,"unit":"desempenho","label":"Matemática discursiva — 2ª fase"},{"key":"Redação","max":10,"unit":"desempenho","label":"Redação — 2ª fase"}]}'::jsonb,
   'https://vestibular.fgv.br/sites/default/files/2026-07/materiais/edital-unificado_01-2027_4.pdf',
-  true,
-  '{"phase_1_weight":2,"phase_2_weight":3,"scale":"0-10"}'::jsonb,
-  '[{"id":"fase1","label":"1ª fase objetiva","areas":["Matemática","Língua Portuguesa","Inglês","Ciências Humanas"]},{"id":"fase2","label":"2ª fase discursiva","areas":["Matemática discursiva","Redação"]}]'::jsonb,
-  '{"Matemática":1,"Língua Portuguesa":1,"Inglês":1,"Ciências Humanas":1,"Matemática discursiva":1.2,"Redação":1.2}'::jsonb,
   now()
-)
-on conflict (exam_id) do update set
-  label = excluded.label,
-  institution = excluded.institution,
-  exam_date = excluded.exam_date,
-  format_summary = excluded.format_summary,
+from public.course_exam_models
+on conflict (university_name, course_label) do update set
+  exam_id = excluded.exam_id,
+  model = excluded.model,
   official_source_url = excluded.official_source_url,
-  official = excluded.official,
-  scoring_model = excluded.scoring_model,
-  stages = excluded.stages,
-  priorities = excluded.priorities,
   updated_at = now();
 
 with seed(area, skill_name, difficulty, prompt, option_a, option_b, option_c, option_d, option_e, correct_option, explanation) as (
@@ -52,7 +41,7 @@ with seed(area, skill_name, difficulty, prompt, option_a, option_b, option_c, op
   ('Ciências Humanas','História econômica',3,'A industrialização por substituição de importações, adotada em diferentes momentos na América Latina, buscava principalmente:','ampliar a dependência de manufaturas importadas','produzir internamente bens antes importados','abolir o setor industrial','eliminar a participação do Estado na economia','substituir exportações por importações','B','A estratégia buscava desenvolver capacidade industrial doméstica para reduzir a dependência de bens manufaturados importados.'),
   ('Matemática discursiva','Modelagem e justificativa',4,'Em uma questão discursiva de matemática, qual resposta demonstra melhor o raciocínio exigido pela banca?','apresentar apenas o resultado final','listar fórmulas sem relacioná-las ao problema','definir variáveis, montar o modelo, desenvolver os cálculos e concluir no contexto','copiar os dados do enunciado sem operar com eles','dar uma estimativa sem justificar','C','Uma solução discursiva forte torna o raciocínio verificável: define grandezas, explicita relações, calcula e interpreta o resultado.'),
   ('Matemática discursiva','Análise de ponto de equilíbrio',4,'Uma empresa tem receita R(q)=90q e custo C(q)=30.000+60q. Em uma solução discursiva, qual equação deve ser resolvida para encontrar o ponto de equilíbrio?','90q=60q','90q=30.000','90q=30.000+60q','30.000q=150','90+q=30.000+60','C','No ponto de equilíbrio, receita e custo total são iguais: R(q)=C(q), portanto 90q=30.000+60q.'),
-  ('Matemática discursiva','Interpretação de derivada',4,'Se C(q) representa o custo total e C''(q)=18 em determinado nível de produção, a interpretação econômica mais adequada é:','o custo total é sempre R$ 18','o custo médio é exatamente R$ 18','próximo desse ponto, uma unidade adicional aumenta o custo total em aproximadamente R$ 18','a receita cresce R$ 18','o lucro é máximo','C','A derivada do custo em relação à quantidade é o custo marginal: aproxima a variação do custo total por unidade adicional.'),
+  ('Matemática discursiva','Interpretação de derivada',4,'Se C''(q)=18 em determinado nível de produção, a interpretação econômica mais adequada é:','o custo total é sempre R$ 18','o custo médio é exatamente R$ 18','próximo desse ponto, uma unidade adicional aumenta o custo total em aproximadamente R$ 18','a receita cresce R$ 18','o lucro é máximo','C','A derivada do custo em relação à quantidade é o custo marginal: aproxima a variação do custo total por unidade adicional.'),
   ('Redação','Construção de tese',3,'Qual tese é mais adequada para iniciar uma redação argumentativa sobre inteligência artificial e trabalho?','A inteligência artificial existe.','Tecnologia é um assunto importante.','A difusão da IA pode elevar produtividade, mas exige qualificação profissional e mecanismos de transição para reduzir custos sociais.','Muitas pessoas usam computadores.','O futuro é imprevisível, então não há o que discutir.','C','A alternativa C apresenta posição clara, tensão analítica e dois eixos que podem ser desenvolvidos ao longo do texto.'),
   ('Redação','Repertório produtivo',3,'Em uma redação, um dado ou referência externa é produtivo quando:','aparece sem relação com a tese','é usado apenas para aumentar o tamanho do texto','é explicado e conectado ao argumento desenvolvido','substitui a necessidade de raciocínio','é sempre uma citação longa','C','Repertório produtivo não é decorativo: precisa ser interpretado e funcionar como evidência ou enquadramento do argumento.'),
   ('Redação','Coerência argumentativa',3,'Um parágrafo defende que ganhos de produtividade não se distribuem automaticamente. Qual continuação é mais coerente?','Logo, toda inovação deve ser proibida.','Por isso, políticas de qualificação e competição podem influenciar como esses ganhos chegam a trabalhadores e consumidores.','Portanto, produtividade e distribuição são conceitos idênticos.','Assim, não existe relação entre tecnologia e economia.','Consequentemente, qualquer dado empírico é irrelevante.','B','A alternativa B mantém a tese e desenvolve uma consequência plausível sem saltos lógicos.'),
