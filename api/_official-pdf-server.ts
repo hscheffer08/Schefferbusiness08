@@ -1,9 +1,8 @@
-/* eslint-disable no-control-regex */
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { hasUnexpectedControlCharacters } from './_text-integrity.js';
 
 const docs=new Map<string,Promise<string[][]>>();
 const BROKEN=/[\uFFFD\u25A0-\u25FF\uE000-\uF8FF]/g;
-const CONTROL=/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/;
 const CMMG_GARBLED=/~|[a-záéíóúçãõ]{2,}[IKWFXJ]\b|\b(?:pbjbpqob|xK{2,}z|Eaispon[ií]vel|fnicialmente|ganeiro|maulo|kunca|jartin|oKoK)\b/i;
 
 function clean(s:string){return s.replace(/¬/g,' ').replace(/\s+/g,' ').trim()}
@@ -118,7 +117,7 @@ function usable(prompt:string,opts:Record<string,string|null>,cmmg:boolean){
   if(fields.slice(1).length<4)return false;
   const content=fields.join(' '),broken=(content.match(BROKEN)||[]).length;
   if(broken>=2||broken/Math.max(content.length,1)>.003)return false;
-  if(CONTROL.test(content))return false;
+  if(hasUnexpectedControlCharacters(content))return false;
   if(cmmg&&CMMG_GARBLED.test(content))return false;
   if(/\b(?:DVVLQDOH|DOWHUQDWLYD|TXHVWDR|SHUVRQDJHQV|FRUSR|VHUWDR|UHVSRVWD)\b/i.test(content))return false;
   return true;
