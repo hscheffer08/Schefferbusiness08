@@ -2,7 +2,7 @@ import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
 import { createClient } from '@supabase/supabase-js';
 
-const GATEWAY_MODELS=['google/gemini-2.5-flash-lite','google/gemini-2.5-flash'] as const;
+const GATEWAY_MODELS=['google/gemini-2.5-flash-lite','openai/gpt-5.4-mini','anthropic/claude-fable-5','google/gemini-2.5-flash'] as const;
 const DEFAULT_SUPABASE_URL='https://kmognvgnfisdchzffkgh.supabase.co';
 const SUPABASE_URL=(process.env.SUPABASE_URL||process.env.VITE_SUPABASE_URL||DEFAULT_SUPABASE_URL).replace(/\/$/,'');
 const SUPABASE_ANON_KEY=process.env.SUPABASE_ANON_KEY||process.env.VITE_SUPABASE_ANON_KEY||'';
@@ -15,27 +15,59 @@ function allowedUrl(raw:unknown){
   }catch{return''}
 }
 function isInepPdf(sourceUrl:string){try{return new URL(sourceUrl).hostname==='download.inep.gov.br'}catch{return false}}
+function repairJsonEscapes(value:string){
+  let out='',inString=false,escaped=false;
+  for(let i=0;i<value.length;i++){
+    const ch=value[i];
+    if(!inString){
+      out+=ch;
+      if(ch==='"')inString=true;
+      continue;
+    }
+    if(escaped){
+      if(/["\\/bfnrt]/.test(ch)){out+=ch;escaped=false;continue;}
+      if(ch==='u'&&/^[0-9a-fA-F]{4}$/.test(value.slice(i+1,i+5))){out+=ch;escaped=false;continue;}
+      out+='\\'+ch;
+      escaped=false;
+      continue;
+    }
+    if(ch==='\\'){out+=ch;escaped=true;continue;}
+    if(ch==='"'){out+=ch;inString=false;continue;}
+    if(ch==='\n'){out+='\\n';continue;}
+    if(ch==='\r'){out+='\\r';continue;}
+    if(ch==='\t'){out+='\\t';continue;}
+    out+=ch;
+  }
+  if(escaped)out+='\\';
+  return out;
+}
 function parseJson(raw:string){
   const s=raw.trim().replace(/^```json\s*/i,'').replace(/^```\s*/,'').replace(/```$/,'').trim();
   const start=s.indexOf('{');
-  if(start<0)return JSON.parse(s);
-  let depth=0,inString=false,escaped=false;
-  for(let i=start;i<s.length;i++){
-    const ch=s[i];
-    if(inString){
-      if(escaped){escaped=false;continue;}
-      if(ch==='\\'){escaped=true;continue;}
-      if(ch==='"')inString=false;
-      continue;
+  const candidates:string[]=[];
+  if(start<0)candidates.push(s);
+  else{
+    let depth=0,inString=false,escaped=false,end=-1;
+    for(let i=start;i<s.length;i++){
+      const ch=s[i];
+      if(inString){
+        if(escaped){escaped=false;continue;}
+        if(ch==='\\'){escaped=true;continue;}
+        if(ch==='"')inString=false;
+        continue;
+      }
+      if(ch==='"'){inString=true;continue;}
+      if(ch==='{')depth++;
+      else if(ch==='}'&&--depth===0){end=i+1;break;}
     }
-    if(ch==='"'){inString=true;continue;}
-    if(ch==='{')depth++;
-    else if(ch==='}'){
-      depth--;
-      if(depth===0)return JSON.parse(s.slice(start,i+1));
-    }
+    candidates.push(end>start?s.slice(start,end):s.slice(start));
   }
-  return JSON.parse(s.slice(start));
+  let lastError:unknown=null;
+  for(const candidate of candidates){
+    try{return JSON.parse(candidate)}catch(error){lastError=error}
+    try{return JSON.parse(repairJsonEscapes(candidate))}catch(error){lastError=error}
+  }
+  throw lastError||new Error('invalid-json');
 }
 
 export function normalizeRequestedQuestion(parsed:any,questionNumber:number){
@@ -119,7 +151,7 @@ async function generateOnce(model:any,args:{prompt:string;sourceUrl:string;maxOu
     messages:[{role:'user',content:[{type:'text',text:args.prompt},{type:'file',mediaType:'application/pdf',data:args.sourceUrl}]}],
     maxOutputTokens:args.maxOutputTokens,
     abortSignal:AbortSignal.timeout(args.timeoutMs),
-    ...(gateway?{providerOptions:{gateway:{tags:[args.tag,`exam:${args.exam.toLowerCase()||'unknown'}`]}}}:{}),
+    ...(gateway?{providerOptions:{gateway:{models:GATEWAY_MODELS.filter(candidate=>candidate!==model),tags:[args.tag,`exam:${args.exam.toLowerCase()||'unknown'}`]}}}:{}),
   } as any);
 }
 
@@ -187,17 +219,7 @@ export default async function handler(req:any,res:any){
 
     if(mode==='batch'){
       if(!fromQuestion||toQuestion<fromQuestion)return reply(res,400,{error:'Intervalo de questões inválido.'});
-      const prompt=`Você está lendo uma PROVA OFICIAL${year?` da edição ${year}`:''}${exam?` de ${exam}`:''}. Extraia SOMENTE as questões objetivas de ${fromQuestion} a ${toQuestion}, inclusive.
-
-Regras obrigatórias:
-1) Para cada número solicitado, preserve fielmente o enunciado necessário para resolver e as alternativas A, B, C, D e E exatamente como aparecem quando existirem.
-2) Não misture textos, alternativas ou imagens de questões diferentes.
-3) Inclua textos auxiliares indispensáveis da própria questão. Se uma imagem/gráfico for indispensável e não puder ser convertido com fidelidade, marque needs_source_image=true, descreva em image_note o que precisa ser exibido e informe source_page (página do PDF, começando em 1). Não invente valores.
-4) Ignore instruções gerais da prova e qualquer questão fora do intervalo.
-5) Não resolva, não indique gabarito e não acrescente explicações.
-6) Se um número não puder ser localizado com segurança, devolva found=false para ele.
-
-Retorne APENAS JSON válido neste formato: {"questions":[{"question_number":${fromQuestion},"found":true,"prompt":"...","option_a":"...","option_b":"...","option_c":"...","option_d":"...","option_e":"...","needs_source_image":false,"image_note":null,"source_page":1,"confidence":0.0}]}. Inclua um objeto para CADA número de ${fromQuestion} a ${toQuestion}.`;
+      const prompt=`Você está lendo uma PROVA OFICIAL${year?` da edição ${year}`:''}${exam?` de ${exam}`:''}. Extraia SOMENTE as questões objetivas de ${fromQuestion} a ${toQuestion}, inclusive.\n\nRegras obrigatórias:\n1) Para cada número solicitado, preserve fielmente o enunciado necessário para resolver e as alternativas A, B, C, D e E exatamente como aparecem quando existirem.\n2) Não misture textos, alternativas ou imagens de questões diferentes.\n3) Inclua textos auxiliares indispensáveis da própria questão. Se uma imagem/gráfico for indispensável e não puder ser convertido com fidelidade, marque needs_source_image=true, descreva em image_note o que precisa ser exibido e informe source_page (página do PDF, começando em 1). Não invente valores.\n4) Ignore instruções gerais da prova e qualquer questão fora do intervalo.\n5) Não resolva, não indique gabarito e não acrescente explicações.\n6) Se um número não puder ser localizado com segurança, devolva found=false para ele.\n\nRetorne APENAS JSON válido neste formato: {"questions":[{"question_number":${fromQuestion},"found":true,"prompt":"...","option_a":"...","option_b":"...","option_c":"...","option_d":"...","option_e":"...","needs_source_image":false,"image_note":null,"source_page":1,"confidence":0.0}]}. Inclua um objeto para CADA número de ${fromQuestion} a ${toQuestion}.`;
       const parsed=await runJson({prompt,sourceUrl,maxOutputTokens:16000,timeoutMs:90000,exam,tag:'feature:official-question-batch'});
       const raw=Array.isArray(parsed?.questions)?parsed.questions:[];
       const questions=[];
@@ -217,17 +239,7 @@ Retorne APENAS JSON válido neste formato: {"questions":[{"question_number":${fr
       return reply(res,200,{correct_option:option,confidence:Math.max(0,Math.min(.99,Number(parsed.confidence)||0)),source:'official-answer-key'});
     }
 
-    const prompt=`Você está lendo uma PROVA OFICIAL. Extraia somente a questão número ${questionNumber}${year?` da edição ${year}`:''}${exam?` de ${exam}`:''}.
-
-Regras obrigatórias:
-1) Preserve fielmente o sentido e os dados da questão; não resolva e não indique o gabarito.
-2) Retorne o enunciado necessário para resolver e as alternativas A, B, C, D e E exatamente como aparecem quando existirem.
-3) Inclua textos auxiliares indispensáveis da própria questão (títulos de tabela, legenda, descrição textual curta de figura). Se uma imagem/gráfico for indispensável e não puder ser convertido com fidelidade, marque needs_source_image=true, descreva em image_note o que precisa ser exibido e informe source_page (número da página do PDF, começando em 1); não invente valores.
-4) Ignore instruções gerais da prova e outras questões.
-5) Se não localizar a questão com segurança, found=false.
-6) Não inclua resposta correta, comentário ou solução.
-
-Retorne APENAS JSON válido: {"found":true,"prompt":"...","option_a":"...","option_b":"...","option_c":"...","option_d":"...","option_e":"...","needs_source_image":false,"image_note":null,"source_page":1,"confidence":0.0}.`;
+    const prompt=`Você está lendo uma PROVA OFICIAL. Extraia somente a questão número ${questionNumber}${year?` da edição ${year}`:''}${exam?` de ${exam}`:''}.\n\nRegras obrigatórias:\n1) Preserve fielmente o sentido e os dados da questão; não resolva e não indique o gabarito.\n2) Retorne o enunciado necessário para resolver e as alternativas A, B, C, D e E exatamente como aparecem quando existirem.\n3) Inclua textos auxiliares indispensáveis da própria questão (títulos de tabela, legenda, descrição textual curta de figura). Se uma imagem/gráfico for indispensável e não puder ser convertido com fidelidade, marque needs_source_image=true, descreva em image_note o que precisa ser exibido e informe source_page (número da página do PDF, começando em 1); não invente valores.\n4) Ignore instruções gerais da prova e outras questões.\n5) Se não localizar a questão com segurança, found=false.\n6) Não inclua resposta correta, comentário ou solução.\n\nRetorne APENAS JSON válido: {"found":true,"prompt":"...","option_a":"...","option_b":"...","option_c":"...","option_d":"...","option_e":"...","needs_source_image":false,"image_note":null,"source_page":1,"confidence":0.0}.`;
     const generated=await runJson({prompt,sourceUrl,maxOutputTokens:2600,timeoutMs:60000,exam,tag:'feature:official-question-extract'});
     return reply(res,200,normalizeOutputQuestion(generated,questionNumber));
   }catch(error:any){
