@@ -2,6 +2,8 @@ import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 const docs=new Map<string,Promise<string[][]>>();
 const BROKEN=/[\uFFFD\u25A0-\u25FF\uE000-\uF8FF]/g;
+const CONTROL=/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/;
+const CMMG_GARBLED=/~|[a-záéíóúçãõ]{2,}[IKWFXJ]\b|\b(?:pbjbpqob|xK{2,}z|Eaispon[ií]vel|fnicialmente|ganeiro|maulo|kunca|jartin|oKoK)\b/i;
 
 function clean(s:string){return s.replace(/¬/g,' ').replace(/\s+/g,' ').trim()}
 function norm(s:string){return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase()}
@@ -54,7 +56,7 @@ async function load(sourceUrl:string){
   if(!allowed(sourceUrl))throw new Error('Fonte oficial inválida');
   let cached=docs.get(sourceUrl);if(cached)return cached;
   cached=(async()=>{
-    const r=await fetch(sourceUrl,{redirect:'follow',headers:{'User-Agent':'Mozilla/5.0 (compatible; ConectaeOfficialReader/2.0)',Accept:'application/pdf,*/*;q=0.8'},signal:AbortSignal.timeout(30000)});
+    const r=await fetch(sourceUrl,{redirect:'follow',headers:{'User-Agent':'Mozilla/5.0 (compatible; ConectaeOfficialReader/2.1)',Accept:'application/pdf,*/*;q=0.8'},signal:AbortSignal.timeout(30000)});
     if(!r.ok)throw new Error(`PDF HTTP ${r.status}`);
     const buffer=await r.arrayBuffer();
     if(!buffer.byteLength||buffer.byteLength>35*1024*1024)throw new Error('PDF inválido ou grande demais');
@@ -109,24 +111,27 @@ function splitOptions(lines:string[]){
   }
   return null;
 }
-function usable(prompt:string,opts:Record<string,string|null>){
+function usable(prompt:string,opts:Record<string,string|null>,cmmg:boolean){
   if(prompt.length<12)return false;
   const fields=[prompt,opts.A,opts.B,opts.C,opts.D,opts.E].filter(Boolean).map(String);
   if(fields.slice(1).length<4)return false;
   const content=fields.join(' '),broken=(content.match(BROKEN)||[]).length;
   if(broken>=2||broken/Math.max(content.length,1)>.003)return false;
+  if(CONTROL.test(content))return false;
+  if(cmmg&&CMMG_GARBLED.test(content))return false;
   if(/\b(?:DVVLQDOH|DOWHUQDWLYD|TXHVWDR|SHUVRQDJHQV|FRUSR|VHUWDR|UHVSRVWD)\b/i.test(content))return false;
   return true;
 }
 
 export async function extractOfficialQuestionServer(sourceUrl:string,questionNumber:number){
   const pages=await load(sourceUrl);const collected:string[]=[];let started=false,sourcePage=1,pagesAfter=0;
+  const cmmg=new URL(sourceUrl).hostname==='vestibular.cmmg.edu.br';
   for(let p=0;p<pages.length;p++){
     for(const line of pages[p]){
       if(!started){if(marker(line,questionNumber)){started=true;sourcePage=p+1;const rest=stripMarker(line,questionNumber);if(rest)collected.push(rest)}continue}
       if(marker(line,questionNumber+1)){
         const parsed=splitOptions(collected);
-        if(parsed&&usable(parsed.prompt,parsed.opts))return {found:true,prompt:parsed.prompt,option_a:parsed.opts.A,option_b:parsed.opts.B,option_c:parsed.opts.C,option_d:parsed.opts.D,option_e:parsed.opts.E,needs_source_image:/\b(figura|imagem|gr[aá]fico|tabela|mapa|esquema|fotografia|charge|tirinha|texto anterior|#####)\b/i.test(parsed.prompt),image_note:null,source_page:sourcePage,confidence:.94,source:'official-pdf-server'};
+        if(parsed&&usable(parsed.prompt,parsed.opts,cmmg))return {found:true,prompt:parsed.prompt,option_a:parsed.opts.A,option_b:parsed.opts.B,option_c:parsed.opts.C,option_d:parsed.opts.D,option_e:parsed.opts.E,needs_source_image:/\b(figura|imagem|gr[aá]fico|tabela|mapa|esquema|fotografia|charge|tirinha|texto anterior|#####)\b/i.test(parsed.prompt),image_note:null,source_page:sourcePage,confidence:.94,source:'official-pdf-server'};
         return {found:false};
       }
       collected.push(line);
@@ -135,7 +140,7 @@ export async function extractOfficialQuestionServer(sourceUrl:string,questionNum
   }
   if(started){
     const parsed=splitOptions(collected);
-    if(parsed&&usable(parsed.prompt,parsed.opts))return {found:true,prompt:parsed.prompt,option_a:parsed.opts.A,option_b:parsed.opts.B,option_c:parsed.opts.C,option_d:parsed.opts.D,option_e:parsed.opts.E,needs_source_image:/\b(figura|imagem|gr[aá]fico|tabela|mapa|esquema|fotografia|charge|tirinha|texto anterior|#####)\b/i.test(parsed.prompt),image_note:null,source_page:sourcePage,confidence:.9,source:'official-pdf-server'};
+    if(parsed&&usable(parsed.prompt,parsed.opts,cmmg))return {found:true,prompt:parsed.prompt,option_a:parsed.opts.A,option_b:parsed.opts.B,option_c:parsed.opts.C,option_d:parsed.opts.D,option_e:parsed.opts.E,needs_source_image:/\b(figura|imagem|gr[aá]fico|tabela|mapa|esquema|fotografia|charge|tirinha|texto anterior|#####)\b/i.test(parsed.prompt),image_note:null,source_page:sourcePage,confidence:.9,source:'official-pdf-server'};
   }
   return {found:false};
 }
