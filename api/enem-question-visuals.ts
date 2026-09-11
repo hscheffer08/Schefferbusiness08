@@ -1,5 +1,6 @@
 const DIMVS_BASE = 'https://dimvs.com';
 const IMAGE_HOST = 'zospydaosoqbdpxgpnni.supabase.co';
+const IMAGE_BASE = `https://${IMAGE_HOST}/storage/v1/object/public/images/enem`;
 
 type VisualPayload = {
   images: string[];
@@ -59,7 +60,7 @@ async function fetchText(url: string) {
     redirect: 'follow',
     signal: AbortSignal.timeout(15000),
     headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; ConectaeVisualReader/1.1)',
+      'User-Agent': 'Mozilla/5.0 (compatible; ConectaeVisualReader/1.2)',
       Accept: 'text/html,application/xhtml+xml',
     },
   });
@@ -75,8 +76,10 @@ function findQuestionHref(indexHtml: string, prompt: string, questionNumber: num
     const text = stripHtml(match[2]);
     if (!text) continue;
     const number = Number(text.match(/\bQ\.?\s*(\d{1,3})\b/i)?.[1]);
-    let score = similarity(prompt, text);
+    const semantic = similarity(prompt, text);
+    let score = semantic;
     if (Number.isInteger(number) && number === questionNumber) score = Math.max(score, 0.72);
+    if (semantic >= 0.58) score = Math.max(score, 0.9 + Math.min(0.09, semantic / 10));
     if (!best || score > best.score) best = { href, score, number: Number.isInteger(number) ? number : undefined };
   }
   if (!best || best.score < 0.42) return null;
@@ -130,7 +133,6 @@ function parseVisuals(html: string): VisualPayload {
     else images.push(url);
   }
 
-  // Fallback apenas quando o HTML não expõe tags <img> utilizáveis.
   if (!images.length && !Object.keys(optionImages).length) {
     const loose = html.match(/https:\/\/zospydaosoqbdpxgpnni\.supabase\.co\/storage\/v1\/object\/public\/images\/enem\/[^"'<>\\\s]+/gi) || [];
     for (const raw of loose) {
@@ -142,6 +144,52 @@ function parseVisuals(html: string): VisualPayload {
   }
 
   return { images, option_images: optionImages, source_question_number: parseQuestionNumber(html) };
+}
+
+async function imageExists(url: string) {
+  try {
+    const response = await fetch(url, {
+      method: 'HEAD',
+      redirect: 'follow',
+      signal: AbortSignal.timeout(6000),
+      headers: { 'User-Agent': 'ConectaeVisualProbe/1.0', Accept: 'image/*,*/*;q=0.8' },
+    });
+    if (!response.ok) return false;
+    const type = (response.headers.get('content-type') || '').toLowerCase();
+    return !type || type.startsWith('image/');
+  } catch {
+    return false;
+  }
+}
+
+async function storageFallback(year: number, questionNumber: number) {
+  for (const extension of ['png', 'jpg', 'jpeg', 'webp']) {
+    const url = `${IMAGE_BASE}/${year}/${questionNumber}.${extension}`;
+    if (await imageExists(url)) return url;
+  }
+  return '';
+}
+
+function requestOrigin(req: any) {
+  const forwardedHost = String(req.headers?.['x-forwarded-host'] || '').split(',')[0].trim();
+  const directHost = String(req.headers?.host || '').trim();
+  const host = forwardedHost || directHost;
+  const safeHost = /^[a-z0-9.-]+(?::\d+)?$/i.test(host) ? host : 'xn--conecta-pya.app';
+  const forwardedProto = String(req.headers?.['x-forwarded-proto'] || '').split(',')[0].trim();
+  const proto = forwardedProto === 'http' && /^(localhost|127\.0\.0\.1)(?::\d+)?$/i.test(safeHost) ? 'http' : 'https';
+  return `${proto}://${safeHost}`;
+}
+
+function proxied(req: any, sourceUrl: string) {
+  return `${requestOrigin(req)}/api/proxy-enem-image?url=${encodeURIComponent(sourceUrl)}`;
+}
+
+function proxyPayload(req: any, payload: VisualPayload) {
+  return {
+    ...payload,
+    images: payload.images.map((url) => proxied(req, url)),
+    option_images: Object.fromEntries(Object.entries(payload.option_images).map(([letter, url]) => [letter, proxied(req, url)])),
+  };
 }
 
 export default async function handler(req: any, res: any) {
@@ -156,15 +204,35 @@ export default async function handler(req: any, res: any) {
   try {
     const day = questionNumber <= 90 ? 1 : 2;
     const indexUrl = `${DIMVS_BASE}/public/provas/enem/${year}/dia-${day}`;
-    const indexHtml = await fetchText(indexUrl);
-    const best = findQuestionHref(indexHtml, prompt, questionNumber);
-    if (!best) return res.status(404).json({ images: [], option_images: {} });
+    let sourceUrl = '';
+    let payload: VisualPayload = { images: [], option_images: {}, source_question_number: questionNumber };
 
-    const questionUrl = new URL(best.href, DIMVS_BASE).toString();
-    const questionHtml = await fetchText(questionUrl);
-    const payload = parseVisuals(questionHtml);
+    try {
+      const indexHtml = await fetchText(indexUrl);
+      const best = findQuestionHref(indexHtml, prompt, questionNumber);
+      if (best) {
+        sourceUrl = new URL(best.href, DIMVS_BASE).toString();
+        try {
+          const questionHtml = await fetchText(sourceUrl);
+          payload = parseVisuals(questionHtml);
+        } catch (error: any) {
+          console.warn('enem-question-visuals detail fetch failed', error?.message || error);
+        }
+      }
+    } catch (error: any) {
+      console.warn('enem-question-visuals index fetch failed', error?.message || error);
+    }
+
+    if (!payload.images.length && !Object.keys(payload.option_images).length) {
+      const fallback = await storageFallback(year, questionNumber);
+      if (fallback) payload.images = [fallback];
+    }
+
     res.setHeader('Cache-Control', 'public, s-maxage=2592000, stale-while-revalidate=7776000');
-    return res.status(200).json({ ...payload, source_url: questionUrl });
+    if (!payload.images.length && !Object.keys(payload.option_images).length) {
+      return res.status(404).json({ images: [], option_images: {}, source_question_number: questionNumber, source_url: sourceUrl || null });
+    }
+    return res.status(200).json({ ...proxyPayload(req, payload), source_url: sourceUrl || null });
   } catch (error: any) {
     console.error('enem-question-visuals failed', error?.message || error);
     return res.status(502).json({ error: 'Não consegui carregar a imagem original desta questão agora.', images: [], option_images: {} });
