@@ -1,13 +1,12 @@
-/* eslint-disable no-control-regex */
 import { createClient } from '@supabase/supabase-js';
 import { extractOfficialQuestionServer } from './_official-pdf-server.js';
+import { hasUnexpectedControlCharacters } from './_text-integrity.js';
 
 const SUPABASE_URL='https://kmognvgnfisdchzffkgh.supabase.co';
-const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXAiLCJyZWYiOiJrbW9nbnZnbmZpc2RjaHpmamtnaCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzg2NzM5MTY5LCJleHAiOjIxMDIzMTUxNjl9.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
+const SUPABASE_ANON_KEY=process.env.SUPABASE_ANON_KEY||process.env.VITE_SUPABASE_ANON_KEY||'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
 const supabase=createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
 const ALLOWED_SERIES=new Set(['enem','cmmg','fuvest']);
 const VERSION='2026-09-11-v6';
-const CONTROL=/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/;
 const CMMG_GARBLED=/~|[a-záéíóúçãõ]{2,}[IKWFXJ]\b|\b(?:pbjbpqob|xK{2,}z|Eaispon[ií]vel|fnicialmente|ganeiro|maulo|kunca|jartin|oKoK)\b/i;
 
 type Ref={question_id:string;series_id:string;year:number;question_number:number;source_pdf_url:string|null;answer_key_url:string|null;correct_option:string|null;prompt_text:string|null;option_a:string|null;option_b:string|null;option_c:string|null;option_d:string|null;option_e:string|null};
@@ -21,7 +20,7 @@ function usable(q:Ref){
   const options=[q.option_a,q.option_b,q.option_c,q.option_d,q.option_e].filter(v=>String(v||'').trim()).length;
   const content=[q.prompt_text,q.option_a,q.option_b,q.option_c,q.option_d,q.option_e].filter(Boolean).join(' ');
   if(String(q.prompt_text||'').trim().length<=10||options<2)return false;
-  if(CONTROL.test(content))return false;
+  if(hasUnexpectedControlCharacters(content))return false;
   if(q.series_id==='cmmg'&&CMMG_GARBLED.test(content))return false;
   return true;
 }
@@ -47,7 +46,7 @@ async function extractOne(req:any,q:Ref,allowRemote:boolean){
   const options=[d.option_a,d.option_b,d.option_c,d.option_d,d.option_e].filter((v:any)=>String(v||'').trim()).length;
   const content=[d.prompt,d.option_a,d.option_b,d.option_c,d.option_d,d.option_e].filter(Boolean).join(' ');
   if(options<2)throw new Error('Alternativas incompletas');
-  if(CONTROL.test(content))throw new Error('Extração contém caracteres de controle');
+  if(hasUnexpectedControlCharacters(content))throw new Error('Extração contém caracteres de controle');
   if(q.series_id==='cmmg'&&CMMG_GARBLED.test(content))throw new Error('Extração CMMG corrompida pela fonte do PDF');
   const needsImage=Boolean(d.needs_source_image||d.images?.length||Object.keys(d.option_images||{}).length);
   const imageNote=d.image_note?String(d.image_note).slice(0,500):null;
