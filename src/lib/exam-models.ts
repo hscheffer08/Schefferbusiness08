@@ -1,4 +1,4 @@
-export type ExamId = 'enem' | 'fuvest' | 'insper' | 'link' | 'cmmg' | 'ibmec' | 'einstein';
+export type ExamId = 'enem' | 'fuvest' | 'insper' | 'link' | 'fgv' | 'cmmg' | 'ibmec' | 'einstein';
 
 export type ExamMetric = {
   key: string;
@@ -78,6 +78,24 @@ const LINK_METRICS: ExamMetric[] = [
   { key: 'Entrevista', label: 'Entrevista final', max: 100, defaultValue: 65, unit: 'desempenho' },
 ];
 
+const FGV_ADMIN_METRICS: ExamMetric[] = [
+  { key: 'Matemática objetiva', label: 'Matemática — 1ª fase', max: 10, defaultValue: 6, unit: 'desempenho', phase: '1ª fase' },
+  { key: 'Língua Portuguesa', label: 'Língua Portuguesa — 1ª fase', max: 10, defaultValue: 6, unit: 'desempenho', phase: '1ª fase' },
+  { key: 'Inglês', label: 'Inglês — 1ª fase', max: 10, defaultValue: 6, unit: 'desempenho', phase: '1ª fase' },
+  { key: 'Ciências Humanas', label: 'Ciências Humanas — 1ª fase', max: 10, defaultValue: 6, unit: 'desempenho', phase: '1ª fase' },
+  { key: 'Matemática discursiva', label: 'Matemática discursiva — 2ª fase', max: 10, defaultValue: 6, unit: 'desempenho', phase: '2ª fase' },
+  { key: 'Redação', label: 'Redação — 2ª fase', max: 10, defaultValue: 6, unit: 'desempenho', phase: '2ª fase' },
+];
+
+const FGV_AP_METRICS: ExamMetric[] = [
+  { key: 'Matemática objetiva', label: 'Matemática — 1ª fase', max: 10, defaultValue: 6, unit: 'desempenho', phase: '1ª fase' },
+  { key: 'Língua Portuguesa', label: 'Língua Portuguesa — 1ª fase', max: 10, defaultValue: 6, unit: 'desempenho', phase: '1ª fase' },
+  { key: 'Inglês', label: 'Inglês — 1ª fase', max: 10, defaultValue: 6, unit: 'desempenho', phase: '1ª fase' },
+  { key: 'Ciências Humanas', label: 'Ciências Humanas — 1ª fase', max: 10, defaultValue: 6, unit: 'desempenho', phase: '1ª fase' },
+  { key: 'Ciências Humanas discursiva', label: 'Ciências Humanas discursiva — 2ª fase', max: 10, defaultValue: 6, unit: 'desempenho', phase: '2ª fase' },
+  { key: 'Redação', label: 'Redação — 2ª fase', max: 10, defaultValue: 6, unit: 'desempenho', phase: '2ª fase' },
+];
+
 const FUVEST_SECOND_PHASE: Record<string, string[]> = {
   'Administração': ['Geografia', 'História', 'Matemática'],
   'Arquitetura e Urbanismo': ['Física', 'Geografia', 'História'],
@@ -124,6 +142,7 @@ const FUVEST_SECOND_PHASE: Record<string, string[]> = {
 const CMMG_EFFPO_COURSES = ['Enfermagem', 'Fisioterapia', 'Fonoaudiologia', 'Odontologia', 'Psicologia'];
 const IBMEC_VERIFIED_COURSES = new Set(['Administração','Análise e Desenvolvimento de Sistemas','Arquitetura e Urbanismo','Ciências Contábeis','Ciências Econômicas','Publicidade e Propaganda','Direito','Engenharia Civil','Engenharia de Computação','Engenharia de Produção','Engenharia de Software','Relações Internacionais']);
 const EINSTEIN_VERIFIED_COURSES = new Set(['Administração','Enfermagem','Engenharia Biomédica','Fisioterapia','Medicina','Nutrição','Odontologia','Psicologia']);
+const FGV_VERIFIED_COURSES = new Set(['Administração','Administração Pública']);
 
 const UFMG_VERIFIED_COURSES = new Set([
   'Administração', 'Agronomia', 'Arquitetura e Urbanismo', 'Biomedicina', 'Ciência da Computação',
@@ -145,6 +164,7 @@ export function getExamId(university: string): ExamId {
   if (name.includes('ibmec')) return 'ibmec';
   if (name.includes('insper')) return 'insper';
   if (name.includes('link school')) return 'link';
+  if (name === 'fgv' || name.includes('fgv eaesp') || name.includes('fundação getulio vargas') || name.includes('fundacao getulio vargas')) return 'fgv';
   if (name === 'usp' || name.includes('universidade de são paulo') || name.includes('universidade de sao paulo')) return 'fuvest';
   return 'enem';
 }
@@ -218,6 +238,22 @@ export function getExamModel(university: string, course: string): ExamModel {
     };
   }
 
+  if (examId === 'fgv') {
+    const publicAdministration = course === 'Administração Pública';
+    return {
+      examId,
+      title: `Vestibular FGV EAESP 2027.1 — ${course}`,
+      structure: publicAdministration
+        ? 'Duas fases no mesmo dia. 1ª fase objetiva: Matemática, Língua Portuguesa, Inglês e Ciências Humanas (Atualidades, História e Geografia). 2ª fase discursiva: Ciências Humanas (História e Geografia) e Redação. A nota final combina a 1ª fase com peso 2 e a 2ª fase com peso 3.'
+        : 'Duas fases no mesmo dia. 1ª fase objetiva: Matemática, Língua Portuguesa, Inglês e Ciências Humanas (Atualidades, História e Geografia). 2ª fase discursiva: Matemática e Redação. Cada prova objetiva é convertida para nota de 0 a 10; a nota final combina a 1ª fase com peso 2 e a 2ª fase com peso 3.',
+      metrics: publicAdministration ? FGV_AP_METRICS : FGV_ADMIN_METRICS,
+      allowedQuestionAreas: publicAdministration
+        ? ['Matemática','Língua Portuguesa','Português','Inglês','Humanas','Ciências Humanas','Atualidades','História','Geografia','Ciências Humanas discursiva','Redação']
+        : ['Matemática','Matemática discursiva','Língua Portuguesa','Português','Inglês','Humanas','Ciências Humanas','Atualidades','História','Geografia','Redação'],
+      officialSource: 'https://vestibular.fgv.br/sites/default/files/2026-07/materiais/edital-unificado_01-2027_4.pdf',
+    };
+  }
+
   if (examId === 'fuvest') {
     const specific = FUVEST_SECOND_PHASE[course] ?? [];
     const specificMetrics: ExamMetric[] = specific.map((subject) => ({
@@ -261,5 +297,6 @@ export function isSupportedInstitutionCourse(university: string, course: string)
   if (university === 'Ibmec') return IBMEC_VERIFIED_COURSES.has(course);
   if (university === 'Link School of Business') return course === 'Administração';
   if (university === 'Insper') return ['Administração', 'Ciências Econômicas', 'Direito', 'Ciência da Computação', 'Engenharia de Computação', 'Engenharia de Produção', 'Engenharia Mecânica', 'Engenharia Mecatrônica'].includes(course);
+  if (getExamId(university) === 'fgv') return FGV_VERIFIED_COURSES.has(course);
   return false;
 }
