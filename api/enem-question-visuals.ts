@@ -79,6 +79,8 @@ function findQuestionHref(indexHtml: string, prompt: string, questionNumber: num
     const semantic = similarity(prompt, text);
     let score = semantic;
     if (Number.isInteger(number) && number === questionNumber) score = Math.max(score, 0.72);
+    // Different ENEM booklet colors reorder questions. A strong text match must
+    // beat an accidental number match from another color.
     if (semantic >= 0.58) score = Math.max(score, 0.9 + Math.min(0.09, semantic / 10));
     if (!best || score > best.score) best = { href, score, number: Number.isInteger(number) ? number : undefined };
   }
@@ -205,6 +207,7 @@ export default async function handler(req: any, res: any) {
     const day = questionNumber <= 90 ? 1 : 2;
     const indexUrl = `${DIMVS_BASE}/public/provas/enem/${year}/dia-${day}`;
     let sourceUrl = '';
+    let resolvedQuestionNumber = questionNumber;
     let payload: VisualPayload = { images: [], option_images: {}, source_question_number: questionNumber };
 
     try {
@@ -212,9 +215,11 @@ export default async function handler(req: any, res: any) {
       const best = findQuestionHref(indexHtml, prompt, questionNumber);
       if (best) {
         sourceUrl = new URL(best.href, DIMVS_BASE).toString();
+        if (Number.isInteger(best.number)) resolvedQuestionNumber = Number(best.number);
         try {
           const questionHtml = await fetchText(sourceUrl);
           payload = parseVisuals(questionHtml);
+          if (Number.isInteger(payload.source_question_number)) resolvedQuestionNumber = Number(payload.source_question_number);
         } catch (error: any) {
           console.warn('enem-question-visuals detail fetch failed', error?.message || error);
         }
@@ -223,16 +228,16 @@ export default async function handler(req: any, res: any) {
       console.warn('enem-question-visuals index fetch failed', error?.message || error);
     }
 
-    if (!payload.images.length && !Object.keys(payload.option_images).length) {
-      const fallback = await storageFallback(year, questionNumber);
+    if (!payload.images.length && !Object.keys(payload.option_images).length && sourceUrl) {
+      const fallback = await storageFallback(year, resolvedQuestionNumber);
       if (fallback) payload.images = [fallback];
     }
 
     res.setHeader('Cache-Control', 'public, s-maxage=2592000, stale-while-revalidate=7776000');
     if (!payload.images.length && !Object.keys(payload.option_images).length) {
-      return res.status(404).json({ images: [], option_images: {}, source_question_number: questionNumber, source_url: sourceUrl || null });
+      return res.status(404).json({ images: [], option_images: {}, source_question_number: resolvedQuestionNumber, source_url: sourceUrl || null });
     }
-    return res.status(200).json({ ...proxyPayload(req, payload), source_url: sourceUrl || null });
+    return res.status(200).json({ ...proxyPayload(req, payload), source_question_number: resolvedQuestionNumber, source_url: sourceUrl || null });
   } catch (error: any) {
     console.error('enem-question-visuals failed', error?.message || error);
     return res.status(502).json({ error: 'Não consegui carregar a imagem original desta questão agora.', images: [], option_images: {} });
