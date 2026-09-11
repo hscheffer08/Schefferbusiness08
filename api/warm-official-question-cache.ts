@@ -5,7 +5,9 @@ const SUPABASE_URL='https://kmognvgnfisdchzffkgh.supabase.co';
 const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
 const supabase=createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
 const ALLOWED_SERIES=new Set(['enem','cmmg','fuvest']);
-const VERSION='2026-09-09-v3';
+const VERSION='2026-09-11-v6';
+const CONTROL=/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/;
+const CMMG_GARBLED=/~|[a-záéíóúçãõ]{2,}[IKWFXJ]\b|\b(?:pbjbpqob|xK{2,}z|Eaispon[ií]vel|fnicialmente|ganeiro|maulo|kunca|jartin|oKoK)\b/i;
 
 type Ref={question_id:string;series_id:string;year:number;question_number:number;source_pdf_url:string|null;answer_key_url:string|null;correct_option:string|null;prompt_text:string|null;option_a:string|null;option_b:string|null;option_c:string|null;option_d:string|null;option_e:string|null};
 
@@ -16,7 +18,11 @@ function baseUrl(req:any){
 }
 function usable(q:Ref){
   const options=[q.option_a,q.option_b,q.option_c,q.option_d,q.option_e].filter(v=>String(v||'').trim()).length;
-  return String(q.prompt_text||'').trim().length>10&&options>=2;
+  const content=[q.prompt_text,q.option_a,q.option_b,q.option_c,q.option_d,q.option_e].filter(Boolean).join(' ');
+  if(String(q.prompt_text||'').trim().length<=10||options<2)return false;
+  if(CONTROL.test(content))return false;
+  if(q.series_id==='cmmg'&&CMMG_GARBLED.test(content))return false;
+  return true;
 }
 async function getJson(url:string,init?:RequestInit){
   const r=await fetch(url,{...init,signal:AbortSignal.timeout(75000)});
@@ -38,7 +44,10 @@ async function extractOne(req:any,q:Ref,allowRemote:boolean){
   }
   if(!d?.found||String(d.prompt||'').trim().length<10)throw new Error(errors.join(' | ')||'Extração incompleta');
   const options=[d.option_a,d.option_b,d.option_c,d.option_d,d.option_e].filter((v:any)=>String(v||'').trim()).length;
+  const content=[d.prompt,d.option_a,d.option_b,d.option_c,d.option_d,d.option_e].filter(Boolean).join(' ');
   if(options<2)throw new Error('Alternativas incompletas');
+  if(CONTROL.test(content))throw new Error('Extração contém caracteres de controle');
+  if(q.series_id==='cmmg'&&CMMG_GARBLED.test(content))throw new Error('Extração CMMG corrompida pela fonte do PDF');
   const needsImage=Boolean(d.needs_source_image||d.images?.length||Object.keys(d.option_images||{}).length);
   const imageNote=d.image_note?String(d.image_note).slice(0,500):null;
   const update={prompt_text:String(d.prompt||'').trim(),option_a:d.option_a?String(d.option_a).trim():null,option_b:d.option_b?String(d.option_b).trim():null,option_c:d.option_c?String(d.option_c).trim():null,option_d:d.option_d?String(d.option_d).trim():null,option_e:d.option_e?String(d.option_e).trim():null,source_page:Number.isInteger(Number(d.source_page))&&Number(d.source_page)>0?Number(d.source_page):null,image_url:Array.isArray(d.images)&&d.images[0]?String(d.images[0]):null,image_alt:needsImage?(imageNote||'Esta questão usa um elemento visual da prova oficial.'):null};
