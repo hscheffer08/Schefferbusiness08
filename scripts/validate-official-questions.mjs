@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {normalizeEnemQuestion} from '../api/enem-official-questions.ts';
 import {normalizeRequestedQuestion} from '../api/extract-official-question.ts';
+import {hasUnexpectedControlCharacters} from '../api/_text-integrity.ts';
 import {isQuestionMarker,isUsableOfficialQuestion,splitOptions} from '../src/lib/official-pdf-client.ts';
 import {ENEM_INTERACTIVE_TOTAL,isEnemInteractiveQuestion} from '../src/lib/enem-official-availability.ts';
 
@@ -28,6 +29,11 @@ assert.equal(isEnemInteractiveQuestion(2025,121),false);
 assert.equal(isEnemInteractiveQuestion(2025,178),false);
 assert.equal(isEnemInteractiveQuestion(2025,180),true);
 
+assert.equal(hasUnexpectedControlCharacters('texto normal\ncom quebra\te tab'),false);
+assert.equal(hasUnexpectedControlCharacters(`texto${String.fromCharCode(0)}inválido`),true);
+assert.equal(hasUnexpectedControlCharacters(`texto${String.fromCharCode(11)}inválido`),true);
+assert.equal(hasUnexpectedControlCharacters(`texto${String.fromCharCode(31)}inválido`),true);
+
 assert.equal(isQuestionMarker('01. Considerando o texto anterior, responda.',1),true);
 assert.equal(isQuestionMarker('QUESTÃO 135',135),true);
 assert.equal(isQuestionMarker('1',1),false);
@@ -46,6 +52,8 @@ const workspace=await readFile(new URL('../src/components/OfficialQuestionWorksp
 const publicPage=await readFile(new URL('../src/components/OfficialVestibularBankPage.tsx',import.meta.url),'utf8');
 const pdfClient=await readFile(new URL('../src/lib/official-pdf-client.ts',import.meta.url),'utf8');
 const extractionApi=await readFile(new URL('../api/extract-official-question.ts',import.meta.url),'utf8');
+const pdfServer=await readFile(new URL('../api/_official-pdf-server.ts',import.meta.url),'utf8');
+const warmCache=await readFile(new URL('../api/warm-official-question-cache.ts',import.meta.url),'utf8');
 const embedded=await readFile(new URL('../src/components/OfficialQuestionWorkspaceV5.tsx',import.meta.url),'utf8');
 assert.match(workspace,/\.range\(from,from\+499\)/);
 assert.match(workspace,/isEnemInteractiveQuestion\(q\.year,q\.question_number\)/);
@@ -62,6 +70,10 @@ assert.match(pdfClient,/start=\$\{offset\}&end=\$\{end\}/);
 assert.match(pdfClient,/URLSearchParams/);
 assert.match(workspace,/download\\\.inep\\\.gov\\\.br/);
 assert.match(extractionApi,/for\(let attempt=0;attempt<2;attempt\+\+\)/);
+assert.doesNotMatch(pdfServer,/eslint-disable\s+no-control-regex/);
+assert.doesNotMatch(warmCache,/eslint-disable\s+no-control-regex/);
+assert.match(pdfServer,/hasUnexpectedControlCharacters/);
+assert.match(warmCache,/hasUnexpectedControlCharacters/);
 assert.match(embedded,/extractOfficialQuestionRemotely/);
 assert.match(embedded,/extractOfficialAnswerRemotely/);
 assert.match(embedded,/isUsableOfficialQuestion/);
@@ -74,4 +86,4 @@ assert.match(embedded,/onError=\{\(\) => markVisualFailed/);
 assert.match(embedded,/image_url,image_alt,image_credit/);
 assert.match(embedded,/q\.series_id !== "cmmg"/);
 
-console.log('Official question validation passed: ENEM 2019-2025, CMMG numbering/options, subject filters, full pagination, answer hiding and local proxy priority.');
+console.log('Official question validation passed: ENEM 2019-2025, CMMG numbering/options, subject filters, full pagination, answer hiding and lint-safe text integrity checks.');
