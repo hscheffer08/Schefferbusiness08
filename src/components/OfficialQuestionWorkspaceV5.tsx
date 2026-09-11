@@ -21,7 +21,7 @@ import {
 import { isEnemInteractiveQuestion } from "@/lib/enem-official-availability";
 
 type ExamId =
-  "enem" | "cmmg" | "fuvest" | "insper" | "link" | "ibmec" | "einstein";
+  "enem" | "cmmg" | "fuvest" | "fgv" | "insper" | "link" | "ibmec" | "einstein";
 type Mode = "official" | "adapted" | "authorial";
 type Cfg = { id: ExamId; label: string; official: boolean };
 type O = {
@@ -87,6 +87,7 @@ const CFG: Cfg[] = [
   { id: "enem", label: "ENEM", official: true },
   { id: "cmmg", label: "CMMG", official: true },
   { id: "fuvest", label: "FUVEST", official: true },
+  { id: "fgv", label: "FGV", official: false },
   { id: "insper", label: "Insper", official: false },
   { id: "link", label: "Link", official: false },
   { id: "ibmec", label: "Ibmec", official: false },
