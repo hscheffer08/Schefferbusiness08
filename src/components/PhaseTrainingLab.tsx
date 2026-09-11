@@ -4,9 +4,11 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import './admissions-planner-v6.css';
 
+type TrainingExam='link'|'insper'|'fgv';
+
 type Drill={
   id:number;
-  exam_id:'link'|'insper';
+  exam_id:TrainingExam;
   phase:string;
   competency:string;
   title:string;
@@ -19,6 +21,7 @@ type Drill={
 };
 
 const modeIcon=(mode:string)=>mode==='group'?Users:mode==='video'?Video:mode==='oral'?Mic2:Brain;
+const examLabel:Record<TrainingExam,string>={link:'Link School',insper:'Insper',fgv:'FGV EAESP'};
 const twists=[
   'Seu tempo restante foi reduzido em 40%. Reestruture a resposta preservando apenas o essencial.',
   'O avaliador discorda da sua premissa principal. Defenda sua posição sem repetir o argumento inicial.',
@@ -31,7 +34,7 @@ const twists=[
 
 export default function PhaseTrainingLab(){
   const{user}=useAuth();
-  const[exam,setExam]=useState<'link'|'insper'>('link');
+  const[exam,setExam]=useState<TrainingExam>('link');
   const[rows,setRows]=useState<Drill[]>([]);
   const[phase,setPhase]=useState('Todas');
   const[active,setActive]=useState<Drill|null>(null);
@@ -47,7 +50,7 @@ export default function PhaseTrainingLab(){
 
   useEffect(()=>{let alive=true;(async()=>{
     if(!supabase){setError('Banco indisponível.');setLoading(false);return}
-    const{data,error:loadError}=await supabase.from('admission_phase_drills').select('*').order('exam_id').order('phase').order('id');
+    const{data,error:loadError}=await supabase.from('admission_phase_drills').select('*').eq('active',true).order('exam_id').order('phase').order('id');
     if(!alive)return;
     if(loadError){setError('Não foi possível carregar o laboratório de fases.');setLoading(false);return}
     setRows((data??[]) as Drill[]);setLoading(false);
@@ -90,30 +93,29 @@ export default function PhaseTrainingLab(){
     <div className="plan6-shell" style={{paddingTop:26,paddingBottom:34}}>
       <section className="plan6-card span12">
         <div className="plan6-sectionlabel">Admissions Pressure Lab</div>
-        <h2>Oratória, dinâmica, vídeo, case, entrevista e decisões sob pressão.</h2>
-        <p>Treinos autorais separados das questões oficiais. Aqui a ideia é reproduzir o desconforto real das etapas: tempo curto, contra-argumentação, mudança de cenário e avaliação por critérios.</p>
+        <h2>Treino por etapa, no formato da instituição.</h2>
+        <p>Treinos autorais separados das questões oficiais. A FGV EAESP usa aqui exercícios alinhados às etapas objetiva e discursiva de Administração; Link e Insper mantêm seus formatos próprios.</p>
         <div className="plan6-actions" style={{marginTop:14}}>
-          <button className={`plan6-btn ${exam==='link'?'primary':''}`} onClick={()=>setExam('link')}>Link School · {rows.filter(r=>r.exam_id==='link').length} treinos</button>
-          <button className={`plan6-btn ${exam==='insper'?'primary':''}`} onClick={()=>setExam('insper')}>Insper · {rows.filter(r=>r.exam_id==='insper').length} treinos</button>
+          {(['link','insper','fgv'] as TrainingExam[]).map(id=><button key={id} className={`plan6-btn ${exam===id?'primary':''}`} onClick={()=>setExam(id)}>{examLabel[id]} · {rows.filter(r=>r.exam_id===id).length} treinos</button>)}
         </div>
       </section>
 
       <section className="plan6-card span12" style={{marginTop:18}}>
         <div className="plan6-sectionlabel">Escolha a etapa</div>
         <div className="plan6-qfilters">{phases.map(p=><button key={p} className={`plan6-chip ${phase===p?'active':''}`} onClick={()=>{setPhase(p);resetFor(null)}}>{p}</button>)}</div>
-        <div className="plan6-actions"><button className="plan6-btn primary" onClick={pick}><RefreshCcw size={14}/>Sortear desafio</button><span className="plan6-chip active">{filtered.length} exercícios disponíveis</span></div>
+        <div className="plan6-actions"><button className="plan6-btn primary" onClick={pick} disabled={!filtered.length}><RefreshCcw size={14}/>Sortear desafio</button><span className="plan6-chip active">{filtered.length} exercícios disponíveis</span></div>
       </section>
 
-      {!active&&<section className="plan6-card span12" style={{marginTop:18}}><div className="plan6-sectionlabel"><Target size={14} style={{display:'inline',marginRight:6}}/>Como usar</div><h2>Treine como se fosse valendo.</h2><p>Escolha uma etapa e inicie um desafio. O cronômetro é interno. No meio, use o modo pressão para receber uma mudança inesperada. No fim, dê notas por critério e salve o treino para acompanhar evolução.</p><div className="plan6-qgrid" style={{marginTop:14}}>{filtered.slice(0,6).map(d=>{const Icon=modeIcon(d.response_mode);return <article key={d.id} className="plan6-qitem" style={{cursor:'pointer'}} onClick={()=>resetFor(d)}><div className="plan6-qtop"><span>{d.phase}</span><span>{d.time_limit_minutes} min</span></div><strong><Icon size={14} style={{display:'inline',marginRight:6}}/>{d.title}</strong><p>{d.competency}</p></article>})}</div></section>}
+      {!active&&<section className="plan6-card span12" style={{marginTop:18}}><div className="plan6-sectionlabel"><Target size={14} style={{display:'inline',marginRight:6}}/>Como usar</div><h2>Treine como se fosse valendo.</h2><p>Escolha uma etapa e inicie um desafio. O cronômetro é interno. No meio, use o modo pressão para receber uma mudança inesperada. No fim, dê notas por critério e salve o treino para acompanhar evolução.</p>{filtered.length===0?<div className="plan6-message">Ainda não há treinos ativos para esta etapa.</div>:<div className="plan6-qgrid" style={{marginTop:14}}>{filtered.slice(0,6).map(d=>{const Icon=modeIcon(d.response_mode);return <article key={d.id} className="plan6-qitem" style={{cursor:'pointer'}} onClick={()=>resetFor(d)}><div className="plan6-qtop"><span>{d.phase}</span><span>{d.time_limit_minutes} min</span></div><strong><Icon size={14} style={{display:'inline',marginRight:6}}/>{d.title}</strong><p>{d.competency}</p></article>})}</div>}</section>}
 
       {active&&<section className="plan6-card span12" style={{marginTop:18}}>
-        <div className="plan6-qtop"><span>{active.phase} · {active.competency}</span><span><Clock3 size={13} style={{display:'inline',marginRight:4}}/>{active.time_limit_minutes} min</span></div>
+        <div className="plan6-qtop"><span>{examLabel[active.exam_id]} · {active.phase} · {active.competency}</span><span><Clock3 size={13} style={{display:'inline',marginRight:4}}/>{active.time_limit_minutes} min</span></div>
         <div style={{display:'flex',gap:12,flexWrap:'wrap',justifyContent:'space-between',alignItems:'center'}}><h2>{active.title}</h2><div className="plan6-chip active" style={{fontSize:18,minHeight:46,display:'inline-flex',alignItems:'center'}}>{formatTime(secondsLeft)}</div></div>
         <div className="plan6-actions" style={{marginTop:12}}><button className="plan6-btn primary" onClick={()=>setRunning(v=>!v)}>{running?'Pausar cronômetro':'Iniciar cronômetro'}</button><button className="plan6-btn" onClick={()=>{setSecondsLeft(active.time_limit_minutes*60);setRunning(false)}}>Reiniciar tempo</button><button className="plan6-btn" onClick={addPressure}><Flame size={14}/>Adicionar imprevisto</button></div>
         <div className="plan6-callout blue" style={{marginTop:14}}><strong>Seu desafio</strong><p>{active.prompt}</p></div>
         {twist&&<div className="plan6-callout orange" style={{marginTop:12,borderColor:'rgba(251,191,36,.28)',background:'rgba(251,191,36,.07)'}}><strong><Flame size={15} style={{display:'inline',marginRight:6}}/>Virada de pressão</strong><p>{twist}</p></div>}
         <p><b>Instruções:</b> {active.instructions}</p>
-        <textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Rascunhe sua estrutura, argumentos, exemplos, resposta ou autoavaliação aqui..." style={{width:'100%',minHeight:150,border:'1px solid rgba(131,171,230,.23)',borderRadius:14,background:'#06152f',color:'#fff',padding:14,outline:'none'}}/>
+        <textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Rascunhe sua estrutura, argumentos, cálculo, resposta ou autoavaliação aqui..." style={{width:'100%',minHeight:150,border:'1px solid rgba(131,171,230,.23)',borderRadius:14,background:'#06152f',color:'#fff',padding:14,outline:'none'}}/>
 
         <div style={{marginTop:18}}><div className="plan6-sectionlabel">Scorecard da banca</div><div className="plan6-qgrid">{active.rubric.map(r=><div key={r.criterion} className="plan6-qitem" style={{cursor:'default'}}><div className="plan6-qtop"><span>{r.criterion.replaceAll('_',' ')}</span><span>peso {r.weight}%</span></div><strong>{scores[r.criterion]??0}/10</strong><input type="range" min="0" max="10" step="1" value={scores[r.criterion]??0} onChange={e=>setScores(s=>({...s,[r.criterion]:Number(e.target.value)}))} className="plan6-slider"/></div>)}</div><div className="plan6-callout blue" style={{marginTop:14}}><strong>Nota ponderada: {weightedScore}/10</strong><p>É uma autoavaliação estruturada, não uma nota oficial da instituição. O valor fica salvo para comparar seu próprio progresso entre treinos.</p></div></div>
 
