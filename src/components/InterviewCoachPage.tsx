@@ -110,7 +110,7 @@ function InterviewCoach() {
     setTurns([]); setFeedback(null); setReport(null); setError('');
   }
 
-  if (showAuth) return <Auth onBack={() => setShowAuth(false)} onSuccess={() => setShowAuth(false)} onPrivacy={() => window.location.assign('/privacidade')} onTerms={() => window.location.assign('/termos')} />;
+  if (showAuth) return <div className="min-h-screen bg-[#f6f8ff] py-10"><Auth compact onBack={() => setShowAuth(false)} onSuccess={() => setShowAuth(false)} onPrivacy={() => window.location.assign('/privacidade')} onTerms={() => window.location.assign('/termos')} /></div>;
 
   return (
     <div className="min-h-screen bg-[#020817] text-white font-['Plus_Jakarta_Sans']">

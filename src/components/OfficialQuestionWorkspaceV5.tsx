@@ -1,3 +1,4 @@
+import QuestionPrompt from '@/components/QuestionPrompt';
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bot,
@@ -841,9 +842,7 @@ export default function OfficialQuestionWorkspaceV5() {
                     {ao?.area || ap?.area} ·{" "}
                     {ao?.skill_name || ao?.subject || ap?.skill_name}
                   </div>
-                  <h2 className="mt-3 whitespace-pre-line text-lg font-extrabold leading-relaxed">
-                    {prompt}
-                  </h2>
+                  <QuestionPrompt text={prompt} />
                   {officialVisuals.length > 0 && (
                     <div className="mt-4 grid gap-3">
                       {officialVisuals.map((src, i) => (

@@ -50,16 +50,14 @@ export default function CourseHome() {
             <span className="text-lg font-black tracking-[-.035em]">Conecta<span className="text-[#3155e7]">ê</span></span>
           </button>
 
-          <nav className="hidden items-center gap-7 text-sm font-bold text-[#596681] lg:flex" aria-label="Navegação principal">
+          <nav className="hidden items-center gap-4 text-sm font-bold text-[#596681] lg:flex" aria-label="Navegação principal">
             <button onClick={openCourse} className="text-[#172344]">Curso</button>
             <button onClick={openOfficialBank} className="hover:text-[#3155e7]">Questões</button>
             <button onClick={openInterview} className="hover:text-[#3155e7]">Entrevistas</button>
             <button onClick={openCollegeTools} className="hover:text-[#3155e7]">Cursos e faculdades</button>
           </nav>
 
-          <button onClick={openCourse} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#172344] px-4 text-sm font-extrabold text-white shadow-sm hover:bg-[#3155e7]">
-            Começar <ArrowRight className="h-4 w-4" />
-          </button>
+          <div id="home-account-controls" className="relative flex shrink-0 items-center justify-end" />
         </div>
       </header>
 
