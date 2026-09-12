@@ -1,3 +1,4 @@
+import {formatQuestionPrompt} from '../src/lib/question-prompt-format.ts';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {normalizeEnemQuestion} from '../api/enem-official-questions.ts';
@@ -87,3 +88,7 @@ assert.match(embedded,/image_url,image_alt,image_credit/);
 assert.match(embedded,/q\.series_id !== "cmmg"/);
 
 console.log('Official question validation passed: ENEM 2019-2025, CMMG numbering/options, subject filters, full pagination, answer hiding and lint-safe text integrity checks.');
+
+assert.deepEqual(formatQuestionPrompt('costumes.Last Halloween.\n\nAo abordar a celebração?'), ['costumes.', 'Last Halloween.', 'Ao abordar a celebração?']);
+assert.deepEqual(formatQuestionPrompt('Consulte https://Example.Com/test. Valor: 1.25; x² = 4.'), ['Consulte https://Example.Com/test. Valor: 1.25; x² = 4.']);
+assert.match(workspace, /id:'fgv',label:'FGV'/);

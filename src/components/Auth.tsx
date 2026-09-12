@@ -174,13 +174,13 @@ export default function Auth({ onBack, onSuccess, onPrivacy, onTerms, compact = 
               <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 mb-3 shadow-lg shadow-brand-500/20">
                 {usingUsername ? <KeyRound className="w-5 h-5 text-ink-950" strokeWidth={2.5} /> : <Mail className="w-5 h-5 text-ink-950" strokeWidth={2.5} />}
               </div>
-              <h1 className="text-2xl font-bold tracking-tight mb-1">{usingUsername ? (courseMode === 'login' ? 'Entrar no Curso' : 'Criar meu acesso') : (compactEmailRecovery ? 'Recuperar conta antiga' : 'Entrar com e-mail')}</h1>
-              <p className="text-sm text-ink-400">{usingUsername ? 'Use seu usuário e senha.' : 'Para contas criadas anteriormente com e-mail.'}</p>
+              <h1 className="text-2xl font-bold tracking-tight mb-1">{usingUsername ? (courseMode === 'login' ? 'Entrar na sua conta' : 'Criar meu acesso') : (compactEmailRecovery ? 'Recuperar acesso' : 'Entrar com e-mail')}</h1>
+              <p className="text-sm text-ink-400">{usingUsername ? 'Use seu usuário e senha.' : 'Use o e-mail cadastrado e sua senha.'}</p>
             </div>
 
             <div className="mb-5 grid grid-cols-2 rounded-xl border border-ink-700 bg-ink-900/60 p-1">
               <button type="button" onClick={() => changeCompactMethod('username')} className={`rounded-lg px-3 py-2.5 text-xs font-bold transition ${usingUsername ? 'bg-brand-500 text-ink-950' : 'text-ink-400 hover:text-ink-100'}`}>Usuário</button>
-              <button type="button" onClick={() => changeCompactMethod('email')} className={`rounded-lg px-3 py-2.5 text-xs font-bold transition ${!usingUsername ? 'bg-brand-500 text-ink-950' : 'text-ink-400 hover:text-ink-100'}`}>E-mail · conta antiga</button>
+              <button type="button" onClick={() => changeCompactMethod('email')} className={`rounded-lg px-3 py-2.5 text-xs font-bold transition ${!usingUsername ? 'bg-brand-500 text-ink-950' : 'text-ink-400 hover:text-ink-100'}`}>E-mail</button>
             </div>
 
             {error && <div className="mb-4 flex items-start gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-sm text-red-300"><AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /><span>{error}</span></div>}
@@ -218,7 +218,7 @@ export default function Auth({ onBack, onSuccess, onPrivacy, onTerms, compact = 
                 </label>
 
                 <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-ink-950 font-semibold transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : courseMode === 'login' ? 'Entrar no meu Curso' : 'Criar acesso e entrar'}
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : courseMode === 'login' ? 'Entrar' : 'Criar acesso e entrar'}
                 </button>
               </form>
 
@@ -245,7 +245,7 @@ export default function Auth({ onBack, onSuccess, onPrivacy, onTerms, compact = 
                 </div>}
 
                 <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-ink-950 font-semibold transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : compactEmailRecovery ? 'Enviar link de recuperação' : 'Entrar com minha conta antiga'}
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : compactEmailRecovery ? 'Enviar link de recuperação' : 'Entrar com e-mail'}
                 </button>
               </form>
 
