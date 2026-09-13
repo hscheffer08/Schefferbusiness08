@@ -1,38 +1,40 @@
 /* Keep interview surfaces readable under the site's global light-theme overrides. */
-.interview-page {
+html body .interview-page.interview-page {
   background: #f3f7ff !important;
   color: #132747 !important;
 }
-.interview-page > .pointer-events-none { display: none; }
-.interview-page [class*="bg-"] {
+html body .interview-page.interview-page > .pointer-events-none { display: none; }
+html body .interview-page.interview-page [class*="bg-"] {
   background-color: #ffffff !important;
   background-image: none !important;
 }
-.interview-page [class*="border-"] { border-color: #cbd9ed !important; }
-.interview-page [class*="text-"] { color: #475d79 !important; }
-.interview-page h1, .interview-page h2, .interview-page h3,
-.interview-page strong, .interview-page label, .interview-page summary,
-.interview-page input, .interview-page textarea, .interview-page select,
-.interview-page button { color: #132747 !important; }
-.interview-page h1 span, .interview-page a { color: #245be5 !important; }
-.interview-page p { color: #475d79 !important; }
-.interview-page [class*="bg-[#0b2856]"],
-.interview-page [class*="bg-[#031027]"],
-.interview-page [class*="bg-[#041027]"] { background-color: #edf3fc !important; }
-.interview-page button[aria-pressed="true"] {
+html body .interview-page.interview-page [class*="border-"] { border-color: #cbd9ed !important; }
+html body .interview-page.interview-page [class*="text-"] { color: #475d79 !important; }
+html body .interview-page.interview-page h1, html body .interview-page.interview-page h2, html body .interview-page.interview-page h3,
+html body .interview-page.interview-page strong, html body .interview-page.interview-page label, html body .interview-page.interview-page summary,
+html body .interview-page.interview-page input, html body .interview-page.interview-page textarea, html body .interview-page.interview-page select,
+html body .interview-page.interview-page button { color: #132747 !important; }
+html body .interview-page.interview-page h1 span, html body .interview-page.interview-page a { color: #245be5 !important; }
+html body .interview-page.interview-page p { color: #475d79 !important; }
+html body .interview-page.interview-page [class*="bg-[#0b2856]"],
+html body .interview-page.interview-page [class*="bg-[#031027]"],
+html body .interview-page.interview-page [class*="bg-[#041027]"] { background-color: #edf3fc !important; }
+html body .interview-page.interview-page button[aria-pressed="true"] {
   border-color: #245be5 !important;
   background-color: #e8f0ff !important;
 }
-.interview-page [class*="bg-[#246cff]"],
-.interview-page [class*="bg-[#72a5ff]"] { background-color: #245be5 !important; }
-.interview-page button[class*="bg-[#246cff]"],
-.interview-page button[class*="bg-[#246cff]"] * { color: white !important; }
-.interview-page button:disabled { opacity: .55; }
-.interview-page :is(button, select, input, textarea, summary):focus-visible {
+html body .interview-page.interview-page [class*="bg-[#246cff]"],
+html body .interview-page.interview-page [class*="bg-[#72a5ff]"] { background-color: #245be5 !important; }
+html body .interview-page.interview-page button[class*="bg-[#246cff]"],
+html body .interview-page.interview-page button[class*="bg-[#246cff]"] * { color: white !important; }
+html body .interview-page.interview-page button:disabled { opacity: .55; }
+html body .interview-page.interview-page :is(button, select, input, textarea, summary):focus-visible {
   outline: 3px solid #245be5;
   outline-offset: 3px;
 }
-.interview-page input::placeholder, .interview-page textarea::placeholder { color: #62738b !important; }
-.interview-page [role="alert"] { color: #9f1239 !important; }
-.interview-page article, .interview-page details { overflow-wrap: anywhere; }
-.interview-page select { color-scheme: light; }
+html body .interview-page.interview-page input::placeholder, html body .interview-page.interview-page textarea::placeholder { color: #62738b !important; }
+html body .interview-page.interview-page [role="alert"] { color: #9f1239 !important; }
+html body .interview-page.interview-page article, html body .interview-page.interview-page details { overflow-wrap: anywhere; }
+html body .interview-page.interview-page select { color-scheme: light; }
+
+html body .interview-page.interview-page [class*="bg-[#246cff]"] { color: #fff !important; }
