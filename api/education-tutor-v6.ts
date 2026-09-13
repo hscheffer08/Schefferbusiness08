@@ -1,36 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import tutorV5 from './education-tutor-v5.js';
-import { SAS5_DAY1_2026_META, sas5Day1Key, sas5Day1Question } from './sas5-day1-2026.js';
 
 const SUPABASE_URL='https://kmognvgnfisdchzffkgh.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_2DCxkYOlTKqsVjDxYg5pxg_pf5YqdTA';
 
 function clip(value: unknown, max: number) {
   return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
-}
-
-function latestUserText(req:any){
-  const messages=Array.isArray(req?.body?.messages)?req.body.messages:[];
-  return String([...messages].reverse().find((m:any)=>m?.role==='user')?.content||'');
-}
-
-function injectSasCorpus(req:any){
-  if(req?.method!=='POST'||!req?.body||typeof req.body!=='object')return;
-  const latest=latestUserText(req);
-  const context=req.body.context&&typeof req.body.context==='object'?req.body.context:{};
-  const joined=`${latest} ${context.currentQuestion||''}`;
-  const isSas=/\bSAS\b|5\s*[ºoª]?\s*simulado|simulado\s+SAS|SAS\s*5/i.test(joined);
-  if(!isSas)return;
-
-  const qMatch=joined.match(/(?:quest(?:ão|ao)|q)\s*[.º°:#-]*\s*(90|[1-8]?\d)\b/i);
-  const q=qMatch?Number(qMatch[1]):null;
-  const item=q&&q>=1&&q<=90?sas5Day1Question(q):null;
-  const corpus=item
-    ? `[CORPUS SAS 5 - DIA 1 2026] Questão ${item.q}: gabarito analítico ${item.answer}; área ${item.area}; foco: ${item.focus}; confiança ${item.confidence}. ${SAS5_DAY1_2026_META.status}. ${item.confidence==='medium'?SAS5_DAY1_2026_META.note:''} Use esta referência para conferir a resolução, mas explique o raciocínio a partir do enunciado apresentado pelo aluno e nunca chame este gabarito de oficial.`
-    : `[CORPUS SAS 5 - DIA 1 2026] ${SAS5_DAY1_2026_META.label}. ${SAS5_DAY1_2026_META.status}. Gabarito analítico de referência: ${sas5Day1Key()}. ${SAS5_DAY1_2026_META.note} Se o aluno indicar uma questão específica, use o item correspondente e explique a lógica, sem afirmar que é gabarito oficial.`;
-
-  const current=clip(context.currentQuestion,1500);
-  req.body={...req.body,context:{...context,currentQuestion:clip(current?`${current}\n\n${corpus}`:corpus,3000)}};
 }
 
 async function hydrateSavedCourseTarget(req: any) {
@@ -100,7 +75,6 @@ async function hydrateSavedCourseTarget(req: any) {
 export default async function handler(req: any, res: any) {
   try {
     await hydrateSavedCourseTarget(req);
-    injectSasCorpus(req);
   } catch (error: any) {
     console.warn('tutor v6 enrichment skipped', error?.message || error);
   }
