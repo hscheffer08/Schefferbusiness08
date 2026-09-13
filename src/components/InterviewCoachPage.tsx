@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, BarChart3, Bot, CheckCircle2, Loader2, MessageSquareText, RefreshCcw, Send, Sparkles, Target, Trophy } from 'lucide-react';
 import InterviewRecorder, { type InterviewAudio } from '@/components/InterviewRecorder';
+import './interview-coach.css';
 import { interviewActivities } from '@/lib/interview-activities';
 import Auth from '@/components/Auth';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
@@ -132,7 +133,7 @@ function InterviewCoach() {
   if (showAuth) return <div className="min-h-screen bg-[#f6f8ff] py-10"><Auth compact onBack={() => setShowAuth(false)} onSuccess={() => setShowAuth(false)} onPrivacy={() => window.location.assign('/privacidade')} onTerms={() => window.location.assign('/termos')} /></div>;
 
   return (
-    <div className="min-h-screen bg-[#020817] text-white font-['Plus_Jakarta_Sans']">
+    <div className="interview-page min-h-screen bg-[#020817] text-white font-['Plus_Jakarta_Sans']">
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute -right-40 -top-40 h-[520px] w-[520px] rounded-full bg-[#246cff]/15 blur-[130px]" />
         <div className="absolute -bottom-52 -left-40 h-[520px] w-[520px] rounded-full bg-[#ff6047]/10 blur-[140px]" />
