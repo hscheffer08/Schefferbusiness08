@@ -143,6 +143,31 @@ html body [class*="bg-[linear-gradient"] [class*="text-[#f7faff]"] {
   color: #f7faff !important;
 }
 
+/* The Course/Planner intentionally uses a dark navy surface. The generic
+   light-theme safety net above must never darken its muted copy. */
+html body .plan6 [class*="text-[#9fb5d4]"],
+html body .plan6 [class*="text-[#a9bddc]"],
+html body .plan6 [class*="text-[#b8cae4]"],
+html body .plan6 [class*="text-[#8fa7c9]"],
+html body .plan6 [class*="text-[#7891b4]"],
+html body .plan6 [class*="text-[#8da5c5]"],
+html body .plan6 [class*="text-[#839ab9]"],
+html body .plan6 [class*="text-[#7691b5]"],
+html body [class*="bg-[#020817]"] [class*="text-[#9fb5d4]"],
+html body [class*="bg-[#020817]"] [class*="text-[#a9bddc]"],
+html body [class*="bg-[#020817]"] [class*="text-[#b8cae4]"],
+html body [class*="bg-[#020817]"] [class*="text-[#8da5c5]"],
+html body [class*="bg-[#020817]"] [class*="text-[#839ab9]"],
+html body [class*="bg-[#020817]"] [class*="text-[#7691b5]"] {
+  color: #b9cae3 !important;
+}
+
+html body .plan6 small,
+html body .plan6 .plan6-statmeta,
+html body .plan6 .plan6-sectionlabel {
+  opacity: 1;
+}
+
 @media (max-width: 640px) {
   html body .text-ink-400,
   html body .text-ink-500 {
