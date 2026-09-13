@@ -12,6 +12,7 @@ const areas=new Set(cases.map(c=>c.area));if(areas.size<6)throw new Error('A bat
 const behaviors=new Set(cases.map(c=>c.expectedBehavior));for(const b of ['answer','abstain','uncertain','verify','challenge'])if(!behaviors.has(b))throw new Error(`Comportamento não testado: ${b}.`);
 
 const tutorRoute=fs.readFileSync(new URL('../api/education-tutor.ts',import.meta.url),'utf8');
+const tutorV6=fs.readFileSync(new URL('../api/education-tutor-v6.ts',import.meta.url),'utf8');
 const tutorV5=fs.readFileSync(new URL('../api/education-tutor-v5.ts',import.meta.url),'utf8');
 const tutorPublic=fs.readFileSync(new URL('../api/education-tutor-public.ts',import.meta.url),'utf8');
 const tutorV4=fs.readFileSync(new URL('../api/education-tutor-v4.ts',import.meta.url),'utf8');
@@ -24,8 +25,10 @@ const analyzerV3=fs.readFileSync(new URL('../api/analyze-question-v3.ts',import.
 const analyzer=fs.readFileSync(new URL('../api/analyze-question-v2.ts',import.meta.url),'utf8');
 const tutorUi=fs.readFileSync(new URL('../src/components/AIEducationTutor.tsx',import.meta.url),'utf8');
 
-const routesToV5=tutorRoute.includes("export { default } from './education-tutor-v5.js'")||tutorRoute.includes("import('./education-tutor-v5.js')");
-if(!routesToV5)throw new Error('A rota principal precisa usar a IA v5 com corpus educacional completo.');
+const routesToV6=tutorRoute.includes("export { default } from './education-tutor-v6.js'")||tutorRoute.includes("import('./education-tutor-v6.js')");
+if(!routesToV6)throw new Error('A rota principal precisa usar a IA v6 com sincronização do alvo salvo.');
+if(!tutorV6.includes("from './education-tutor-v5.js'"))throw new Error('A IA v6 precisa preservar integralmente a camada v5.');
+for(const marker of ['student_exam_preferences','area_universities','ALVO SALVO DO CURSO','targetUniversity','targetCourse'])if(!tutorV6.includes(marker))throw new Error(`Tutor v6 sem sincronização obrigatória: ${marker}.`);
 if(!tutorV5.includes("from './education-tutor-public.js'"))throw new Error('A IA v5 precisa delegar ao núcleo principal sem perder o corpus completo.');
 for(const marker of ['official_vestibular_question_bank_v2','exam_intelligence_profiles','exam_study_resources','exam_resources','MODO TUTOR COMPLETO','resumos','mnemônicos','BASE DE CONHECIMENTO RECUPERADA'])if(!tutorV5.includes(marker))throw new Error(`Tutor v5 sem corpus/capacidade obrigatória: ${marker}.`);
 
@@ -57,4 +60,4 @@ const requiredSubjects={enem:['Humanas','Linguagens','Matemática','Natureza','R
 for(const [exam,subjects] of Object.entries(requiredSubjects))for(const subject of subjects)if(Number(coverage.exams[exam][subject]||0)<3)throw new Error(`Cobertura insuficiente: ${exam} / ${subject}.`);
 for(const key of ['allActiveItemsHaveAnswerKey','allActiveItemsHaveExplanation','allActiveItemsHaveSourceBasis'])if(coverage.quality?.[key]!==true)throw new Error(`Falha de qualidade na base: ${key}.`);
 const coveredSubjects=Object.values(coverage.exams).reduce((total,exam)=>total+Object.keys(exam).length,0);
-console.log(`Guardrails estruturais da IA premium validados: ${cases.length} casos difíceis catalogados, GPT-5.6 Sol + revisão adversarial, limite diário server-side, corpus educacional ampliado, ${coveredSubjects} áreas ENEM/CMMG e 7 perfis de prova.`);
+console.log(`Guardrails estruturais da IA premium validados: ${cases.length} casos difíceis catalogados, GPT-5.6 Sol + revisão adversarial, limite diário server-side, corpus educacional ampliado, alvo salvo sincronizado, ${coveredSubjects} áreas ENEM/CMMG e 7 perfis de prova.`);
