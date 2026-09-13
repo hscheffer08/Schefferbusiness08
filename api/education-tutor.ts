@@ -7,6 +7,6 @@
  * 401 even while the browser is correctly logged in.
  */
 export default async function handler(req: any, res: any) {
-  const { default: tutor } = await import('./education-tutor-v5.js');
+  const { default: tutor } = await import('./education-tutor-v6.js');
   return tutor(req, res);
 }
