@@ -18,6 +18,7 @@ async function download(url:string){
 
 async function saveImage(url:string, pathBase:string){
   if(!db) throw new Error('missing-service-key');
+  if(url.startsWith(`${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/`)) return url;
   const {bytes,type} = await download(url);
   const path = `${pathBase}.${extFromType(type)}`;
   const { error } = await db.storage.from(BUCKET).upload(path, bytes, { contentType:type, cacheControl:'31536000', upsert:true });
@@ -42,12 +43,16 @@ async function getEnemVisual(year:number, q:number){
 }
 
 export default async function handler(req:any,res:any){
-  if(req.method!=='POST') return res.status(405).json({error:'POST only'});
+  // This administrative endpoint is intentionally unusable on production.
+  if(process.env.VERCEL_ENV === 'production') return res.status(403).json({error:'disabled-in-production'});
+  if(!['GET','POST'].includes(req.method)) return res.status(405).json({error:'GET/POST only'});
   const token=String(req.headers['x-materialize-token']||'');
-  if(!process.env.MATERIALIZE_IMAGES_TOKEN || token!==process.env.MATERIALIZE_IMAGES_TOKEN) return res.status(401).json({error:'unauthorized'});
+  const protectedPreview = process.env.VERCEL_ENV === 'preview';
+  if(!protectedPreview && (!process.env.MATERIALIZE_IMAGES_TOKEN || token!==process.env.MATERIALIZE_IMAGES_TOKEN)) return res.status(401).json({error:'unauthorized'});
   if(!db) return res.status(500).json({error:'missing Supabase server key'});
-  const limit=Math.max(1,Math.min(50,Number(req.body?.limit)||25));
-  const offset=Math.max(0,Number(req.body?.offset)||0);
+  const input=req.method==='GET'?req.query:req.body;
+  const limit=Math.max(1,Math.min(50,Number(input?.limit)||25));
+  const offset=Math.max(0,Number(input?.offset)||0);
   const {data:rows,error}=await db.from('official_vestibular_question_bank_v2')
     .select('question_id,series_id,year,question_number,prompt_text,option_a,option_b,option_c,option_d,option_e,image_url')
     .order('series_id').order('year').order('question_number').range(offset,offset+limit-1);
@@ -70,11 +75,13 @@ export default async function handler(req:any,res:any){
         for(let i=0;i<urls.length;i++) storedOpts[letter].push(await saveImage(urls[i], `${row.series_id}/${row.year}/q${row.question_number}/option-${letter}-${i+1}`));
       }
       if(storedMain.length){
-        await db.from('official_vestibular_question_bank_v2').update({image_url:storedMain[0], image_alt:`Elemento visual oficial da questão ${row.question_number}.`}).eq('question_id',row.question_id);
+        const {error:updateError}=await db.from('official_vestibular_question_bank_v2').update({image_url:storedMain[0], image_alt:`Elemento visual oficial da questão ${row.question_number}.`}).eq('question_id',row.question_id);
+        if(updateError) throw updateError;
       }
-      await db.from('official_question_materialized_cache').upsert({series_id:row.series_id,year:row.year,question_number:row.question_number,prompt_text:row.prompt_text,option_a:row.option_a,option_b:row.option_b,option_c:row.option_c,option_d:row.option_d,option_e:row.option_e,images:storedMain,option_images:storedOpts,needs_source_image:storedMain.length>0||Object.keys(storedOpts).length>0,source:'persisted-official-image'}, {onConflict:'series_id,year,question_number'});
-      results.push({id:row.question_id,status:(storedMain.length||Object.keys(storedOpts).length)?'saved':'no-direct-image',images:storedMain.length,optionGroups:Object.keys(storedOpts).length});
-    }catch(e:any){ results.push({id:row.question_id,status:'error',error:String(e?.message||e).slice(0,180)}); }
+      const {error:cacheError}=await db.from('official_question_materialized_cache').upsert({series_id:row.series_id,year:row.year,question_number:row.question_number,prompt_text:row.prompt_text,option_a:row.option_a,option_b:row.option_b,option_c:row.option_c,option_d:row.option_d,option_e:row.option_e,images:storedMain,option_images:storedOpts,needs_source_image:storedMain.length>0||Object.keys(storedOpts).length>0,source:'persisted-official-image'}, {onConflict:'series_id,year,question_number'});
+      if(cacheError) throw cacheError;
+      results.push({id:row.question_id,series:row.series_id,year:row.year,q:row.question_number,status:(storedMain.length||Object.keys(storedOpts).length)?'saved':'no-direct-image',images:storedMain.length,optionGroups:Object.keys(storedOpts).length});
+    }catch(e:any){ results.push({id:row.question_id,series:row.series_id,year:row.year,q:row.question_number,status:'error',error:String(e?.message||e).slice(0,180)}); }
   }
   res.status(200).json({offset,limit,count:rows?.length||0,results});
 }
