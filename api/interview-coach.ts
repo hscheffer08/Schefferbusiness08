@@ -43,7 +43,7 @@ function config() {
   const key = candidate.startsWith('sb_publishable_') ? candidate : FALLBACK_SUPABASE_PUBLISHABLE_KEY;
   try {
     const url = new URL(raw.startsWith('http') ? raw : `https://${raw}`);
-    if (/^[a-z0-9-]+\.supabase\.co$/i.test(url.hostname)) return { url: url.origin, key };
+    if (/^[a-z0-9-]+\.supabase\.co$/i.test(url.hostname) && !/x{4,}|seu-projeto/i.test(url.hostname)) return { url: url.origin, key };
   } catch {}
   return { url: FALLBACK_SUPABASE_URL, key: FALLBACK_SUPABASE_PUBLISHABLE_KEY };
 }
@@ -92,6 +92,10 @@ export default async function handler(req: any, res: any) {
     const client = createClient(cfg.url, cfg.key, { auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false } });
     const { data, error } = await client.auth.getUser(token);
     const user = data.user;
+    if (error && (!error.status || error.status >= 500 || error.name === 'AuthRetryableFetchError')) {
+      console.error('Interview auth service unavailable', { status: error.status, code: error.code });
+      return json(res, 503, { error: 'Não foi possível verificar seu acesso agora. Tente novamente em instantes.' });
+    }
     if (error || !user) return json(res, 401, { error: 'Sua sessão expirou. Entre novamente.' });
 
     const body = req.body && typeof req.body === 'object' ? req.body : {};
