@@ -25,6 +25,7 @@
   "dependencies": {
     "@ai-sdk/gateway": "^3.0.0",
     "@ai-sdk/google": "^3.0.0",
+    "@napi-rs/canvas": "^1.0.9",
     "@supabase/supabase-js": "^2.57.4",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
@@ -42,7 +43,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "autoprefixer": "^10.4.18",
     "eslint": "^9.39.5",
-    "eslint-plugin-react-hooks": "^5.0.1-rc.0",
+    "eslint-plugin-react-hooks": "^6.1.1",
     "eslint-plugin-react-refresh": "^0.4.11",
     "globals": "^15.9.0",
     "playwright": "^1.63.0",
