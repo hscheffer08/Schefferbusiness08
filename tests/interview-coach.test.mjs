@@ -4,9 +4,11 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 let source = readFileSync('api/interview-coach.ts', 'utf8').replace(/import .*?;\n/g, '').replace('export default async function handler', 'async function handler');
 const calls = [];
+let authServiceError = null;
+let authConfig = null;
 const feedback = { summary: 'Bom exemplo; falta explicar a decisão.', detailed: [{ criterion: 'Decisão', evidence: 'organizei', how: 'Explique por quê.' }], scores: { clareza: 80 } };
 const context = { Buffer, URL, AbortSignal, Date, console, process: { env: {} },
-  createClient: () => ({ auth: { getUser: async token => ({ data: { user: token === 'valid' ? { id: 'test', app_metadata: {} } : null } }) } }),
+  createClient: (url, key) => { authConfig = { url, key }; return { auth: { getUser: async token => ({ error: authServiceError, data: { user: !authServiceError && token === 'valid' ? { id: 'test', app_metadata: {} } : null } }) } }; },
   fetch: async () => ({ headers: new Headers({ 'content-range': '0-0/0' }), ok: true }),
   generateText: async args => {
     calls.push(args);
@@ -26,6 +28,16 @@ assert.equal((await request({}, '', 'GET')).body.voice, true);
 assert.equal((await request({}, '')).statusCode, 401);
 assert.equal((await request({}, 'invalid')).statusCode, 401);
 assert.equal((await request({ phase: 'answer', history: [] })).statusCode, 400);
+context.process.env.SUPABASE_URL = 'https://xxxxxxxxxxxx.supabase.co';
+await request({ phase: 'start' });
+assert.equal(authConfig.url, 'https://kmognvgnfisdchzffkgh.supabase.co');
+assert.ok(authConfig.key.startsWith('sb_publishable_'));
+authServiceError = { name: 'AuthRetryableFetchError', status: 0 };
+assert.equal((await request({ phase: 'start' })).statusCode, 503);
+authServiceError = { name: 'AuthApiError', status: 401 };
+assert.equal((await request({ phase: 'start' })).statusCode, 401);
+authServiceError = null;
+delete context.process.env.SUPABASE_URL;
 const start = await request({ phase: 'start', totalQuestions: 5 });
 assert.equal(start.statusCode, 200); assert.equal(start.body.model, 'openai/gpt-6-astra');
 const history = [{ question: 'Conte uma experiência', answer: 'Organizei uma equipe e aprendi a dividir responsabilidades.' }];

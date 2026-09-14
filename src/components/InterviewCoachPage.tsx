@@ -5,7 +5,7 @@ import './interview-coach.css';
 import { interviewActivities } from '@/lib/interview-activities';
 import Auth from '@/components/Auth';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
-import { supabase } from '@/lib/supabase';
+import { ensureFreshSession } from '@/lib/supabase';
 
 type Institution = 'insper' | 'link';
 type Scores = { clareza: number; especificidade: number; autenticidade: number; reflexao: number; aderencia: number };
@@ -24,7 +24,7 @@ const institutions = {
 const scoreLabels: Array<[keyof Scores, string]> = [['clareza', 'Clareza'], ['especificidade', 'Exemplos concretos'], ['autenticidade', 'Autenticidade'], ['reflexao', 'Reflexão'], ['aderencia', 'Aderência']];
 
 function InterviewCoach() {
-  const { user, loading } = useAuth();
+  const { user, session, loading } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
   const [institution, setInstitution] = useState<Institution>('insper');
   const [course, setCourse] = useState('Administração');
@@ -59,15 +59,26 @@ function InterviewCoach() {
   }, []);
 
   async function callApi(payload: Record<string, unknown>) {
-    const session = await supabase?.auth.getSession();
-    const token = session?.data.session?.access_token;
-    if (!token) throw new Error('Entre na sua conta para usar a entrevista com IA.');
-    const response = await fetch('/api/interview-coach', {
+    const requireLogin = () => {
+      setShowAuth(true);
+      return new Error('Entre na sua conta para continuar a entrevista.');
+    };
+    const currentSession = await ensureFreshSession();
+    if (!currentSession?.access_token) throw requireLogin();
+    const request = (token: string) => fetch('/api/interview-coach', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ ...payload, totalQuestions }),
       signal: AbortSignal.timeout(230_000),
     });
+    let response = await request(currentSession.access_token);
+    // Retry only an authentication rejection, before the API has run the AI.
+    if (response.status === 401) {
+      const refreshed = await ensureFreshSession(true);
+      if (!refreshed?.access_token) throw requireLogin();
+      response = await request(refreshed.access_token);
+      if (response.status === 401) throw requireLogin();
+    }
     const data = await response.json() as ApiResult;
     if (!response.ok) throw new Error(data.error || 'Não foi possível continuar agora.');
     return data;
@@ -130,7 +141,9 @@ function InterviewCoach() {
     setTurns([]); setFeedback(null); setReport(null); setError(''); setAudio(null); setVoice(null); setTotalQuestions(10);
   }
 
-  if (showAuth) return <div className="min-h-screen bg-[#f6f8ff] py-10"><Auth compact onBack={() => setShowAuth(false)} onSuccess={() => setShowAuth(false)} onPrivacy={() => window.location.assign('/privacidade')} onTerms={() => window.location.assign('/termos')} /></div>;
+  if (loading) return <div className="flex min-h-screen items-center justify-center gap-3 bg-[#f6f8ff] text-slate-700" role="status"><Loader2 className="h-5 w-5 animate-spin" />Verificando seu acesso…</div>;
+
+  if (showAuth || !user || !session) return <div className="min-h-screen bg-[#f6f8ff] py-10"><p className="mx-auto mb-4 max-w-md px-5 text-center text-slate-700">Entre na sua conta para acessar as entrevistas.</p><Auth compact onBack={() => window.location.assign('/')} onSuccess={() => { setShowAuth(false); setError(''); }} onPrivacy={() => window.location.assign('/privacidade')} onTerms={() => window.location.assign('/termos')} /></div>;
 
   return (
     <div className="interview-page min-h-screen bg-[#020817] text-white font-['Plus_Jakarta_Sans']">
