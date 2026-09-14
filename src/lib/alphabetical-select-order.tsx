@@ -68,8 +68,26 @@ export default function AlphabeticalSelectOrder() {
       }
     });
 
+    const redirectInterviewPhase = (event: MouseEvent) => {
+      const element = event.target as HTMLElement | null;
+      const button = element?.closest<HTMLButtonElement>('button');
+      if (!button) return;
+
+      const title = button.querySelector('strong')?.textContent?.trim();
+      if (title !== 'Outras fases') return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      window.location.assign('/treino-entrevista');
+    };
+
     observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
+    document.addEventListener('click', redirectInterviewPhase, true);
+
+    return () => {
+      observer.disconnect();
+      document.removeEventListener('click', redirectInterviewPhase, true);
+    };
   }, []);
 
   return null;
