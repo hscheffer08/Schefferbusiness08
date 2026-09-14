@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+const path='src/components/OfficialQuestionWorkspaceV3.tsx';
+let src=fs.readFileSync(path,'utf8');
+if(src.includes('conectae:official-v17:')){console.log('Persisted official image integration current.');process.exit(0)}
+const oldKey='const key=`conectae:official-v16:${q.question_id}`;';
+if(!src.includes(oldKey))throw new Error('v17 patch: cache key not found');
+src=src.replace(oldKey,'const key=`conectae:official-v17:${q.question_id}`;');
+const needle=`      const stored:Extracted={found:true,prompt:q.prompt_text||'',option_a:q.option_a,option_b:q.option_b,option_c:q.option_c,option_d:q.option_d,option_e:q.option_e,correct_option:q.correct_option,needs_source_image:Boolean(q.image_url||q.image_alt||visualCue),image_note:q.image_alt||(visualCue?'Esta questão contém elemento visual da prova oficial.':null),confidence:1,images:q.image_url?[q.image_url]:undefined,source_page:q.source_page??undefined};if(!value&&isUsableOfficialQuestion(stored))value=stored;`;
+const replacement=`${needle}\n      // A cópia persistida no Storage é a fonte visual primária. PDF e serviços externos ficam apenas como contingência.\n      if(value&&supabase){\n        try{\n          const materialized=await supabase.from('official_question_materialized_cache').select('images,option_images').eq('question_id',q.question_id).maybeSingle();\n          const persistedImages=Array.isArray(materialized.data?.images)?materialized.data.images.filter((url:any)=>typeof url==='string'&&url.startsWith('https://')):[];\n          const rawOptions=materialized.data?.option_images&&typeof materialized.data.option_images==='object'?materialized.data.option_images:{};\n          const persistedOptions:Record<string,string>={};\n          for(const [letter,entry] of Object.entries(rawOptions as Record<string,unknown>)){\n            const url=Array.isArray(entry)?entry.find(item=>typeof item==='string'&&item.startsWith('https://')):entry;\n            if(typeof url==='string'&&url.startsWith('https://'))persistedOptions[letter]=url;\n          }\n          if(persistedImages.length||Object.keys(persistedOptions).length)value={...value,images:persistedImages.length?persistedImages:value.images,option_images:Object.keys(persistedOptions).length?persistedOptions:value.option_images};\n        }catch(e){console.warn('persisted official image lookup failed',e)}\n      }`;
+if(!src.includes(needle))throw new Error('v17 patch: stored question block not found');
+src=src.replace(needle,replacement);
+fs.writeFileSync(path,src);
+console.log('Persisted official image integration applied.');
