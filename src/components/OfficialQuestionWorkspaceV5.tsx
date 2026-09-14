@@ -45,6 +45,8 @@ type O = {
   image_url: string | null;
   image_alt: string | null;
   source_page: number | null;
+  images?: string[] | null;
+  option_images?: Record<string, string[] | string> | null;
 };
 type P = {
   id: number;
@@ -207,7 +209,7 @@ export default function OfficialQuestionWorkspaceV5() {
           const r = await supabase
             .from("official_vestibular_question_bank_v2")
             .select(
-              "question_id,series_id,year,question_number,area,subject,skill_name,correct_option,source_pdf_url,answer_key_url,prompt_text,option_a,option_b,option_c,option_d,option_e,image_url,image_alt,source_page",
+              "question_id,series_id,year,question_number,area,subject,skill_name,correct_option,source_pdf_url,answer_key_url,prompt_text,option_a,option_b,option_c,option_d,option_e,image_url,image_alt,source_page,images,option_images",
             )
             .eq("series_id", exam)
             .order("year", { ascending: false })
@@ -339,11 +341,17 @@ export default function OfficialQuestionWorkspaceV5() {
             return;
         }
       } catch {}
-      const visualCue = /\b(figura|imagem|gr[aá]fico|tabela|mapa|esquema|fotografia|charge|tirinha|diagrama|cartum|quadrinho|ilustra[cç][aã]o)\b/i.test(
-        [q.prompt_text, q.option_a, q.option_b, q.option_c, q.option_d, q.option_e]
-          .filter(Boolean)
-          .join(" "),
-      );
+      // Visuals are now explicitly persisted in Conectae Storage. Do not infer
+      // image dependency from words such as “imagem” or “mapa” in ordinary text.
+      const persistedOptionImages = Object.fromEntries(
+        Object.entries(q.option_images || {})
+          .map(([letter, value]) => [letter, Array.isArray(value) ? value[0] : value])
+          .filter(([, value]) => typeof value === "string" && value.length > 0),
+      ) as Record<string, string>;
+      const persistedImages = Array.isArray(q.images)
+        ? q.images.filter((value): value is string => typeof value === "string" && value.length > 0)
+        : [];
+      const visualCue = Boolean(q.image_url || persistedImages.length || Object.keys(persistedOptionImages).length);
       const stored = {
         found: true,
         prompt: q.prompt_text || "",
@@ -358,7 +366,8 @@ export default function OfficialQuestionWorkspaceV5() {
           q.image_alt ||
           (visualCue ? "Esta questão contém elemento visual da prova oficial." : null),
         confidence: 1,
-        images: q.image_url ? [q.image_url] : undefined,
+        images: persistedImages.length ? persistedImages : q.image_url ? [q.image_url] : undefined,
+        option_images: Object.keys(persistedOptionImages).length ? persistedOptionImages : undefined,
         // source_page antigo pode ter sido produzido por extratores anteriores;
         // para questões visuais sem asset, localizamos a página novamente antes de exibir.
         source_page: q.source_page || undefined,
