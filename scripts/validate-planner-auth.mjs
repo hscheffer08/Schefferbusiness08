@@ -10,8 +10,7 @@ const account = fs.readFileSync(accountPath, 'utf8');
 
 const requiredGatePatterns = [
   /useAuth\(\)/,
-  /if\s*\(\s*!user\s*\)/,
-  /<Auth\b/,
+  /if\s*\(\s*!user\s*\)\s*\{[\s\S]*?window\.location\.replace\(['\"]\/\?auth=login&returnTo=course['\"]\)/,
   /<Gate\b/,
 ];
 
@@ -20,6 +19,11 @@ for (const pattern of requiredGatePatterns) {
     console.error(`Planner auth invariant failed: ${gatePath} is missing ${pattern}`);
     process.exit(1);
   }
+}
+
+if (/<Auth\b/.test(gate)) {
+  console.error(`Planner auth invariant failed: ${gatePath} must not render a separate login. Authentication belongs to the Home.`);
+  process.exit(1);
 }
 
 if (!/import\s*\{\s*AuthProvider\s*\}\s*from\s*['\"]\.\/lib\/auth-context(?:\.tsx)?['\"]/.test(main) || !/<AuthProvider>/.test(main)) {
@@ -47,4 +51,4 @@ if (/from ['\"]@\/components\/AdmissionsPlannerV\d+['\"]/.test(main)) {
   process.exit(1);
 }
 
-console.log('Planner auth invariant OK: one root AuthProvider protects the approval planner and account controls.');
+console.log('Planner auth invariant OK: Home owns login and one root AuthProvider protects the approval planner.');
