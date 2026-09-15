@@ -25,7 +25,7 @@ expect(planner.includes('id="course-target-course"') && planner.includes('id="co
 expect(planner.includes('Salvar curso, faculdade e atualizar plano'), 'target save copy describes what is being saved');
 expect(/mobileDocked\s*=\s*false/.test(tutor) && tutor.includes('bottom-[calc(78px+env(safe-area-inset-bottom))]'), 'AI floating control clears bottom navigation on mobile');
 expect(css.includes('.course-mobile-nav-grid') && css.includes('font-size:16px!important') && css.includes('scroll-margin-top:78px'), 'mobile CSS protects nav, iOS select sizing, and sticky-header scrolling');
-expect(main.includes("@vercel/speed-insights/react") && main.includes('<SpeedInsights />'), 'Vercel Speed Insights is mounted');
+expect(main.includes("@vercel/speed-insights/react") && /<SpeedInsights\s*\/?\s*>/.test(main), 'Vercel Speed Insights is mounted');
 expect(html.includes('viewport-fit=cover'), 'viewport supports iPhone safe areas');
 
 const failed = checks.filter(([ok]) => !ok);
