@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { requireAdmin } from './_admin-auth.js';
 
 const SUPABASE_URL='https://kmognvgnfisdchzffkgh.supabase.co';
 const SUPABASE_ANON_KEY=process.env.SUPABASE_ANON_KEY||process.env.VITE_SUPABASE_ANON_KEY||'';
@@ -10,6 +11,7 @@ function usable(q:any){return q?.found!==false&&String(q?.prompt||'').trim().len
 async function extract(req:any,args:Record<string,string>){const params=new URLSearchParams({...args,nonce:`${Date.now()}-${Math.random()}`});const r=await fetch(`${root(req)}/api/extract-official-question?${params}`,{signal:AbortSignal.timeout(110000)});const text=await r.text();let payload:any={};try{payload=JSON.parse(text)}catch{throw new Error(`Resposta inválida da extração (${r.status})`)}if(!r.ok)throw new Error(payload?.error||`Extração HTTP ${r.status}`);return payload;}
 async function save(ref:any,q:any){const update={prompt_text:String(q.prompt).trim(),option_a:q.option_a?String(q.option_a).trim():null,option_b:q.option_b?String(q.option_b).trim():null,option_c:q.option_c?String(q.option_c).trim():null,option_d:q.option_d?String(q.option_d).trim():null,option_e:q.option_e?String(q.option_e).trim():null,source_page:Number.isInteger(Number(q.source_page))&&Number(q.source_page)>0?Number(q.source_page):null,image_alt:q.needs_source_image?String(q.image_note||'Esta questão usa um elemento visual da prova oficial.').slice(0,500):null};const u=await supabase.from('official_exam_items').update(update).eq('id',ref.question_id).select('id').maybeSingle();if(u.error||!u.data)throw new Error(u.error?.message||'Banco não confirmou atualização');}
 export default async function handler(req:any,res:any){
+  if(!requireAdmin(req,res))return;
   if(req.method!=='GET'&&req.method!=='POST')return res.status(405).json({error:'Método não permitido.'});
   const input=req.method==='POST'?req.body:req.query,series=String(input?.series||'').toLowerCase(),sourceUrl=allowed(input?.sourceUrl),from=Math.max(1,Math.min(250,Math.trunc(Number(input?.from)||0))),requestedTo=Math.max(from,Math.min(250,Math.trunc(Number(input?.to)||from+3))),to=Math.min(from+3,requestedTo);
   if(!['enem','cmmg','fuvest'].includes(series)||!sourceUrl||!from)return res.status(400).json({error:'Parâmetros inválidos.'});

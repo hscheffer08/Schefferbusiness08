@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import tutorV5 from './education-tutor-v5.js';
 
-const SUPABASE_URL='https://kmognvgnfisdchzffkgh.supabase.co';
-const SUPABASE_ANON_KEY='sb_publishable_2DCxkYOlTKqsVjDxYg5pxg_pf5YqdTA';
+const SUPABASE_URL=(process.env.SUPABASE_URL||process.env.VITE_SUPABASE_URL||'https://kmognvgnfisdchzffkgh.supabase.co').replace(/\/+$/,'');
+const SUPABASE_ANON_KEY=process.env.SUPABASE_ANON_KEY||process.env.VITE_SUPABASE_ANON_KEY||'';
 
 function clip(value: unknown, max: number) {
   return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);

@@ -1,9 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { extractOfficialQuestionServer } from './_official-pdf-server.js';
 import { hasUnexpectedControlCharacters } from './_text-integrity.js';
+import { requireAdmin } from './_admin-auth.js';
 
-const SUPABASE_URL='https://kmognvgnfisdchzffkgh.supabase.co';
-const SUPABASE_ANON_KEY=process.env.SUPABASE_ANON_KEY||process.env.VITE_SUPABASE_ANON_KEY||'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
+const SUPABASE_URL=(process.env.SUPABASE_URL||process.env.VITE_SUPABASE_URL||'https://kmognvgnfisdchzffkgh.supabase.co').replace(/\/+$/,'');
+const SUPABASE_ANON_KEY=process.env.SUPABASE_ANON_KEY||process.env.VITE_SUPABASE_ANON_KEY||'';
 const supabase=createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
 const ALLOWED_SERIES=new Set(['enem','cmmg','fuvest']);
 const VERSION='2026-09-11-v6';
@@ -63,6 +64,7 @@ async function pool<T,R>(items:T[],size:number,fn:(item:T)=>Promise<R>){
 }
 
 export default async function handler(req:any,res:any){
+  if(!requireAdmin(req,res))return;
   if(req.method!=='GET'&&req.method!=='POST')return res.status(405).json({error:'Método não permitido.'});
   const input=req.method==='POST'?req.body:req.query;
   const series=String(input?.series||'enem').toLowerCase();

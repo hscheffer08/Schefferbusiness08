@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
+import { requireAdmin } from './_admin-auth.js';
 
-const SUPABASE_URL='https://kmognvgnfisdchzffkgh.supabase.co';
-const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imttb2dudmduZmlzZGNoemZma2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MzkxNjksImV4cCI6MjEwMjMxNTE2OX0.JarpsXfgv8PplL3Ryvs6iFfEPiv_rnp2Cx5i1I67fCk';
+const SUPABASE_URL=(process.env.SUPABASE_URL||process.env.VITE_SUPABASE_URL||'https://kmognvgnfisdchzffkgh.supabase.co').replace(/\/+$/,'');
+const SUPABASE_ANON_KEY=process.env.SUPABASE_ANON_KEY||process.env.VITE_SUPABASE_ANON_KEY||'';
 const supabase=createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
 
 function decodeHtml(s:string){return s.replace(/<script[\s\S]*?<\/script>/gi,' ').replace(/<style[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/&nbsp;|&#160;/gi,' ').replace(/&ndash;|&#8211;/gi,'–').replace(/&mdash;|&#8212;/gi,'—').replace(/&amp;/gi,'&').replace(/&quot;|&#34;/gi,'"').replace(/&#39;|&apos;/gi,"'").replace(/\s+/g,' ').trim()}
@@ -39,6 +40,7 @@ async function saveRows(year:number,day:number,rows:any[],map:Map<number,number>
 }
 
 export default async function handler(req:any,res:any){
+  if(!requireAdmin(req,res))return;
   if(req.method!=='GET'&&req.method!=='POST')return res.status(405).json({error:'Método não permitido.'});
   const input=req.method==='POST'?req.body:req.query,year=Number(input?.year),day=Number(input?.day);
   if(year<2019||year>2025||![1,2].includes(day))return res.status(400).json({error:'Use year=2019..2025 e day=1|2.'});

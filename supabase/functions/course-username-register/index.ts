@@ -26,11 +26,43 @@ function normalizeUsername(value: unknown) {
     .slice(0, 32);
 }
 
+// Simple in-memory rate limiting per IP. Each entry allows MAX_PER_WINDOW
+// registrations per WINDOW_MS. Entries older than the window are evicted
+// on each request. This is per-edge-function-instance state; Supabase may
+// spin up multiple instances, so this is a best-effort throttle, not a
+// hard guarantee — but it stops casual mass-account creation.
+const MAX_PER_WINDOW = 5;
+const WINDOW_MS = 60_000;
+const registrations = new Map<string, number[]>();
+
+function rateLimited(ip: string): boolean {
+  const now = Date.now();
+  const cutoff = now - WINDOW_MS;
+  const timestamps = (registrations.get(ip) ?? []).filter((t) => t > cutoff);
+  if (timestamps.length >= MAX_PER_WINDOW) {
+    registrations.set(ip, timestamps);
+    return true;
+  }
+  timestamps.push(now);
+  registrations.set(ip, timestamps);
+  if (registrations.size > 500) {
+    for (const [key, times] of registrations) {
+      if (times.every((t) => t <= cutoff)) registrations.delete(key);
+    }
+  }
+  return false;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(405, { error: "Método não permitido." });
 
   try {
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (rateLimited(ip)) {
+      return json(429, { error: "Muitas contas criadas recentemente deste endereço. Aguarde um minuto e tente novamente." });
+    }
+
     const body = await req.json().catch(() => ({}));
     const username = normalizeUsername(body?.username);
     const password = String(body?.password ?? "");

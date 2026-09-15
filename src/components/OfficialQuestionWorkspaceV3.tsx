@@ -114,12 +114,26 @@ export default function OfficialQuestionWorkspaceV3(){
   function reset(){setSelected('');setCorrect(null);setSubmitted(false);setAnswering(false);setExtracted(null);setExtractError('');setFailedVisuals([])}
   function close(){setActiveOfficial(null);setActivePractice(null);reset()}
   async function loadOfficial(q:OfficialRef){
-    reset();setActiveOfficial(q);setActivePractice(null);setExtracting(true);const key=`conectae:official-v16:${q.question_id}`;
+    reset();setActiveOfficial(q);setActivePractice(null);setExtracting(true);const key=`conectae:official-v17:${q.question_id}`;
     let value:Extracted|null=null;
     try{const cached=JSON.parse(sessionStorage.getItem(key)||'null');if(isUsableOfficialQuestion(cached)){setExtracted(cached);value=cached;if(!cached.needs_source_image||cached.images?.length||Object.keys(cached.option_images||{}).length||cached.source_page){setExtracting(false);return}}}catch{}
     try{
       const visualCue=/\b(figura|imagem|gr[aá]fico|tabela|mapa|esquema|fotografia|charge|tirinha|diagrama|cartum|quadrinho|ilustra[cç][aã]o)\b/i.test([q.prompt_text,q.option_a,q.option_b,q.option_c,q.option_d,q.option_e].filter(Boolean).join(' '));
       const stored:Extracted={found:true,prompt:q.prompt_text||'',option_a:q.option_a,option_b:q.option_b,option_c:q.option_c,option_d:q.option_d,option_e:q.option_e,correct_option:q.correct_option,needs_source_image:Boolean(q.image_url||q.image_alt||visualCue),image_note:q.image_alt||(visualCue?'Esta questão contém elemento visual da prova oficial.':null),confidence:1,images:q.image_url?[q.image_url]:undefined,source_page:q.source_page??undefined};if(!value&&isUsableOfficialQuestion(stored))value=stored;
+      // A cópia persistida no Storage é a fonte visual primária. PDF e serviços externos ficam apenas como contingência.
+      if(value&&supabase){
+        try{
+          const materialized=await supabase.from('official_question_materialized_cache').select('images,option_images').eq('question_id',q.question_id).maybeSingle();
+          const persistedImages=Array.isArray(materialized.data?.images)?materialized.data.images.filter((url:any)=>typeof url==='string'&&url.startsWith('https://')):[];
+          const rawOptions=materialized.data?.option_images&&typeof materialized.data.option_images==='object'?materialized.data.option_images:{};
+          const persistedOptions:Record<string,string>={};
+          for(const [letter,entry] of Object.entries(rawOptions as Record<string,unknown>)){
+            const url=Array.isArray(entry)?entry.find(item=>typeof item==='string'&&item.startsWith('https://')):entry;
+            if(typeof url==='string'&&url.startsWith('https://'))persistedOptions[letter]=url;
+          }
+          if(persistedImages.length||Object.keys(persistedOptions).length)value={...value,images:persistedImages.length?persistedImages:value.images,option_images:Object.keys(persistedOptions).length?persistedOptions:value.option_images};
+        }catch(e){console.warn('persisted official image lookup failed',e)}
+      }
       if(!value&&q.series_id==='enem'&&q.year>=2019&&q.year<=2023){
         try{const response=await fetch(`/api/enem-official-questions?year=${q.year}&question=${q.question_number}`);const data=await response.json();if(response.ok&&isUsableOfficialQuestion(data))value=data as Extracted}catch(error){console.warn('structured ENEM extraction failed',error)}
       }

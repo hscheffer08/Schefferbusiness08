@@ -7,8 +7,8 @@ const SEARCH_MODEL = 'google/gemini-3.6-flash';
 const FALLBACK_MODELS = ['anthropic/claude-opus-5', 'google/gemini-3.6-flash', 'openai/gpt-5.6-luna'];
 const EMERGENCY_MODEL = 'google/gemini-3.5-flash-lite';
 const DAILY_LIMIT = 10;
-const FALLBACK_SUPABASE_URL = 'https://kmognvgnfisdchzffkgh.supabase.co';
-const FALLBACK_SUPABASE_ANON_KEY = 'sb_publishable_2DCxkYOlTKqsVjDxYg5pxg_pf5YqdTA';
+const FALLBACK_SUPABASE_URL = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://kmognvgnfisdchzffkgh.supabase.co').replace(/\/+$/,'');
+const FALLBACK_SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 type Practice = {

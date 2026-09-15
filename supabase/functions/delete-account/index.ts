@@ -31,8 +31,6 @@ Deno.serve(async (req: Request) => {
     return json({ error: "Server not configured" }, 500);
   }
 
-  // The account to delete is taken from the verified JWT, never from the request body,
-  // so a caller can only ever delete themselves.
   const authHeader = req.headers.get("Authorization") ?? "";
   if (!authHeader.startsWith("Bearer ")) {
     return json({ error: "Unauthorized" }, 401);
@@ -50,18 +48,32 @@ Deno.serve(async (req: Request) => {
   const userId = userData.user.id;
   const admin = createClient(supabaseUrl, serviceRoleKey);
 
-  // Remove the rows that are not covered by an ON DELETE CASCADE first.
-  await admin.from("saved_universities").delete().eq("user_id", userId);
-  await admin.from("questionnaire_progress").delete().eq("user_id", userId);
-  await admin.from("sharing_consents").delete().eq("user_id", userId);
-  await admin.from("user_feedback").delete().eq("user_id", userId);
-  await admin.from("match_history").delete().eq("user_id", userId);
-  await admin.from("student_sessions").delete().eq("user_id", userId);
-  await admin.from("user_profiles").delete().eq("id", userId);
+  // Delete the auth user first. Most tables have ON DELETE CASCADE
+  // on user_id, so this atomically removes all dependent rows.
+  // For tables without CASCADE, the explicit deletes below run first
+  // so no FK violation blocks the auth user deletion.
+  const tableOrder = [
+    "saved_universities",
+    "questionnaire_progress",
+    "sharing_consents",
+    "user_feedback",
+    "match_history",
+    "student_sessions",
+    "user_profiles",
+  ];
+
+  const failures: string[] = [];
+  for (const table of tableOrder) {
+    const { error } = await admin.from(table).delete().eq("user_id", userId);
+    if (error) {
+      console.warn(`delete-account: ${table} delete failed`, error.message);
+      failures.push(table);
+    }
+  }
 
   const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
   if (deleteError) {
-    console.error("delete-account failed", deleteError);
+    console.error("delete-account failed", deleteError, "table failures:", failures);
     return json({ error: "Could not delete account" }, 500);
   }
 

@@ -1,9 +1,11 @@
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { requireAdmin } from './_admin-auth.js';
 
 function allowed(raw:unknown){
   try{const u=new URL(String(raw||''));return u.protocol==='https:'&&['download.inep.gov.br','vestibular.cmmg.edu.br','www.fuvest.br','fuvest.br'].includes(u.hostname)&&/\.pdf$/i.test(u.pathname)?u.toString():''}catch{return''}
 }
 export default async function handler(req:any,res:any){
+  if(!requireAdmin(req,res))return;
   if(req.method!=='GET')return res.status(405).json({error:'Método não permitido.'});
   const sourceUrl=allowed(req.query?.url);const pageNumber=Math.max(1,Math.min(20,Number(req.query?.page)||2));
   if(!sourceUrl)return res.status(400).json({error:'URL inválida'});
