@@ -10,7 +10,8 @@ const account = fs.readFileSync(accountPath, 'utf8');
 
 const requiredGatePatterns = [
   /useAuth\(\)/,
-  /if\s*\(\s*!user\s*\)\s*\{[\s\S]*?window\.location\.replace\(['\"]\/\?auth=login&returnTo=course['\"]\)/,
+  /window\.location\.replace\(['\"]\/\?auth=login&next=course['\"]\)/,
+  /if\s*\(\s*loading\s*\|\|\s*!user\s*\)/,
   /<Gate\b/,
 ];
 
