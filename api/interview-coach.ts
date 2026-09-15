@@ -9,7 +9,7 @@ const DAILY_LIMIT = 20;
 const FALLBACK_SUPABASE_URL = 'https://kmognvgnfisdchzffkgh.supabase.co';
 const FALLBACK_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_2DCxkYOlTKqsVjDxYg5pxg_pf5YqdTA';
 
-type Institution = 'insper' | 'link';
+type Institution = 'link';
 type HistoryItem = { question: string; answer: string; feedback?: string; scores?: Record<string, number>; delivery?: string };
 
 const json = (res: any, status: number, body: unknown) => {
@@ -73,14 +73,12 @@ function normalizeScores(value: any) {
   };
 }
 
-function guide(institution: Institution) {
-  return institution === 'insper'
-    ? 'INSPER: treine motivação específica, clareza de projeto, maturidade, colaboração, pensamento analítico, comunicação, autoconhecimento, iniciativa, aprendizado com erro e alinhamento entre experiências e curso.'
-    : 'LINK SCHOOL OF BUSINESS: treine jornada pessoal, iniciativa empreendedora, liderança, aprendizado com erro, resolução de problemas, decisões sob incerteza, colaboração, impacto, autoconhecimento, ambição e fit com uma formação prática em negócios. A página oficial descreve a entrevista como etapa final da Link Journey e enfatiza trajetória, potencial, mindset e objetivos.';
+function guide(_institution: Institution) {
+  return 'LINK SCHOOL OF BUSINESS: treine jornada pessoal, iniciativa empreendedora, liderança, aprendizado com erro, resolução de problemas, decisões sob incerteza, colaboração, impacto, autoconhecimento, ambição e fit com uma formação prática em negócios. A página oficial descreve a entrevista como etapa final da Link Journey e enfatiza trajetória, potencial, mindset e objetivos.';
 }
 
 export default async function handler(req: any, res: any) {
-  if (req.method === 'GET') return json(res, 200, { ok: true, institutions: ['insper', 'link'], totalQuestions: 10, sessionLengths: [5, 10, 15], voice: true, video: true, model: MODEL, audioModel: AUDIO_MODEL });
+  if (req.method === 'GET') return json(res, 200, { ok: true, institutions: ['link'], totalQuestions: 10, sessionLengths: [5, 10, 15], voice: true, video: true, model: MODEL, audioModel: AUDIO_MODEL });
   if (req.method !== 'POST') return json(res, 405, { error: 'Método não permitido.' });
 
   try {
@@ -100,7 +98,8 @@ export default async function handler(req: any, res: any) {
 
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const totalQuestions = [1, 5, 10, 15].includes(Number(body.totalQuestions)) ? Number(body.totalQuestions) : 10;
-    const institution: Institution = body.institution === 'link' ? 'link' : 'insper';
+    if (body.institution && body.institution !== 'link') return json(res, 400, { error: 'Esta ferramenta de entrevista não é oferecida para o processo seletivo atual do Insper Graduação.' });
+    const institution: Institution = 'link';
     const course = trim(body.course, 100) || 'curso de graduação';
     const phase = body.phase === 'start' ? 'start' : 'answer';
     const history = cleanHistory(body.history);

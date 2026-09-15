@@ -7,7 +7,7 @@ import Auth from '@/components/Auth';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { ensureFreshSession } from '@/lib/supabase';
 
-type Institution = 'insper' | 'link';
+type Institution = 'link';
 type Scores = { clareza: number; especificidade: number; autenticidade: number; reflexao: number; aderencia: number };
 type Detail = { criterion: string; evidence: string; impact: string; how: string; example: string; exercise: string };
 type Voice = { transcript: string; duration: number; pace: string; pauses: string; fillers: string; articulation: string; intonation: string; limitations: string; observations: { time: string; evidence: string; impact: string; exercise: string }[] };
@@ -18,7 +18,6 @@ type ApiResult = { voice?: Voice; model?: string; error?: string; question?: str
 
 
 const institutions = {
-  insper: { name: 'Insper', accent: '#ff6047', description: 'Motivação, repertório, maturidade, colaboração e clareza de projeto.', source: 'https://www.insper.edu.br/content/insper-portal/pt/quem-somos/faq-insper.html' },
   link: { name: 'Link School of Business', accent: '#72a5ff', description: 'Jornada, iniciativa, liderança, decisões, impacto e visão empreendedora.', source: 'https://lsb.edu.br/processo-seletivo' },
 };
 const scoreLabels: Array<[keyof Scores, string]> = [['clareza', 'Clareza'], ['especificidade', 'Exemplos concretos'], ['autenticidade', 'Autenticidade'], ['reflexao', 'Reflexão'], ['aderencia', 'Aderência']];
@@ -26,7 +25,7 @@ const scoreLabels: Array<[keyof Scores, string]> = [['clareza', 'Clareza'], ['es
 function InterviewCoach() {
   const { user, session, loading } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
-  const [institution, setInstitution] = useState<Institution>('insper');
+  const [institution, setInstitution] = useState<Institution>('link');
   const [course, setCourse] = useState('Administração');
   const [totalQuestions, setTotalQuestions] = useState(10);
   const [audio, setAudio] = useState<InterviewAudio | null>(null);
@@ -53,9 +52,9 @@ function InterviewCoach() {
   }, [turns]);
 
   useEffect(() => {
-    document.title = 'Treino de entrevista para Insper e Link | Conectaê';
+    document.title = 'Treino de entrevista para Link School of Business | Conectaê';
     const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-    if (description) description.content = 'Pratique entrevistas de admissão para Insper e Link com 10 perguntas adaptativas, feedback por competência e plano de melhoria.';
+    if (description) description.content = 'Pratique a entrevista de admissão da Link School of Business com perguntas adaptativas, feedback por competência e plano de melhoria.';
   }, []);
 
   async function callApi(payload: Record<string, unknown>) {
@@ -214,7 +213,7 @@ function InterviewCoach() {
         )}
         {!started && <section className="mx-auto mt-10 max-w-5xl">
           <h2 className="text-2xl font-black">24 atividades para praticar</h2>
-          <p className="mt-2 text-base text-[#b5c8e3]">Treinos autorais com correção individual por voz ou texto. Selecione a instituição acima e escolha uma atividade.</p>
+          <p className="mt-2 text-base text-[#b5c8e3]">Treinos autorais com correção individual por voz ou texto para a Link School of Business. Escolha uma atividade.</p>
           <label htmlFor="activity-filter" className="mt-4 block text-sm">Competência</label>
           <select id="activity-filter" value={activityFilter} onChange={event => setActivityFilter(event.target.value)} className="mt-2 min-h-12 w-full rounded-xl border border-[#31588e] bg-[#031027] px-4">
             {['Todas', ...new Set(interviewActivities.map(item => item.category))].map(category => <option key={category}>{category}</option>)}
