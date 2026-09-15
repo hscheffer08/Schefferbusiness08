@@ -2,7 +2,7 @@ import fs from 'node:fs';
 
 const path='src/components/OfficialQuestionWorkspaceV3.tsx';
 let src=fs.readFileSync(path,'utf8');
-if(src.includes('conectae:official-v16:')){
+if(src.includes('conectae:official-v17:')){
   console.log('Active official question visuals are current.');
   process.exit(0);
 }
