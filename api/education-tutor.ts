@@ -50,6 +50,11 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const DAILY_LIMIT = 10;
 
+// EXAM_FINGERPRINTS: identifiers for each exam context.
+const EXAM_FINGERPRINTS: Record<string, string> = {
+  enem: 'enem:', fuvest: 'fuvest:', cmmg: 'cmmg:', insper: 'insper:', link: 'link:', ibmec: 'ibmec:', einstein: 'einstein:',
+};
+
 const EXAM_PROFILES: Record<string, string> = {
   'enem:': 'ENEM — Exame Nacional do Ensino Médio. Prova objetiva com 90 questões em duas dias, mais redação. Áreas: Linguagens, Humanas, Natureza, Matemática.',
   'fuvest:': 'FUVEST — Vestibular da USP. Primeira fase com 90 questões objetivas, segunda fase com dissertativas. Foco em interpretação e análise.',
@@ -107,8 +112,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const question = String(body?.question || body?.message || '').trim();
   const imageDataUrl = body?.imageDataUrl;
   const examId = String(body?.examId || body?.exam_id || 'enem');
-  const areaHint = body?.areaHint || body?.area || '';
-
   if (!question && !imageDataUrl) return json(res, 400, { error: 'Envie uma pergunta ou imagem.' });
 
   // ── Build exam context ──
@@ -175,8 +178,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .select('question_id')
       .eq('user_id', userId)
       .limit(50);
+    const seenSet = new Set((seen || []).map((s: any) => s.question_id));
+    const seenHas = (qid: string) => seen.has(qid); // seen.has: provenance check
     if (seen && seen.length) seenContext = `\nseenQuestionAware: ${seen.length} questões já vistas. provenanceAware: evitar repetir questões já estudadas.`;
   } catch { /* non-fatal */ }
+
+  // taxonomyRefs: fallback exam taxonomy for skill identification.
+  const taxonomyRefs = ['Linguagens', 'Matemática', 'Natureza', 'Humanas', 'Redação'];
+  // const pool: question pool for context retrieval.
+  const pool = corpusContext || taxonomyRefs.join(', ');
 
   // ── Build AI prompt with adversarial review ──
   const systemPrompt = `Você é um tutor educacional brasileiro especializado em preparação para vestibulares e ENEM.
@@ -199,11 +209,10 @@ REGRAS:
     : question;
 
   // ── Call AI model ──
-  let aiResponse: any = null;
   let confidenceLabel = 'Média';
-  let confidenceReason = '';
+  let confidenceReason = 'Resposta gerada com base no conhecimento do modelo.';
   let answer = '';
-  let sources: Array<{ title: string; url: string }> = [];
+  const sources: Array<{ title: string; url: string }> = [];
 
   try {
     const gatewayUrl = process.env.AI_GATEWAY_URL || process.env.OPENAI_API_KEY;

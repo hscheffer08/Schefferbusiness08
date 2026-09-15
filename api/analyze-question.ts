@@ -53,8 +53,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const examId = String(body?.examId || 'enem');
   const taxonomy = body?.taxonomy;
   const textHint = body?.textHint || body?.text || '';
-  const areaHint = body?.areaHint || body?.area || '';
-
   if (!imageDataUrl) return json(res, 400, { error: 'Envie uma imagem da questão.' });
 
   // ── Build exam context ──

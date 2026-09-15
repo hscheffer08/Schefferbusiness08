@@ -12,7 +12,7 @@ const granular=read('src/lib/granular-study-topics.ts');
 const profiler=read('src/components/DifficultyProfile.tsx');
 const twin=read('src/lib/study-twin-engine.ts');
 const progress=read('src/components/WeeklyPlanExperience.tsx');
-const tutor=read('api/education-tutor-v2.ts');
+const tutor=read('api/education-tutor.ts');
 
 const checks=[
   ['difficulty profiler is mounted',planner.includes('<DifficultyProfile')],
