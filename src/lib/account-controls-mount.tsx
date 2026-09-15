@@ -17,7 +17,8 @@ function AccountControls() {
   const params = new URLSearchParams(window.location.search);
   const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
   const recoveryRequested = params.get('auth') === 'recovery';
-  const [showAuth, setShowAuth] = useState(recoveryRequested);
+  const loginRequested = params.get('auth') === 'login';
+  const [showAuth, setShowAuth] = useState(recoveryRequested || loginRequested);
   const [showAdmin, setShowAdmin] = useState(false);
   const [showB2B, setShowB2B] = useState(false);
   const [showJourney, setShowJourney] = useState(false);
@@ -25,14 +26,25 @@ function AccountControls() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const standaloneExperience = pathname !== '/' || params.has('planner') || params.has('experience') || params.has('modo') || params.has('questionario') || params.has('ref');
-  const finishAuth = () => { const url = new URL(window.location.href); url.searchParams.delete('auth'); window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`); setShowAuth(false); };
-  if (standaloneExperience && !recoveryRequested) return null;
+  const finishAuth = () => {
+    const url = new URL(window.location.href);
+    const next = url.searchParams.get('next');
+    if (next === 'course') {
+      window.location.assign('/?planner=aprovacao');
+      return;
+    }
+    url.searchParams.delete('auth');
+    url.searchParams.delete('next');
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+    setShowAuth(false);
+  };
+  if (standaloneExperience && !recoveryRequested && !loginRequested) return null;
   const isAdmin = user?.app_metadata?.role === 'admin';
   if (showAdmin) return <div className="fixed inset-0 z-[140] overflow-y-auto bg-ink-950"><Admin onBack={() => setShowAdmin(false)} /></div>;
   if (showB2B) return <div className="fixed inset-0 z-[140] overflow-y-auto bg-ink-950"><B2BInsights onBack={() => setShowB2B(false)} /></div>;
   if (showJourney) return <div className="fixed inset-0 z-[140] overflow-y-auto bg-ink-950"><MyJourney onBack={() => setShowJourney(false)} /></div>;
   if (infoPage) return <div className="fixed inset-0 z-[140] overflow-y-auto bg-ink-950"><InfoPages page={infoPage} onBack={() => setInfoPage(null)} /></div>;
-  if (showAuth) return <div className="fixed inset-0 z-[140] overflow-y-auto bg-ink-950 py-10"><Auth compact={!recoveryRequested} initialMode={recoveryRequested ? 'update' : 'login'} onBack={() => setShowAuth(false)} onSuccess={finishAuth} onPrivacy={() => { setShowAuth(false); setInfoPage('privacy'); }} onTerms={() => { setShowAuth(false); setInfoPage('terms'); }} /></div>;
+  if (showAuth) return <div className="fixed inset-0 z-[140] overflow-y-auto bg-ink-950 py-10"><Auth compact={!recoveryRequested} initialMode={recoveryRequested ? 'update' : 'login'} onBack={() => { setShowAuth(false); const url=new URL(window.location.href); url.searchParams.delete('auth'); url.searchParams.delete('next'); window.history.replaceState(null,'',`${url.pathname}${url.search}${url.hash}`); }} onSuccess={finishAuth} onPrivacy={() => { setShowAuth(false); setInfoPage('privacy'); }} onTerms={() => { setShowAuth(false); setInfoPage('terms'); }} /></div>;
   if (loading) return null;
   const controls = <div className="flex items-center gap-2">{user ? <>{isAdmin && <><button type="button" onClick={() => setShowB2B(true)} className="hidden xl:inline-flex items-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-400/10 px-3.5 py-2 text-sm font-bold text-cyan-100"> <Building2 className="w-4 h-4"/> B2B Insights</button><button type="button" onClick={() => setShowAdmin(true)} className="hidden xl:inline-flex items-center gap-2 rounded-xl border border-violet-300/20 bg-violet-400/10 px-3.5 py-2 text-sm font-bold text-violet-100"><Shield className="w-4 h-4"/> Painel</button></>}<div className="relative"><button type="button" onClick={() => setMenuOpen(v => !v)} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-[#0d1626]/90 px-3.5 py-2 text-sm font-semibold text-ink-100"><span className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-300 to-violet-400 text-[#07111d] flex items-center justify-center font-black text-xs">{(profile?.display_name || user.email || '?')[0].toUpperCase()}</span><span className="hidden sm:inline max-w-[100px] truncate">{profile?.display_name || 'Minha conta'}</span></button>{menuOpen && <div className="absolute right-0 mt-2 min-w-[235px] rounded-2xl border border-white/10 bg-[#0b1322]/95 p-2 shadow-2xl"><div className="px-3 py-2 border-b border-white/5 mb-1"><div className="flex items-center gap-2 text-sm font-semibold text-ink-100"><UserRound className="w-4 h-4 text-cyan-300"/> Conta conectada</div><div className="mt-1 text-xs text-ink-500 truncate">{user.email}</div></div><button type="button" onClick={() => {setMenuOpen(false);setShowJourney(true);}} className="w-full flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-fuchsia-100"><Heart className="w-4 h-4"/> Minha jornada</button>{isAdmin && <><button type="button" onClick={() => {setMenuOpen(false);setShowB2B(true);}} className="w-full flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-cyan-200"><Building2 className="w-4 h-4"/> Conectaê University</button><button type="button" onClick={() => {setMenuOpen(false);setShowAdmin(true);}} className="w-full flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-violet-200"><Shield className="w-4 h-4"/> Painel administrativo</button></>}<button type="button" onClick={async()=>{setMenuOpen(false);await signOut();}} className="w-full flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-ink-300"><LogOut className="w-4 h-4"/> Sair</button></div>}</div></> : <button type="button" onClick={() => setShowAuth(true)} className="inline-flex items-center gap-2 rounded-xl border border-cyan-300/25 bg-cyan-300/10 px-3 sm:px-4 py-2.5 text-sm font-bold text-cyan-100"><LogIn className="w-4 h-4"/><span className="sm:hidden">Entrar</span><span className="hidden sm:inline">Entrar / Criar conta</span></button>}</div>;
   return headerHost ? createPortal(controls, headerHost) : null;
