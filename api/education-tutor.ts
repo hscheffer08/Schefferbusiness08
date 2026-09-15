@@ -1,11 +1,13 @@
 /**
- * Tutor entrypoint — consolidated v8.
+ * Tutor entrypoint — consolidated v9.
  *
  * Fixes:
  * - accepts the current Course UI payload (`messages` + `context`)
  * - validates the browser Supabase access token against the same Supabase project
  * - prefers server-only Supabase variables, with Vite variables only as fallback
  * - restores exam fingerprinting, taxonomy fallback and seen-question awareness
+ * - uses Vercel AI Gateway OIDC automatically when no explicit provider key exists
+ * - aligns tutor usage tracking with the database constraint
  *
  * Structural compatibility markers kept for the project's AI quality validator:
  * student_exam_preferences area_universities ALVO SALVO DO CURSO targetUniversity targetCourse
@@ -30,6 +32,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const DAILY_LIMIT = 10;
 const FALLBACK_SUPABASE_URL = 'https://kmognvgnfisdchzffkgh.supabase.co';
+const VERCEL_AI_GATEWAY_URL = 'https://ai-gateway.vercel.sh/v1';
 
 const EXAM_FINGERPRINTS: Record<string, string> = {
   enem: 'enem:',
@@ -121,26 +124,38 @@ function supabaseConfig() {
 
 function aiConfig() {
   const rawGateway = cleanText(process.env.AI_GATEWAY_URL);
-  const gatewayIsUrl = /^https?:\/\//i.test(rawGateway);
-  const baseUrl = (gatewayIsUrl ? rawGateway : 'https://api.openai.com/v1').replace(/\/+$/, '');
-  const apiKey = cleanText(process.env.AI_GATEWAY_API_KEY)
-    || cleanText(process.env.OPENAI_API_KEY)
-    || (gatewayIsUrl ? '' : rawGateway);
-  const model = cleanText(process.env.AI_MODEL) || 'gpt-5.6-sol';
-  return { baseUrl, apiKey, model };
+  const gatewayUrl = /^https?:\/\//i.test(rawGateway) ? rawGateway.replace(/\/+$/, '') : '';
+  const gatewayKey = cleanText(process.env.AI_GATEWAY_API_KEY) || (!gatewayUrl ? rawGateway : '');
+  const oidcToken = cleanText(process.env.VERCEL_OIDC_TOKEN);
+  const openAiKey = cleanText(process.env.OPENAI_API_KEY);
+
+  if (gatewayKey || oidcToken || gatewayUrl) {
+    return {
+      baseUrl: gatewayUrl || VERCEL_AI_GATEWAY_URL,
+      apiKey: gatewayKey || oidcToken,
+      model: cleanText(process.env.AI_MODEL) || 'openai/gpt-5.6-sol',
+      provider: 'vercel-ai-gateway',
+    };
+  }
+
+  return {
+    baseUrl: 'https://api.openai.com/v1',
+    apiKey: openAiKey,
+    model: cleanText(process.env.AI_MODEL) || 'gpt-5.6-sol',
+    provider: 'openai',
+  };
 }
 
 async function buildSeenQuestionContext(
   supabase: ReturnType<typeof createClient>,
   userId: string,
-  examId: string,
+  _examId: string,
 ) {
   try {
     const { data, error } = await supabase
       .from('student_seen_questions')
       .select('question_id')
       .eq('user_id', userId)
-      .eq('exam_id', examId)
       .limit(80);
 
     if (error) {
@@ -148,7 +163,11 @@ async function buildSeenQuestionContext(
       return '';
     }
 
-    const seen = new Set((data || []).map((row: { question_id?: string | null }) => cleanText(row.question_id)).filter(Boolean));
+    const seen = new Set(
+      (data || [])
+        .map((row: { question_id?: string | number | null }) => row.question_id == null ? '' : String(row.question_id))
+        .filter(Boolean),
+    );
     if (seen.has('')) seen.delete('');
     if (!seen.size) return '';
 
@@ -166,13 +185,10 @@ async function callTutorModel(
   imageDataUrl: string,
   seenContext: string,
 ) {
-  const { baseUrl, apiKey, model } = aiConfig();
+  const { baseUrl, apiKey, model, provider } = aiConfig();
   if (!apiKey) {
-    return {
-      answer: 'O tutor está conectado à sua conta, mas o provedor de IA ainda não está configurado no servidor.',
-      confidenceLabel: 'Baixa',
-      confidenceReason: 'Provedor de IA não configurado.',
-    };
+    console.error('education-tutor: no AI provider credential available');
+    throw new Error('O provedor de IA ainda não está configurado no servidor.');
   }
 
   const profile = EXAM_PROFILES[examId] || EXAM_PROFILES.enem;
@@ -222,7 +238,7 @@ async function callTutorModel(
 
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
-    console.error('education-tutor provider error', response.status, detail.slice(0, 500));
+    console.error('education-tutor provider error', provider, response.status, detail.slice(0, 500));
     throw new Error(`Provedor de IA indisponível (${response.status}).`);
   }
 
@@ -284,7 +300,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (usageError) console.warn('education-tutor usage read failed', usageError.message);
 
-  const questionCount = (usage || []).filter((item: { feature?: string }) => item.feature === 'question').length;
+  const questionCount = (usage || []).filter((item: { feature?: string }) => item.feature === 'tutor').length;
   const remainingQuestions = Math.max(0, DAILY_LIMIT - questionCount);
 
   if (questionCount >= DAILY_LIMIT) {
@@ -300,7 +316,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { error: trackError } = await supabase.from('ai_tutor_usage').insert({
       user_id: userId,
-      feature: 'question',
+      feature: 'tutor',
       exam_id: examId,
       has_image: Boolean(imageDataUrl),
     });
