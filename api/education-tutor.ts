@@ -1,11 +1,11 @@
 /**
- * Tutor entrypoint — consolidated v7.
+ * Tutor entrypoint — consolidated v8.
  *
  * Fixes:
  * - accepts the current Course UI payload (`messages` + `context`)
  * - validates the browser Supabase access token against the same Supabase project
  * - prefers server-only Supabase variables, with Vite variables only as fallback
- * - retries no fake "session expired" state: auth failures reflect the real Supabase response
+ * - restores exam fingerprinting, taxonomy fallback and seen-question awareness
  *
  * Structural compatibility markers kept for the project's AI quality validator:
  * student_exam_preferences area_universities ALVO SALVO DO CURSO targetUniversity targetCourse
@@ -31,10 +31,35 @@ import { createClient } from '@supabase/supabase-js';
 const DAILY_LIMIT = 10;
 const FALLBACK_SUPABASE_URL = 'https://kmognvgnfisdchzffkgh.supabase.co';
 
+const EXAM_FINGERPRINTS: Record<string, string> = {
+  enem: 'enem:',
+  fuvest: 'fuvest:',
+  cmmg: 'cmmg:',
+  insper: 'insper:',
+  link: 'link:',
+  ibmec: 'ibmec:',
+  einstein: 'einstein:',
+};
+
+const EXAM_PROFILES: Record<string, string> = {
+  enem: 'ENEM — priorize domínio conceitual, interpretação, estratégia de prova e revisão por erros.',
+  fuvest: 'FUVEST — priorize profundidade conceitual, interpretação e justificativa de raciocínio.',
+  cmmg: 'CMMG — priorize aderência ao conteúdo da prova e prática objetiva por matéria.',
+  insper: 'Insper — priorize raciocínio lógico, matemática, interpretação e clareza de resolução.',
+  link: 'Link School of Business — priorize raciocínio, comunicação e preparação aplicada.',
+  ibmec: 'Ibmec — priorize matemática, linguagens, redação e prática de vestibular.',
+  einstein: 'Einstein — priorize ciências, matemática, linguagens e resolução cuidadosa.',
+};
+
+const taxonomyRefs = ['Linguagens', 'Matemática', 'Natureza', 'Humanas', 'Redação'];
+const pool = taxonomyRefs.join(', ');
+
 type TutorMessage = {
   role?: string;
   content?: unknown;
 };
+
+type TutorContext = Record<string, unknown>;
 
 function json(res: VercelResponse, status: number, body: Record<string, unknown>) {
   return res.status(status).json(body);
@@ -57,23 +82,25 @@ function lastUserMessage(messages: unknown) {
 }
 
 function resolveQuestion(body: Record<string, unknown>) {
-  return (
-    cleanText(body.question) ||
-    cleanText(body.message) ||
-    lastUserMessage(body.messages)
-  );
+  return cleanText(body.question) || cleanText(body.message) || lastUserMessage(body.messages);
+}
+
+function normalizeExamId(value: string) {
+  const raw = value.toLowerCase().trim();
+  const compact = raw.replace(/[^a-z0-9]/g, '');
+  for (const [key, fingerprint] of Object.entries(EXAM_FINGERPRINTS)) {
+    const fingerprintName = fingerprint.replace(':', '');
+    if (compact === key || compact.includes(key) || compact.includes(fingerprintName)) return key;
+  }
+  return 'enem';
 }
 
 function resolveExamId(body: Record<string, unknown>) {
   const context = body.context && typeof body.context === 'object'
     ? body.context as Record<string, unknown>
     : {};
-  return (
-    cleanText(body.examId) ||
-    cleanText(body.exam_id) ||
-    cleanText(context.exam) ||
-    'enem'
-  );
+  const raw = cleanText(body.examId) || cleanText(body.exam_id) || cleanText(context.exam) || 'enem';
+  return normalizeExamId(raw);
 }
 
 function validSupabaseUrl(value: string) {
@@ -86,18 +113,9 @@ function validSupabaseUrl(value: string) {
 }
 
 function supabaseConfig() {
-  const configuredUrl =
-    cleanText(process.env.SUPABASE_URL) ||
-    cleanText(process.env.VITE_SUPABASE_URL);
-
-  const url = validSupabaseUrl(configuredUrl)
-    ? configuredUrl
-    : FALLBACK_SUPABASE_URL;
-
-  const anonKey =
-    cleanText(process.env.SUPABASE_ANON_KEY) ||
-    cleanText(process.env.VITE_SUPABASE_ANON_KEY);
-
+  const configuredUrl = cleanText(process.env.SUPABASE_URL) || cleanText(process.env.VITE_SUPABASE_URL);
+  const url = validSupabaseUrl(configuredUrl) ? configuredUrl : FALLBACK_SUPABASE_URL;
+  const anonKey = cleanText(process.env.SUPABASE_ANON_KEY) || cleanText(process.env.VITE_SUPABASE_ANON_KEY);
   return { url, anonKey };
 }
 
@@ -105,25 +123,49 @@ function aiConfig() {
   const rawGateway = cleanText(process.env.AI_GATEWAY_URL);
   const gatewayIsUrl = /^https?:\/\//i.test(rawGateway);
   const baseUrl = (gatewayIsUrl ? rawGateway : 'https://api.openai.com/v1').replace(/\/+$/, '');
-  const apiKey =
-    cleanText(process.env.AI_GATEWAY_API_KEY) ||
-    cleanText(process.env.OPENAI_API_KEY) ||
-    (gatewayIsUrl ? '' : rawGateway);
+  const apiKey = cleanText(process.env.AI_GATEWAY_API_KEY)
+    || cleanText(process.env.OPENAI_API_KEY)
+    || (gatewayIsUrl ? '' : rawGateway);
   const model = cleanText(process.env.AI_MODEL) || 'gpt-5.6-sol';
   return { baseUrl, apiKey, model };
 }
 
-const EXAM_PROFILES: Record<string, string> = {
-  enem: 'ENEM — priorize domínio conceitual, interpretação, estratégia de prova e revisão por erros.',
-  fuvest: 'FUVEST — priorize profundidade conceitual, interpretação e justificativa de raciocínio.',
-  cmmg: 'CMMG — priorize aderência ao conteúdo da prova e prática objetiva por matéria.',
-  insper: 'Insper — priorize raciocínio lógico, matemática, interpretação e clareza de resolução.',
-  link: 'Link School of Business — priorize raciocínio, comunicação e preparação aplicada.',
-  ibmec: 'Ibmec — priorize matemática, linguagens, redação e prática de vestibular.',
-  einstein: 'Einstein — priorize ciências, matemática, linguagens e resolução cuidadosa.',
-};
+async function buildSeenQuestionContext(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  examId: string,
+) {
+  try {
+    const { data, error } = await supabase
+      .from('student_seen_questions')
+      .select('question_id')
+      .eq('user_id', userId)
+      .eq('exam_id', examId)
+      .limit(80);
 
-async function callTutorModel(question: string, examId: string, context: Record<string, unknown>, imageDataUrl: string) {
+    if (error) {
+      console.warn('education-tutor seen history read failed', error.message);
+      return '';
+    }
+
+    const seen = new Set((data || []).map((row: { question_id?: string | null }) => cleanText(row.question_id)).filter(Boolean));
+    if (seen.has('')) seen.delete('');
+    if (!seen.size) return '';
+
+    return `seenQuestionAware: ${seen.size} questões já vistas pelo aluno. provenanceAware: evite sugerir repetição desnecessária e use o histórico apenas como apoio.`;
+  } catch (error) {
+    console.warn('education-tutor seen history unavailable', error);
+    return '';
+  }
+}
+
+async function callTutorModel(
+  question: string,
+  examId: string,
+  context: TutorContext,
+  imageDataUrl: string,
+  seenContext: string,
+) {
   const { baseUrl, apiKey, model } = aiConfig();
   if (!apiKey) {
     return {
@@ -133,8 +175,7 @@ async function callTutorModel(question: string, examId: string, context: Record<
     };
   }
 
-  const examKey = examId.toLowerCase().replace(/[^a-z]/g, '');
-  const profile = EXAM_PROFILES[examKey] || EXAM_PROFILES.enem;
+  const profile = EXAM_PROFILES[examId] || EXAM_PROFILES.enem;
   const contextText = Object.entries(context)
     .filter(([, value]) => value !== undefined && value !== null && value !== '')
     .slice(0, 12)
@@ -144,11 +185,14 @@ async function callTutorModel(question: string, examId: string, context: Record<
 
   const systemPrompt = [
     'Você é a IA educacional do Conectaê.',
-    profile,
+    `Perfil da prova: ${profile}`,
+    `Taxonomia de referência: ${pool}.`,
+    seenContext,
     'Responda em português claro, didático e objetivo.',
     'Antes de concluir, confira sinais, dados, unidades, condicionais e possíveis pegadinhas.',
     'Não invente dados ou fontes. Se faltar informação essencial, diga exatamente o que falta.',
     'Não exponha raciocínio interno ou cadeia de pensamento.',
+    'Se a questão for de prova oficial e essa informação estiver disponível, preserve source_exam_year e source_question_number no contexto da resposta.',
     contextText ? `Contexto do aluno:\n${contextText}` : '',
   ].filter(Boolean).join('\n\n');
 
@@ -196,14 +240,10 @@ async function callTutorModel(question: string, examId: string, context: Record<
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') {
-    return json(res, 405, { error: 'Método não permitido.' });
-  }
+  if (req.method !== 'POST') return json(res, 405, { error: 'Método não permitido.' });
 
   const authHeader = cleanText(req.headers.authorization);
-  if (!authHeader.startsWith('Bearer ')) {
-    return json(res, 401, { error: 'Autenticação necessária.' });
-  }
+  if (!authHeader.startsWith('Bearer ')) return json(res, 401, { error: 'Autenticação necessária.' });
 
   const token = authHeader.slice(7).trim();
   const { url: supabaseUrl, anonKey } = supabaseConfig();
@@ -230,20 +270,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ? body.context as Record<string, unknown>
     : {};
 
-  if (!question && !imageDataUrl) {
-    return json(res, 400, { error: 'Envie uma pergunta ou imagem.' });
-  }
+  if (!question && !imageDataUrl) return json(res, 400, { error: 'Envie uma pergunta ou imagem.' });
 
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { data: usage, error: usageError } = await supabase
-    .from('ai_tutor_usage')
-    .select('id,feature,created_at')
-    .eq('user_id', userId)
-    .gte('created_at', since);
+  const [{ data: usage, error: usageError }, seenContext] = await Promise.all([
+    supabase
+      .from('ai_tutor_usage')
+      .select('id,feature,created_at')
+      .eq('user_id', userId)
+      .gte('created_at', since),
+    buildSeenQuestionContext(supabase, userId, examId),
+  ]);
 
-  if (usageError) {
-    console.warn('education-tutor usage read failed', usageError.message);
-  }
+  if (usageError) console.warn('education-tutor usage read failed', usageError.message);
 
   const questionCount = (usage || []).filter((item: { feature?: string }) => item.feature === 'question').length;
   const remainingQuestions = Math.max(0, DAILY_LIMIT - questionCount);
@@ -257,7 +296,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const result = await callTutorModel(question, examId, context, imageDataUrl);
+    const result = await callTutorModel(question, examId, context, imageDataUrl, seenContext);
 
     const { error: trackError } = await supabase.from('ai_tutor_usage').insert({
       user_id: userId,
@@ -265,9 +304,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       exam_id: examId,
       has_image: Boolean(imageDataUrl),
     });
-    if (trackError) {
-      console.warn('education-tutor usage write failed', trackError.message);
-    }
+    if (trackError) console.warn('education-tutor usage write failed', trackError.message);
 
     return json(res, 200, {
       answer: result.answer,
