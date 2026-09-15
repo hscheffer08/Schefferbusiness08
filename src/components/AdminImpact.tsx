@@ -94,23 +94,33 @@ export default function AdminImpact() {
     let active = true;
     (async () => {
       if (!supabase) return;
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      if (!token) { setError('Sessão expirada.'); setLoading(false); return; }
       setLoading(true);
       setError(null);
       const since = sinceFor(period);
-      const [impactResult, trafficResult] = await Promise.all([
-        supabase.rpc('get_admin_impact_stats', { p_since: since }),
-        supabase.rpc('get_admin_traffic_stats', { p_since: since }),
-      ]);
-      if (!active) return;
-
-      if (impactResult.error || trafficResult.error) {
-        console.error('Failed to load admin analytics', impactResult.error ?? trafficResult.error);
-        setError('Não foi possível carregar as métricas administrativas.');
+      try {
+        const [impactRes, trafficRes] = await Promise.all([
+          fetch('/api/admin-rpc', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ rpc: 'get_admin_impact_stats', params: { p_since: since } }) }),
+          fetch('/api/admin-rpc', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ rpc: 'get_admin_traffic_stats', params: { p_since: since } }) }),
+        ]);
+        if (!active) return;
+        const impactJson = await impactRes.json();
+        const trafficJson = await trafficRes.json();
+        if (!impactRes.ok || !trafficRes.ok) {
+          setError(impactJson.error || trafficJson.error || 'Não foi possível carregar as métricas administrativas.');
+          setStats(null);
+          setTraffic(null);
+        } else {
+          setStats(impactJson.data as ImpactStats);
+          setTraffic(trafficJson.data as unknown as TrafficStats);
+        }
+      } catch {
+        if (!active) return;
+        setError('Erro de conexão.');
         setStats(null);
         setTraffic(null);
-      } else {
-        setStats(impactResult.data as ImpactStats);
-        setTraffic(trafficResult.data as unknown as TrafficStats);
       }
       setLoading(false);
     })();

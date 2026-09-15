@@ -460,32 +460,42 @@ function AnswersTab() {
 
   useEffect(() => {
     if (!supabase) return;
-    supabase.rpc('get_admin_sessions')
-      .then(({ data, error }) => {
-        if (error) {
-          console.error('Failed to load sessions', error);
-          setError('Não foi possível carregar as respostas.');
-        } else {
-          setSessions((data ?? []) as AdminSession[]);
-        }
-        setLoading(false);
-      });
+    (async () => {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      if (!token) { setError('Sessão expirada.'); setLoading(false); return; }
+      try {
+        const res = await fetch('/api/admin-rpc', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ rpc: 'get_admin_sessions' }),
+        });
+        const json = await res.json();
+        if (!res.ok) { setError(json.error || 'Erro ao carregar.'); }
+        else { setSessions((json.data ?? []) as AdminSession[]); }
+      } catch { setError('Erro de conexão.'); }
+      setLoading(false);
+    })();
   }, []);
 
   const toggleSession = async (sessionId: string) => {
-    if (expandedId === sessionId) {
-      setExpandedId(null);
-      return;
-    }
+    if (expandedId === sessionId) { setExpandedId(null); return; }
     setExpandedId(sessionId);
     setLoadingAnswers(true);
     setAnswers([]);
-    const { data, error } = await supabase!.rpc('get_admin_session_answers', { p_session_id: sessionId });
-    if (error) {
-      console.error('Failed to load answers', error);
-    } else {
-      setAnswers((data ?? []) as AdminAnswer[]);
-    }
+    if (!supabase) return;
+    const session = await supabase.auth.getSession();
+    const token = session.data.session?.access_token;
+    if (!token) return;
+    try {
+      const res = await fetch('/api/admin-rpc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ rpc: 'get_admin_session_answers', params: { p_session_id: sessionId } }),
+      });
+      const json = await res.json();
+      if (res.ok) setAnswers((json.data ?? []) as AdminAnswer[]);
+    } catch { /* non-fatal */ }
     setLoadingAnswers(false);
   };
 
