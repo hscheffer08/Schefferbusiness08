@@ -1,0 +1,25 @@
+name: Fix current Insper interview flow
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-current-insper-interview.yml'
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/fix-current-insper-interview.mjs
+      - run: |
+          git config user.name "Conectae maintenance"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/components/InterviewCoachPage.tsx api/interview-coach.ts src/main.tsx
+          git diff --cached --check
+          git commit -m "Remove outdated Insper undergraduate interview flow"
+          git push origin HEAD:main
