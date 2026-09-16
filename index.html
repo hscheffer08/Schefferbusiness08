@@ -54,6 +54,36 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script src="/ai-camera-capture.js" defer></script>
+    <script>
+      (() => {
+        const CONTACT_TEXT = 'Para adquirir, entre em contato com @redacaocomhellen';
+        const addContactNote = () => {
+          const buttons = Array.from(document.querySelectorAll('button'));
+          const loginButtons = buttons.filter((button) => button.textContent?.trim() === 'Entrar');
+          loginButtons.forEach((button) => {
+            const parent = button.parentElement;
+            if (!parent || parent.querySelector('[data-redacao-contact]')) return;
+            const note = document.createElement('div');
+            note.dataset.redacaoContact = 'true';
+            note.textContent = CONTACT_TEXT;
+            note.style.cssText = 'font-size:10px;line-height:1.25;color:#7b8497;opacity:.82;text-align:center;margin-top:4px;max-width:210px;font-family:"Plus Jakarta Sans",sans-serif;';
+            if (parent.style.display === 'flex' && parent.children.length > 1) {
+              const wrap = document.createElement('div');
+              wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;';
+              parent.insertBefore(wrap, button);
+              wrap.appendChild(button);
+              wrap.appendChild(note);
+            } else {
+              button.insertAdjacentElement('afterend', note);
+            }
+          });
+        };
+        const observer = new MutationObserver(addContactNote);
+        observer.observe(document.documentElement, { childList: true, subtree: true });
+        window.addEventListener('DOMContentLoaded', addContactNote);
+        setTimeout(addContactNote, 500);
+      })();
+    </script>
     <!-- redeploy: light-theme contrast hardening -->
   </body>
 </html>
