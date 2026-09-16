@@ -1,2 +1,46 @@
-import { useEffect,useState } from 'react';import{createPortal}from'react-dom';import{FilePenLine}from'lucide-react';
-export default function EssayHomeEntryMount(){const[host,setHost]=useState<HTMLElement|null>(null);useEffect(()=>{const find=()=>{const buttons=[...document.querySelectorAll('button')];const anchor=buttons.find(b=>b.textContent?.includes('Ainda estou escolhendo'));const parent=anchor?.parentElement;if(parent&&parent.closest('main'))setHost(parent)};find();const o=new MutationObserver(find);o.observe(document.body,{childList:true,subtree:true});return()=>o.disconnect()},[]);if(!host)return null;if(host.querySelector('[data-essay-home-entry]'))return null;return createPortal(<button data-essay-home-entry onClick={()=>window.location.assign('/curso-redacao')} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-[#d7deee] bg-white px-6 text-sm font-extrabold text-[#273552] shadow-sm hover:border-[#9eafff] hover:text-[#3155e7]"><FilePenLine className="h-5 w-5 text-[#3155e7]"/><span>Curso de Redação ENEM</span></button>,host)}
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { FilePenLine } from 'lucide-react';
+
+export default function EssayHomeEntryMount() {
+  const [host, setHost] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const find = () => {
+      const buttons = [...document.querySelectorAll<HTMLButtonElement>('button')];
+      const anchor = buttons.find((button) => button.textContent?.includes('Ainda estou escolhendo'));
+      const parent = anchor?.parentElement;
+      if (!parent || !parent.closest('main')) return;
+
+      // Keep a single Redação entry. Older injected copies did not have this marker.
+      const essayButtons = [...parent.querySelectorAll<HTMLButtonElement>('button')].filter(
+        (button) => button.textContent?.trim() === 'Curso de Redação ENEM'
+      );
+      essayButtons.forEach((button) => {
+        if (!button.hasAttribute('data-essay-home-entry')) button.remove();
+      });
+
+      setHost(parent);
+    };
+
+    find();
+    const observer = new MutationObserver(find);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
+  if (!host) return null;
+  if (host.querySelector('[data-essay-home-entry]')) return null;
+
+  return createPortal(
+    <button
+      data-essay-home-entry
+      onClick={() => window.location.assign('/curso-redacao')}
+      className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-[#d7deee] bg-white px-6 text-sm font-extrabold text-[#273552] shadow-sm hover:border-[#9eafff] hover:text-[#3155e7]"
+    >
+      <FilePenLine className="h-5 w-5 text-[#3155e7]" />
+      <span>Curso de Redação ENEM</span>
+    </button>,
+    host
+  );
+}
