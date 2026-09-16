@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FilePenLine } from 'lucide-react';
+import { BookOpen } from 'lucide-react';
 
 export default function EssayHomeEntryMount() {
   const [host, setHost] = useState<HTMLElement | null>(null);
@@ -12,12 +12,11 @@ export default function EssayHomeEntryMount() {
       const parent = anchor?.parentElement;
       if (!parent || !parent.closest('main')) return;
 
-      // Keep a single Redação entry. Older injected copies did not have this marker.
-      const essayButtons = [...parent.querySelectorAll<HTMLButtonElement>('button')].filter(
-        (button) => button.textContent?.trim() === 'Curso de Redação ENEM'
+      const oldButtons = [...parent.querySelectorAll<HTMLButtonElement>('button')].filter(
+        (button) => button.textContent?.trim() === 'Curso de Redação ENEM' || button.textContent?.trim() === 'Cursos Particulares'
       );
-      essayButtons.forEach((button) => {
-        if (!button.hasAttribute('data-essay-home-entry')) button.remove();
+      oldButtons.forEach((button) => {
+        if (!button.hasAttribute('data-private-courses-home-entry')) button.remove();
       });
 
       setHost(parent);
@@ -30,16 +29,16 @@ export default function EssayHomeEntryMount() {
   }, []);
 
   if (!host) return null;
-  if (host.querySelector('[data-essay-home-entry]')) return null;
+  if (host.querySelector('[data-private-courses-home-entry]')) return null;
 
   return createPortal(
     <button
-      data-essay-home-entry
-      onClick={() => window.location.assign('/curso-redacao')}
+      data-private-courses-home-entry
+      onClick={() => window.location.assign('/cursos-particulares')}
       className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-[#d7deee] bg-white px-6 text-sm font-extrabold text-[#273552] shadow-sm hover:border-[#9eafff] hover:text-[#3155e7]"
     >
-      <FilePenLine className="h-5 w-5 text-[#3155e7]" />
-      <span>Curso de Redação ENEM</span>
+      <BookOpen className="h-5 w-5 text-[#3155e7]" />
+      <span>Cursos Particulares</span>
     </button>,
     host
   );
