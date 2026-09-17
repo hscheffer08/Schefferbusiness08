@@ -22,9 +22,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
   const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-  if (!supabaseUrl || !anonKey || !serviceKey) return json(res, 500, { error: 'Servidor não configurado.' });
+  if (!supabaseUrl || !anonKey) return json(res, 500, { error: 'Servidor não configurado.' });
 
   const userClient = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
@@ -33,9 +32,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { data: userData, error: userError } = await userClient.auth.getUser(token);
   if (userError || !userData.user) return json(res, 401, { error: 'Sessão inválida.' });
 
-  // getUser(token) verifies the bearer token with Supabase Auth. Use the
-  // verified user's app_metadata directly instead of getSession(), because
-  // this stateless server request has no persisted browser auth session.
   const isAdmin = userData.user.app_metadata?.role === 'admin';
   if (!isAdmin) return json(res, 403, { error: 'Acesso negado: admin necessário.' });
 
@@ -43,8 +39,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const rpcName = String(body?.rpc || '');
   if (!ALLOWED_RPCS.has(rpcName)) return json(res, 400, { error: 'RPC não permitida.' });
 
-  const serviceClient = createClient(supabaseUrl, serviceKey);
-  const { data, error } = await serviceClient.rpc(rpcName, body?.params || {});
+  // Execute the RPC with the verified admin JWT so database-side auth.jwt()
+  // checks see the real admin identity instead of the service-role identity.
+  const { data, error } = await userClient.rpc(rpcName, body?.params || {});
 
   if (error) return json(res, 500, { error: error.message });
   return json(res, 200, { data });
