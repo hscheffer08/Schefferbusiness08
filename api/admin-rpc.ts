@@ -30,24 +30,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
 
-  const { data: userData, error: userError } = await userClient.auth.getUser();
+  const { data: userData, error: userError } = await userClient.auth.getUser(token);
   if (userError || !userData.user) return json(res, 401, { error: 'Sessão inválida.' });
 
-  const { data: profile } = await userClient
-    .from('profiles')
-    .select('role')
-    .eq('id', userData.user.id)
-    .maybeSingle();
-
-  const jwt = await userClient.auth.getSession().then(s => s.data.session?.access_token || '');
-  let isAdmin = false;
-  try {
-    const payload = JSON.parse(Buffer.from(jwt.split('.')[1], 'base64').toString());
-    isAdmin = payload?.app_metadata?.role === 'admin' || profile?.role === 'admin';
-  } catch {
-    isAdmin = profile?.role === 'admin';
-  }
-
+  // getUser(token) verifies the bearer token with Supabase Auth. Use the
+  // verified user's app_metadata directly instead of getSession(), because
+  // this stateless server request has no persisted browser auth session.
+  const isAdmin = userData.user.app_metadata?.role === 'admin';
   if (!isAdmin) return json(res, 403, { error: 'Acesso negado: admin necessário.' });
 
   const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
