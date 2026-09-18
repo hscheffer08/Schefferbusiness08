@@ -12,9 +12,10 @@ interface HomeProps {
   universityCount: number;
   onCountryChange: (country: CountryCode) => void;
   onNavigate: (screen: 'howitworks' | 'methodology' | 'faq' | 'privacy' | 'terms' | 'compare' | 'admin' | 'faculty-questionnaire' | 'vocational-demo') => void;
+  onPrivateCourses?: () => void;
 }
 
-export default function Home({ onStart, onProfile, onAuth, country, universityCount, onCountryChange, onNavigate }: HomeProps) {
+export default function Home({ onStart, onProfile, onAuth, country, universityCount, onCountryChange, onNavigate, onPrivateCourses }: HomeProps) {
   const { user, profile } = useAuth();
   const isAdmin = user?.app_metadata?.role === 'admin';
 
@@ -42,6 +43,7 @@ export default function Home({ onStart, onProfile, onAuth, country, universityCo
           <div className="hidden lg:flex items-center gap-4 text-sm text-ink-400">
             <button onClick={() => onNavigate('howitworks')} className="hover:text-ink-200 transition-colors">Como funciona</button>
             <button onClick={() => onNavigate('methodology')} className="hover:text-ink-200 transition-colors">Metodologia</button>
+            {country === 'BR' && onPrivateCourses && <button onClick={onPrivateCourses} className="hover:text-ink-200 transition-colors">Cursos Privados</button>}
             <button onClick={() => onNavigate('compare')} className="hover:text-ink-200 transition-colors">Comparar</button>
             <button onClick={() => onNavigate('faq')} className="hover:text-ink-200 transition-colors">FAQ</button>
           </div>
