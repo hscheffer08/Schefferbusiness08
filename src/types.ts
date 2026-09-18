@@ -130,7 +130,6 @@ export type Screen =
   | 'privacy'
   | 'terms'
   | 'faculty-questionnaire'
-  | 'redacao'
   | 'vocational-demo'
   | 'admissions-planner'
   | 'admin';
