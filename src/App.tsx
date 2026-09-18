@@ -301,7 +301,6 @@ function AppContent() {
 
   if (screen === 'home')
     return (
-      <>
       <Home
         country={countryCode}
         universityCount={marketData?.universities.length ?? 0}
@@ -310,9 +309,8 @@ function AppContent() {
         onProfile={() => setScreen(user ? 'profile' : 'auth')}
         onAuth={() => setScreen('auth')}
         onNavigate={handleHomeNavigate}
+        onPrivateCourses={() => setScreen('redacao')}
       />
-      {countryCode === 'BR' && <button onClick={() => setScreen('redacao')} className="fixed bottom-5 right-5 z-50 rounded-2xl bg-brand-500 px-5 py-3 font-bold text-ink-950 shadow-2xl hover:bg-brand-400">✍️ Curso de Redação</button>}
-      </>
     );
 
   if (screen === 'redacao')
