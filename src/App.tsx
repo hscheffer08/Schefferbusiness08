@@ -12,6 +12,7 @@ import Admin from '@/components/Admin';
 import InfoPages from '@/components/InfoPages';
 import ConsentStep from '@/components/ConsentStep';
 import FacultyQuestionnaireHub from '@/components/FacultyQuestionnaireHub';
+import RedacaoHub from '@/components/RedacaoHub';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import type { AnswerMap, Screen, MatchResult, QuizMode, CountryCode } from '@/types';
 import { saveSession, clearProgress, getSharingConsent, validateReferralCode, createReferral, updateReferralStatus, findReferralByUser, type DatabaseData } from '@/lib/api';
@@ -300,6 +301,7 @@ function AppContent() {
 
   if (screen === 'home')
     return (
+      <>
       <Home
         country={countryCode}
         universityCount={marketData?.universities.length ?? 0}
@@ -309,7 +311,12 @@ function AppContent() {
         onAuth={() => setScreen('auth')}
         onNavigate={handleHomeNavigate}
       />
+      {countryCode === 'BR' && <button onClick={() => setScreen('redacao')} className="fixed bottom-5 right-5 z-50 rounded-2xl bg-brand-500 px-5 py-3 font-bold text-ink-950 shadow-2xl hover:bg-brand-400">✍️ Curso de Redação</button>}
+      </>
     );
+
+  if (screen === 'redacao')
+    return <RedacaoHub onBack={handleBackToHome} />;
 
   if (screen === 'auth')
     return <Auth onBack={() => { setPendingFacultyExport(false); setAuthDestination(null); handleBackToHome(); }} onSuccess={handleAuthSuccess} onPrivacy={() => setScreen('privacy')} onTerms={() => setScreen('terms')} />;
