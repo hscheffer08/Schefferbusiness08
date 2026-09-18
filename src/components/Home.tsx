@@ -41,7 +41,7 @@ export default function Home({ onStart, onProfile, onAuth, country, universityCo
         <div className="flex items-center gap-3">
           <div className="hidden lg:flex items-center gap-4 text-sm text-ink-400">
             <button onClick={() => onNavigate('howitworks')} className="hover:text-ink-200 transition-colors">Como funciona</button>
-            <button onClick={() => onNavigate('methodology')} className="hover:text-ink-200 transition-colors">Metodologia</button>}
+            <button onClick={() => onNavigate('methodology')} className="hover:text-ink-200 transition-colors">Metodologia</button>
             <button onClick={() => onNavigate('compare')} className="hover:text-ink-200 transition-colors">Comparar</button>
             <button onClick={() => onNavigate('faq')} className="hover:text-ink-200 transition-colors">FAQ</button>
           </div>
