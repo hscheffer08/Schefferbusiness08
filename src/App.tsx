@@ -12,7 +12,6 @@ import Admin from '@/components/Admin';
 import InfoPages from '@/components/InfoPages';
 import ConsentStep from '@/components/ConsentStep';
 import FacultyQuestionnaireHub from '@/components/FacultyQuestionnaireHub';
-import RedacaoHub from '@/components/RedacaoHub';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import type { AnswerMap, Screen, MatchResult, QuizMode, CountryCode } from '@/types';
 import { saveSession, clearProgress, getSharingConsent, validateReferralCode, createReferral, updateReferralStatus, findReferralByUser, type DatabaseData } from '@/lib/api';
@@ -309,12 +308,8 @@ function AppContent() {
         onProfile={() => setScreen(user ? 'profile' : 'auth')}
         onAuth={() => setScreen('auth')}
         onNavigate={handleHomeNavigate}
-        onPrivateCourses={() => setScreen('redacao')}
       />
     );
-
-  if (screen === 'redacao')
-    return <RedacaoHub onBack={handleBackToHome} />;
 
   if (screen === 'auth')
     return <Auth onBack={() => { setPendingFacultyExport(false); setAuthDestination(null); handleBackToHome(); }} onSuccess={handleAuthSuccess} onPrivacy={() => setScreen('privacy')} onTerms={() => setScreen('terms')} />;
