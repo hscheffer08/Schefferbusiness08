@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, Download, FileText, LockKeyhole, Search, Upload } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, Download, FileText, LockKeyhole, Search, Upload, Pencil, Paperclip, Star } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
 import Auth from './Auth';
@@ -41,7 +41,7 @@ export default function EssayCourse() {
   setBusy(true); setError('');
   try {
    const { data, error: issue } = await supabase.functions.invoke('essay-course-access', { body: { password: password.trim() } });
-   if (issue || !data?.success) {
+   if (issue || !(data?.success === true || data?.ok === true)) {
     let message = data?.error || 'Não foi possível liberar o acesso. Confira a senha e tente novamente.';
     if (issue?.context instanceof Response) { try { message = (await issue.context.json()).error || message; } catch { /* Keep the friendly fallback. */ } }
     throw new Error(message);
@@ -52,7 +52,7 @@ export default function EssayCourse() {
  }
  if (authLoading || checking) return <div className="essay-course ec-loading" role="status">Carregando seu curso…</div>;
  if (!user) return <div className="essay-course"><header className="ec-header"><a href="/">Conectaê</a><span>Redação com Hellen</span></header><div className="ec-login"><p className="ec-kicker">Seu espaço de aprendizagem</p><h1>Entre para acessar o curso de redação.</h1><p>Use sua conta do Conectaê. Depois, informe a senha do curso.</p><Auth compact onBack={goHome} onSuccess={() => setReload(n => n + 1)} onPrivacy={() => window.location.assign('/privacidade')} onTerms={() => window.location.assign('/termos')} /></div></div>;
- if (!access) return <div className="essay-course"><header className="ec-header"><a href="/"><ArrowLeft size={17} />Conectaê</a><span>Redação com Hellen</span></header><main className="ec-gate"><LockKeyhole size={30} /><p className="ec-kicker">Curso exclusivo</p><h1>Curso de Redação ENEM</h1><p>Materiais originais da professora, aulas por tema e espaço para praticar.</p><form onSubmit={e => { e.preventDefault(); void enter(); }}><label htmlFor="essay-password">Senha do curso</label><input id="essay-password" type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="off" />{error && <p className="ec-error" role="alert">{error}</p>}<button className="ec-primary" disabled={busy}>{busy ? 'Verificando…' : 'Acessar curso'}</button></form><button className="ec-link" onClick={() => setReload(n => n + 1)}>Verificar meu acesso novamente</button><p className="ec-purchase">Para adquirir, entre em contato com <a href="https://www.instagram.com/redacaocomhellen/" target="_blank" rel="noreferrer">@redacaocomhellen</a>.</p></main></div>;
+ if (!access) return <div className="essay-course"><header className="ec-header"><a href="/"><ArrowLeft size={17} />Conectaê</a><span>Redação com Hellen</span></header><main className="ec-gate"><LockKeyhole size={30} /><p className="ec-kicker">Curso exclusivo</p><h1>Curso de Redação ENEM</h1><p>Materiais originais da professora, aulas por tema e espaço para praticar.</p><form onSubmit={e => { e.preventDefault(); void enter(); }}><label htmlFor="essay-password">Senha do curso</label><input id="essay-password" type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="off" />{error && <p className="ec-error" role="alert">{error}</p>}<button className="ec-primary" disabled={busy}>{busy ? 'Verificando…' : 'Acessar curso'} {!busy && <ArrowRight size={18} />}</button></form><button className="ec-link" onClick={() => setReload(n => n + 1)}>Verificar meu acesso novamente</button><p className="ec-purchase">Para adquirir, entre em contato com <a href="https://www.instagram.com/redacaocomhellen/" target="_blank" rel="noreferrer">@redacaocomhellen</a>.</p><div className="ec-gate-features"><div><FileText size={23}/><span><b>15 aulas</b> completas</span></div><div><Pencil size={23}/><span>Materiais exclusivos</span></div><div><Paperclip size={23}/><span>Envio de redações</span></div><div><Star size={23}/><span>Correção detalhada</span></div></div></main></div>;
  return <CourseWorkspace key={user.id} userId={user.id} />;
 }
 
