@@ -27,6 +27,8 @@ export default function EssayCourse() {
   let alive = true;
   setAccess(false); setError('');
   if (!userId || !supabase) { setChecking(false); return; }
+  const localGrant = window.localStorage.getItem(`essay-course-access:${userId}`) === 'granted';
+  if (localGrant) { setAccess(true); setChecking(false); return; }
   setChecking(true);
   void supabase.rpc('has_essay_course_access').then(({ data, error: issue }) => {
    if (!alive) return;
@@ -37,21 +39,18 @@ export default function EssayCourse() {
   return () => { alive = false; };
  }, [userId, reload]);
  async function enter() {
-  if (!supabase || !user || !password.trim()) return;
+  if (!user || !password.trim()) return;
   setBusy(true); setError('');
   try {
    if (password.trim() !== 'cursoredacao1000') throw new Error('Senha incorreta.');
-   // The password is the course entitlement. Keep the backend grant as a best-effort
-   // persistence step, but never block a valid student because the Edge Function is unavailable.
-   try {
-    await supabase.functions.invoke('essay-course-access', { body: { password: password.trim() } });
-   } catch (grantIssue) {
-    console.warn('Course access persistence unavailable; continuing with valid course password.', grantIssue);
-   }
+   window.localStorage.setItem(`essay-course-access:${user.id}`, 'granted');
    setPassword('');
    setAccess(true);
-  } catch (issue) { setError(issue instanceof Error ? issue.message : 'Não foi possível entrar.'); }
-  finally { setBusy(false); }
+  } catch (issue) {
+   setError(issue instanceof Error ? issue.message : 'Não foi possível entrar.');
+  } finally {
+   setBusy(false);
+  }
  }
  if (authLoading || checking) return <div className="essay-course ec-loading" role="status">Carregando seu curso…</div>;
  if (!user) return <div className="essay-course"><header className="ec-header"><a href="/">Conectaê</a><span>Redação com Hellen</span></header><div className="ec-login"><p className="ec-kicker">Seu espaço de aprendizagem</p><h1>Entre para acessar o curso de redação.</h1><p>Use sua conta do Conectaê. Depois, informe a senha do curso.</p><Auth compact onBack={goHome} onSuccess={() => setReload(n => n + 1)} onPrivacy={() => window.location.assign('/privacidade')} onTerms={() => window.location.assign('/termos')} /></div></div>;
