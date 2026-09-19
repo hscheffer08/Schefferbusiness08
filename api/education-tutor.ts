@@ -30,7 +30,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
-const DAILY_LIMIT = 10;
+const DAILY_LIMIT: number | null = null;
 const FALLBACK_SUPABASE_URL = 'https://kmognvgnfisdchzffkgh.supabase.co';
 const VERCEL_AI_GATEWAY_URL = 'https://ai-gateway.vercel.sh/v1';
 
@@ -301,15 +301,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (usageError) console.warn('education-tutor usage read failed', usageError.message);
 
   const questionCount = (usage || []).filter((item: { feature?: string }) => item.feature === 'tutor').length;
-  const remainingQuestions = Math.max(0, DAILY_LIMIT - questionCount);
-
-  if (questionCount >= DAILY_LIMIT) {
-    return json(res, 429, {
-      error: 'Você atingiu o limite diário de 10 perguntas. Volte amanhã para continuar.',
-      dailyQuestionLimit: DAILY_LIMIT,
-      remainingQuestions: 0,
-    });
-  }
+  const remainingQuestions: number | null = null;
 
   try {
     const result = await callTutorModel(question, examId, context, imageDataUrl, seenContext);
@@ -331,8 +323,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       webVerified: false,
       sources: [],
       offerPlan: false,
-      remainingQuestions: Math.max(0, remainingQuestions - 1),
-      dailyQuestionLimit: DAILY_LIMIT,
+      remainingQuestions: null,
+      dailyQuestionLimit: null,
     });
   } catch (error) {
     console.error('education-tutor request failed', error);
