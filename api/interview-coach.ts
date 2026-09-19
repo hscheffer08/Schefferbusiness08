@@ -5,7 +5,7 @@ const MODEL = 'openai/gpt-6-astra';
 const AUDIO_MODEL = 'google/gemini-3.6-flash';
 const FALLBACK_MODELS = ['anthropic/claude-opus-4.8'];
 const MAX_QUESTIONS = 15;
-const DAILY_LIMIT = 20;
+const DAILY_LIMIT: number | null = null;
 const FALLBACK_SUPABASE_URL = 'https://kmognvgnfisdchzffkgh.supabase.co';
 const FALLBACK_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_2DCxkYOlTKqsVjDxYg5pxg_pf5YqdTA';
 
@@ -106,16 +106,7 @@ export default async function handler(req: any, res: any) {
     if (Array.isArray(body.history) && body.history.length > totalQuestions) return json(res, 400, { error: 'A entrevista já atingiu o total de perguntas.' });
     if (phase === 'answer' && !history.length) return json(res, 400, { error: 'Escreva sua resposta antes de continuar.' });
 
-    const isAdmin = String(user.app_metadata?.role || '').toLowerCase() === 'admin';
-    if (!isAdmin) {
-      const since = new Date(Date.now() - 86_400_000).toISOString();
-      const usage = await fetch(`${cfg.url}/rest/v1/ai_tutor_usage?select=id&user_id=eq.${encodeURIComponent(user.id)}&created_at=gte.${encodeURIComponent(since)}`, {
-        headers: { apikey: cfg.key, Authorization: `Bearer ${token}`, Prefer: 'count=exact' },
-        signal: AbortSignal.timeout(7000),
-      });
-      const count = Number(usage.headers.get('content-range')?.split('/')?.[1] || 0);
-      if (count >= DAILY_LIMIT) return json(res, 429, { error: `Você atingiu o limite de ${DAILY_LIMIT} usos da IA hoje.` });
-    }
+    // Interview practice is unlimited for authenticated users.
 
     let voice: any = null;
     let mediaKind: 'audio' | 'video' | null = null;
