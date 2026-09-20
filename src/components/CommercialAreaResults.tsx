@@ -1,3 +1,4 @@
+import { normalizeSearchText } from '@/lib/search-text';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, BookOpen, Check, ExternalLink, GraduationCap, Heart, Info, MessageCircle, RotateCcw, Scale, Sparkles, Star, Target, Trophy, X } from 'lucide-react';
 import { trackEvent } from '@/lib/analytics';
@@ -47,7 +48,7 @@ export default function CommercialAreaResults({area,answers,matches,onBack,onHom
 
   const profile=useMemo(()=>studentProfileSummary(area,answers),[area,answers]);
   const modalities=useMemo(()=>Array.from(new Set(matches.map(m=>m.university.modality?.trim()).filter((x):x is string=>Boolean(x)))).sort(),[matches]);
-  const visibleMatches=matches.filter(m=>m.score>=minFit&&m.confidence>=minConfidence&&officialMetrics(m.university).length>=minIndicators&&(!onlyEvidence||m.university.evidenceCount>0)&&(modality==='all'||(m.university.modality??'').toLowerCase()===modality.toLowerCase())&&(!locationQuery||`${m.university.name} ${m.university.location} ${m.university.campus??''}`.toLowerCase().includes(locationQuery.toLowerCase())));
+  const visibleMatches=matches.filter(m=>m.score>=minFit&&m.confidence>=minConfidence&&officialMetrics(m.university).length>=minIndicators&&(!onlyEvidence||m.university.evidenceCount>0)&&(modality==='all'||(m.university.modality??'').toLowerCase()===modality.toLowerCase())&&(!locationQuery||normalizeSearchText(`${m.university.name} ${m.university.location} ${m.university.campus??''}`).includes(normalizeSearchText(locationQuery))));
   const top=matches[0];
   const topMetrics=top?officialMetrics(top.university):[];
   const activeFilters=[minFit>0,minConfidence>0,minIndicators>0,onlyEvidence,locationQuery.trim().length>0,modality!=='all'].filter(Boolean).length;
