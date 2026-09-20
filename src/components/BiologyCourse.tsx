@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { supabase } from '../lib/supabase';
 import {
   ArrowLeft, BookOpen, Brain, CheckCircle2, ChevronDown, ChevronUp, Dna,
   ExternalLink, FileText, FlaskConical, Lightbulb, Microscope, Search, Stethoscope, Target
@@ -175,6 +176,8 @@ export default function BiologyCourse() {
   const [passwordError, setPasswordError] = useState('');
   const [query, setQuery] = useState('');
   const [selectedLesson, setSelectedLesson] = useState<string | null>(null);
+  const [topicQuestions, setTopicQuestions] = useState<any[]>([]);
+  const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [openModule, setOpenModule] = useState<string>('celula');
   const [quizOpen, setQuizOpen] = useState(false);
   const [answers, setAnswers] = useState<Record<number, number>>({});
@@ -233,11 +236,39 @@ export default function BiologyCourse() {
     'reino-fungi':[12], 'reino-animalia':[14], 'vertebrados':[14],
     'verminoses':[9], 'dengue':[10], 'evolucao-humana':[13]
   };
-  const currentQuestions = currentLesson ? (() => {
-    const primary = questionMap[currentLesson.key] || [];
-    const related = questions.map((_, i) => i).filter(i => !primary.includes(i));
-    return [...primary, ...related].slice(0, 8).map(i => ({...questions[i], index:i}));
-  })() : [];
+  const currentQuestions = currentLesson ? (questionMap[currentLesson.key] || []).map(i => ({...questions[i], index:i})) : [];
+
+  const topicTerms: Record<string, string[]> = {
+    'membrana-transporte':['membrana','osmose','transporte celular'], 'metabolismo-celular':['metabolismo','bioenergética','fermentação','respiração celular'], 'ciclo-celular':['divisão celular','mitose','meiose'],
+    'replicacao-dna':['replicação do DNA','DNA'], 'sintese-rna':['RNA','transcrição','expressão gênica'], 'genetica-mendeliana':['genética','hereditariedade','probabilidade genética'],
+    'histologia-humana':['histologia','tecido'], 'sistema-digestorio':['digestório','digestão'], 'sistema-respiratorio':['sistema respiratório','respiratório'],
+    'histologia-vegetal':['vegetal','tecido vegetal'], 'fitormonios':['fitormônio','hormônio vegetal'], 'microorganismos':['microbiologia','micro-organismo'],
+    'bacterias-bacterioses':['bactéria','bacteriose','microbiologia'], 'protozoarios-protozooses':['protozoário','protozoose'], 'algas':['alga','fotossíntese'],
+    'reino-fungi':['fungo','fungi'], 'reino-animalia':['animal','zoologia'], 'vertebrados':['vertebrado','zoologia'],
+    'verminoses':['verminose','helminto','parasita'], 'dengue':['dengue','arbovirose','vírus'], 'evolucao-humana':['evolução','seleção natural']
+  };
+
+  useEffect(() => {
+    if (!currentLesson || !supabase) { setTopicQuestions([]); return; }
+    let active = true;
+    setLoadingQuestions(true);
+    const terms = topicTerms[currentLesson.key] || currentLesson.topics;
+    const filters = terms.flatMap(term => [`skill_name.ilike.%${term}%`, `prompt.ilike.%${term}%`]).join(',');
+    supabase.from('exam_practice_questions')
+      .select('id,exam_id,skill_name,difficulty,prompt,option_a,option_b,option_c,option_d,option_e,correct_option,explanation,source_kind,source_exam_year,source_question_number')
+      .in('exam_id',['enem','cmmg']).eq('active',true).or(filters).limit(16)
+      .then(({data,error}:any) => {
+        if (!active) return;
+        if (error) console.warn('Biology topic questions unavailable', error);
+        const rows = (data || []).filter((q:any) => q.prompt && q.correct_option).sort((a:any,b:any) => {
+          const rank=(x:any)=>x.source_kind==='official'?0:x.source_kind==='official_adapted'?1:2;
+          return rank(a)-rank(b);
+        });
+        setTopicQuestions(rows.slice(0,8));
+        setLoadingQuestions(false);
+      });
+    return () => { active=false; };
+  }, [selectedLesson]);
 
   return (
     <main className="min-h-screen bg-[#f6f8ff] px-4 py-7 font-['Plus_Jakarta_Sans'] text-[#111936] sm:px-8">
@@ -257,7 +288,7 @@ export default function BiologyCourse() {
           <div className="mt-6 grid gap-5 lg:grid-cols-[1.35fr_.65fr]"><div className="space-y-5">
             <section className="rounded-[24px] border border-[#d7deee] bg-white p-6"><p className="text-xs font-black uppercase tracking-[0.14em] text-[#3155e7]">Material da aula</p><h2 className="mt-2 text-xl font-black">{currentLesson.material || 'Material de apoio'}</h2>{PDF_LINKS[currentLesson.key]?<a href={PDF_LINKS[currentLesson.key]} target="_blank" rel="noopener noreferrer" className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-[#3155e7] px-4 py-3 text-sm font-black text-white"><ExternalLink className="h-4 w-4"/>Abrir PDF da aula</a>:<p className="mt-4 rounded-xl bg-[#fff8e8] p-4 text-sm font-bold text-[#7c5a18]">PDF em preparação para este tópico.</p>}</section>
             <section className="rounded-[24px] border border-[#d7deee] bg-white p-6"><p className="text-xs font-black uppercase tracking-[0.14em] text-[#3155e7]">O que dominar</p><div className="mt-4 flex flex-wrap gap-2">{currentLesson.topics.map(t=><span key={t} className="rounded-full border border-[#dce3f4] bg-[#f8f9fe] px-3 py-2 text-xs font-bold text-[#4e5b77]">{t}</span>)}</div></section>
-            <section className="rounded-[24px] border border-[#d7deee] bg-white p-6"><div className="flex items-center gap-2 text-[#3155e7]"><Target className="h-5 w-5"/><p className="text-xs font-black uppercase tracking-[0.14em]">Questões do tópico</p></div><h2 className="mt-2 text-2xl font-black">Treino específico</h2><p className="mt-2 text-sm text-[#69758f]">Treino ampliado com até 8 questões por aula: as primeiras são específicas do tópico e as seguintes reforçam conteúdos relacionados de Biologia. Itens oficiais ENEM/CMMG validados entram identificados no respectivo tópico.</p><div className="mt-5 space-y-5">{currentQuestions.map(({index,...q},localIndex)=><div key={index} className="rounded-2xl bg-[#f8f9fe] p-5"><p className="font-black">{localIndex+1}. {q.q}</p><div className="mt-3 grid gap-2">{q.a.map((option,j)=><button key={option} onClick={()=>!submitted&&setAnswers(v=>({...v,[index]:j}))} className={`rounded-xl border px-4 py-3 text-left text-sm font-semibold ${answers[index]===j?'border-[#3155e7] bg-[#eef1ff]':'border-[#dce3f4] bg-white'}`}>{String.fromCharCode(65+j)}. {option}</button>)}</div>{submitted&&<div className={`mt-3 rounded-xl p-4 text-sm ${answers[index]===q.correct?'bg-[#eefbf3] text-[#24613b]':'bg-[#fff4f2] text-[#7b342c]'}`}><strong>{answers[index]===q.correct?'Correto.':`Resposta: ${String.fromCharCode(65+q.correct)}.`}</strong> {q.why}</div>}</div>)}{currentQuestions.length>0&&<button onClick={()=>setSubmitted(true)} className="w-full rounded-xl bg-[#1769e0] px-5 py-4 font-black text-white">Corrigir questões</button>}</div></section>
+            <section className="rounded-[24px] border border-[#d7deee] bg-white p-6"><div className="flex items-center gap-2 text-[#3155e7]"><Target className="h-5 w-5"/><p className="text-xs font-black uppercase tracking-[0.14em]">Questões do tópico</p></div><h2 className="mt-2 text-2xl font-black">Treino específico</h2><p className="mt-2 text-sm text-[#69758f]">Treino ampliado com até 8 questões por aula: as primeiras são específicas do tópico e as seguintes reforçam conteúdos relacionados de Biologia. Itens oficiais ENEM/CMMG validados entram identificados no respectivo tópico.</p><div className="mt-5 space-y-5">{loadingQuestions && <p className="rounded-xl bg-[#f8f9fe] p-4 text-sm font-bold text-[#596681]">Carregando questões específicas…</p>}{topicQuestions.map((q:any,localIndex:number)=>{const opts=[q.option_a,q.option_b,q.option_c,q.option_d,q.option_e].filter(Boolean);const correct=Math.max(0,'ABCDE'.indexOf(q.correct_option));const key='db-'+q.id;return <div key={key} className="rounded-2xl bg-[#f8f9fe] p-5"><div className="mb-3 flex flex-wrap gap-2"><span className="rounded-full bg-[#e8efff] px-2.5 py-1 text-[10px] font-black uppercase text-[#1769e0]">{q.exam_id.toUpperCase()}</span><span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black uppercase text-[#596681]">{q.source_kind==='official'?'Oficial':q.source_kind==='official_adapted'?'Oficial adaptada':'Treino alinhado'}</span>{q.source_exam_year&&<span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-[#596681]">{q.source_exam_year}{q.source_question_number?` • Q${q.source_question_number}`:''}</span>}</div><p className="font-black">{localIndex+1}. {q.prompt}</p><div className="mt-3 grid gap-2">{opts.map((option:any,j:number)=><button key={j} onClick={()=>!submitted&&setAnswers(v=>({...v,[key]:j}))} className={`rounded-xl border px-4 py-3 text-left text-sm font-semibold ${answers[key]===j?'border-[#3155e7] bg-[#eef1ff]':'border-[#dce3f4] bg-white'}`}>{String.fromCharCode(65+j)}. {option}</button>)}</div>{submitted&&<div className={`mt-3 rounded-xl p-4 text-sm ${answers[key]===correct?'bg-[#eefbf3] text-[#24613b]':'bg-[#fff4f2] text-[#7b342c]'}`}><strong>{answers[key]===correct?'Correto.':`Resposta: ${String.fromCharCode(65+correct)}.`}</strong> {q.explanation}</div>}</div>})}{topicQuestions.length===0&&!loadingQuestions&&currentQuestions.map(({index,...q},localIndex)=><div key={index} className="rounded-2xl bg-[#f8f9fe] p-5"><p className="font-black">{localIndex+1}. {q.q}</p><div className="mt-3 grid gap-2">{q.a.map((option,j)=><button key={option} onClick={()=>!submitted&&setAnswers(v=>({...v,[index]:j}))} className={`rounded-xl border px-4 py-3 text-left text-sm font-semibold ${answers[index]===j?'border-[#3155e7] bg-[#eef1ff]':'border-[#dce3f4] bg-white'}`}>{String.fromCharCode(65+j)}. {option}</button>)}</div>{submitted&&<div className={`mt-3 rounded-xl p-4 text-sm ${answers[index]===q.correct?'bg-[#eefbf3] text-[#24613b]':'bg-[#fff4f2] text-[#7b342c]'}`}><strong>{answers[index]===q.correct?'Correto.':`Resposta: ${String.fromCharCode(65+q.correct)}.`}</strong> {q.why}</div>}</div>)}{(topicQuestions.length>0 || currentQuestions.length>0)&&<button onClick={()=>setSubmitted(true)} className="w-full rounded-xl bg-[#1769e0] px-5 py-4 font-black text-white">Corrigir questões</button>}</div></section>
           </div><aside className="space-y-5"><section className="rounded-[24px] border border-[#d7deee] bg-white p-6"><div className="flex items-center gap-2 text-[#3155e7]"><Lightbulb className="h-5 w-5"/><h2 className="font-black">Dicas de prova</h2></div>{currentLesson.tips.map(t=><p key={t} className="mt-3 text-sm leading-relaxed text-[#596681]">• {t}</p>)}</section><section className="rounded-[24px] border border-[#c9daf7] bg-[#eef5ff] p-6 text-[#0b1b4d]"><BookOpen className="mb-3 h-6 w-6 text-[#1769e0]"/><h2 className="font-black">Como estudar esta aula</h2><p className="mt-3 text-sm leading-relaxed text-[#415574]">1. Abra o PDF.<br/>2. Revise os conceitos-chave.<br/>3. Explique o tema sem consultar.<br/>4. Faça as questões.<br/>5. Revise apenas os erros.</p></section></aside></div>
         </>}
       </div>
