@@ -122,6 +122,59 @@ async function tutorRequest(payload: unknown, initialToken: string) {
   return response;
 }
 
+
+function cleanTutorLatex(value: string) {
+  return value
+    .replace(/\\\\\[|\\\\\]/g, '')
+    .replace(/\\\\\(|\\\\\)/g, '')
+    .replace(/\\\\times/g, '×')
+    .replace(/\\\\cdot/g, '·')
+    .replace(/\\\\text\{([^}]*)\}/g, '$1')
+    .replace(/\\\\mathrm\{([^}]*)\}/g, '$1')
+    .replace(/\\\\frac\{([^}]*)\}\{([^}]*)\}/g, '($1)/($2)')
+    .replace(/\^\{([^}]*)\}/g, '^$1')
+    .replace(/_\{([^}]*)\}/g, '_$1')
+    .replace(/\{,\}/g, ',')
+    .trim();
+}
+
+function TutorInline({ text }: { text: string }) {
+  const cleaned = cleanTutorLatex(text);
+  const parts = cleaned.split(/(\*\*[^*]+\*\*)/g);
+  return <>{parts.map((part, index) =>
+    part.startsWith('**') && part.endsWith('**')
+      ? <strong key={index} className="font-extrabold text-inherit">{part.slice(2, -2)}</strong>
+      : <span key={index}>{part}</span>
+  )}</>;
+}
+
+function TutorFormattedContent({ content }: { content: string }) {
+  const lines = content.replace(/\\r/g, '').split('\\n');
+  const blocks = [];
+  let displayMath = false;
+  for (let i = 0; i < lines.length; i += 1) {
+    const raw = lines[i].trim();
+    if (raw === '\\\\[') { displayMath = true; continue; }
+    if (raw === '\\\\]') { displayMath = false; continue; }
+    if (!raw) { blocks.push(<div key={i} className="h-2" />); continue; }
+    const heading = raw.match(/^(#{1,4})\s+(.+)$/);
+    const numbered = raw.match(/^(\d+)\.\s+(.+)$/);
+    const bullet = raw.match(/^[-*]\s+(.+)$/);
+    if (heading) {
+      blocks.push(<div key={i} className={heading[1].length <= 2 ? 'mt-3 mb-1 text-[15px] font-extrabold leading-snug' : 'mt-2 mb-1 font-bold leading-snug'}><TutorInline text={heading[2]} /></div>);
+    } else if (numbered) {
+      blocks.push(<div key={i} className="flex gap-2 py-0.5"><span className="shrink-0 font-bold">{numbered[1]}.</span><span><TutorInline text={numbered[2]} /></span></div>);
+    } else if (bullet) {
+      blocks.push(<div key={i} className="flex gap-2 py-0.5"><span className="shrink-0 font-bold">•</span><span><TutorInline text={bullet[1]} /></span></div>);
+    } else if (displayMath || /\\\\(times|frac|text|mathrm)|\^\{|_\{/.test(raw)) {
+      blocks.push(<div key={i} className="my-2 overflow-x-auto rounded-xl bg-white/70 px-3 py-2 text-center font-mono text-[13px] font-semibold"><TutorInline text={raw} /></div>);
+    } else {
+      blocks.push(<div key={i} className="leading-relaxed"><TutorInline text={raw} /></div>);
+    }
+  }
+  return <div className="tutor-formatted-content">{blocks}</div>;
+}
+
 export default function AIEducationTutor({ mobileDocked = false }: { mobileDocked?: boolean } = {}) {
   const { user, session, loading: authLoading } = useAuth();
   const signedIn = Boolean(user && session);
@@ -383,8 +436,7 @@ export default function AIEducationTutor({ mobileDocked = false }: { mobileDocke
         <div className="space-y-3">
           {messages.map((message, index) => <div key={`${message.role}-${index}-${message.content.slice(0, 16)}`} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[92%] whitespace-pre-wrap rounded-2xl px-3.5 py-3 text-sm leading-relaxed ${message.role === 'user' ? 'bg-[#315bea] text-white' : 'border border-[#cdd8ea] bg-[#f7f9fd] text-[#172641]'}`}>
-              {message.content}
-              {message.role === 'assistant' && message.confidenceLabel && <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-[#d8e1ef] pt-2 text-[10px] font-bold">
+              {message.role === 'assistant' ? <TutorFormattedContent content={message.content} /> : message.content}\n              {message.role === 'assistant' && message.confidenceLabel && <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-[#d8e1ef] pt-2 text-[10px] font-bold">
                 <span className="rounded-full bg-[#e8f5ec] px-2 py-1 text-[#176b38]">{message.confidenceLabel}</span>
                 {message.selfChecked && <span className="rounded-full bg-[#eaf0ff] px-2 py-1 text-[#31517e]">Resposta revisada</span>}
                 {message.webVerified && <span className="rounded-full bg-[#eaf0ff] px-2 py-1 text-[#31517e]">Fonte verificada</span>}
