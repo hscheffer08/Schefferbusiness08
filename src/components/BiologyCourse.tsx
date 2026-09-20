@@ -1,11 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 import {
   ArrowLeft, BookOpen, Brain, CheckCircle2, ChevronDown, ChevronUp, Dna,
-  FileText, FlaskConical, Lightbulb, Microscope, Search, Stethoscope, Target
+  Download, ExternalLink, FileText, FlaskConical, Lightbulb, Microscope, Search, Stethoscope, Target
 } from 'lucide-react';
 
 type Lesson = {
   title: string;
+  key: string;
   material?: string;
   topics: string[];
   tips: string[];
@@ -23,13 +25,13 @@ const modules: Module[] = [
     id: 'celula', title: '1. Biologia celular e metabolismo',
     description: 'Estrutura celular, membranas, divisão celular e obtenção de energia.',
     lessons: [
-      { title: 'Membrana plasmática e transportes', material: 'Membrana e Transporte.pptx',
+      { title: 'Membrana plasmática e transportes', key: 'membrana-transporte', material: 'Membrana e Transporte.pptx',
         topics: ['mosaico fluido', 'permeabilidade seletiva', 'difusão simples e facilitada', 'osmose', 'transporte ativo', 'endocitose e exocitose'],
         tips: ['Em osmose, acompanhe a água — ela se desloca para o meio de maior concentração efetiva de solutos.', 'Diferencie transporte passivo de ativo pela necessidade de energia e pelo sentido do gradiente.'] },
-      { title: 'Metabolismo celular', material: 'Metabolismo_Celular(Resp_Fot_Ferm_Quim).pptx',
+      { title: 'Metabolismo celular', key: 'metabolismo-celular', material: 'Metabolismo_Celular(Resp_Fot_Ferm_Quim).pptx',
         topics: ['ATP', 'respiração celular', 'glicólise', 'ciclo de Krebs', 'cadeia respiratória', 'fermentação', 'fotossíntese', 'quimiossíntese'],
         tips: ['Compare local, reagentes, produtos e rendimento energético de cada processo.', 'ENEM costuma cobrar metabolismo em contexto de exercício, alimentos, biocombustíveis e ecologia.'] },
-      { title: 'Ciclo celular', material: 'Ciclo Celular.pptx',
+      { title: 'Ciclo celular', key: 'ciclo-celular', material: 'Ciclo Celular.pptx',
         topics: ['interfase', 'G1, S e G2', 'mitose', 'meiose', 'crossing-over', 'variabilidade genética', 'aneuploidias'],
         tips: ['Não confunda número de cromossomos com quantidade de DNA.', 'Associe meiose à formação de gametas e variabilidade; mitose a crescimento, renovação e reprodução assexuada.'] },
     ],
@@ -38,13 +40,13 @@ const modules: Module[] = [
     id: 'molecular', title: '2. Genética e biologia molecular',
     description: 'DNA, RNA, expressão gênica, divisão e genética mendeliana.',
     lessons: [
-      { title: 'Replicação do DNA', material: 'Replicação do DNA.pptx',
+      { title: 'Replicação do DNA', key: 'replicacao-dna', material: 'Replicação do DNA.pptx',
         topics: ['estrutura do DNA', 'replicação semiconservativa', 'helicase', 'DNA polimerase', 'fita líder e tardia', 'fragmentos de Okazaki'],
         tips: ['Lembre que a DNA polimerase sintetiza no sentido 5’ → 3’.', 'Questões frequentemente conectam mutações, replicação e câncer.'] },
-      { title: 'Síntese de RNA e expressão gênica', material: 'Síntese_RNA.pptx',
+      { title: 'Síntese de RNA e expressão gênica', key: 'sintese-rna', material: 'Síntese_RNA.pptx',
         topics: ['transcrição', 'RNA mensageiro', 'RNA transportador', 'RNA ribossômico', 'código genético', 'tradução', 'síntese proteica'],
         tips: ['Separe bem transcrição de tradução: DNA → RNA e RNA → proteína.', 'Treine leitura de códons e anticódons.'] },
-      { title: 'Genética mendeliana e cruzamento-teste', material: 'HereditariedadeII_Genética_Mendeliana_Cruzamento_Teste.pptx',
+      { title: 'Genética mendeliana e cruzamento-teste', key: 'genetica-mendeliana', material: 'HereditariedadeII_Genética_Mendeliana_Cruzamento_Teste.pptx',
         topics: ['genes e alelos', 'dominância e recessividade', 'genótipo e fenótipo', '1ª lei de Mendel', 'probabilidade', 'heredogramas', 'cruzamento-teste'],
         tips: ['Transforme o enunciado em símbolos antes de montar o cruzamento.', 'Use probabilidade em vez de quadrados de Punnett gigantes quando os eventos forem independentes.'] },
     ],
@@ -53,13 +55,13 @@ const modules: Module[] = [
     id: 'humana', title: '3. Histologia e fisiologia humana',
     description: 'Tecidos e funcionamento integrado do organismo humano.',
     lessons: [
-      { title: 'Histologia humana', material: 'Histologia_humana.pptx',
+      { title: 'Histologia humana', key: 'histologia-humana', material: 'Histologia_humana.pptx',
         topics: ['tecido epitelial', 'conjuntivo', 'adiposo', 'cartilaginoso', 'ósseo', 'sanguíneo', 'muscular', 'nervoso'],
         tips: ['Associe estrutura à função: forma e composição do tecido quase sempre explicam o que ele faz.', 'Compare músculo estriado esquelético, cardíaco e liso.'] },
-      { title: 'Sistema digestório', material: 'Sistema_Digestório.pptx',
+      { title: 'Sistema digestório', key: 'sistema-digestorio', material: 'Sistema_Digestório.pptx',
         topics: ['trato digestório', 'digestão mecânica e química', 'enzimas', 'fígado', 'pâncreas', 'bile', 'absorção intestinal', 'nutrientes'],
         tips: ['Monte uma tabela: órgão → secreção/enzima → substrato → produto.', 'Bile emulsifica gorduras; não é enzima.'] },
-      { title: 'Sistema respiratório', material: 'Sistema_respiratório.pptx',
+      { title: 'Sistema respiratório', key: 'sistema-respiratorio', material: 'Sistema_respiratório.pptx',
         topics: ['vias respiratórias', 'pulmões', 'alvéolos', 'hematose', 'ventilação pulmonar', 'hemoglobina', 'transporte de gases'],
         tips: ['Na hematose, use gradientes de pressão parcial para entender a difusão.', 'Relacione exercício, altitude, tabagismo e doenças respiratórias.'] },
     ],
@@ -68,10 +70,10 @@ const modules: Module[] = [
     id: 'botanica', title: '4. Botânica',
     description: 'Tecidos vegetais, regulação hormonal e respostas das plantas.',
     lessons: [
-      { title: 'Histologia vegetal', material: 'Histologia vegetal.pptx',
+      { title: 'Histologia vegetal', key: 'histologia-vegetal', material: 'Histologia vegetal.pptx',
         topics: ['meristemas', 'epiderme', 'parênquimas', 'colênquima', 'esclerênquima', 'xilema', 'floema', 'estômatos'],
         tips: ['Xilema: seiva bruta; floema: seiva elaborada.', 'Entenda transpiração e abertura estomática em vez de apenas decorar tecidos.'] },
-      { title: 'Fitormônios', material: 'Fitormônios.pptx',
+      { title: 'Fitormônios', key: 'fitormonios', material: 'Fitormônios.pptx',
         topics: ['auxina', 'giberelina', 'citocinina', 'etileno', 'ácido abscísico', 'tropismos', 'dormência', 'amadurecimento'],
         tips: ['Associe cada hormônio a um efeito-chave e depois às interações entre eles.', 'Fototropismo e gravitropismo são temas clássicos de experimento.'] },
     ],
@@ -80,25 +82,25 @@ const modules: Module[] = [
     id: 'diversidade', title: '5. Diversidade dos seres vivos',
     description: 'Microrganismos, fungos, algas, animais e vertebrados.',
     lessons: [
-      { title: 'Micro-organismos', material: 'Microorganismos.pptx',
+      { title: 'Micro-organismos', key: 'microorganismos', material: 'Microorganismos.pptx',
         topics: ['diversidade microbiana', 'relações ecológicas', 'saúde', 'indústria', 'biotecnologia'],
         tips: ['Não trate “microrganismo” como um único grupo taxonômico.', 'Separe usos benéficos de mecanismos patogênicos.'] },
-      { title: 'Bactérias e bacterioses', material: 'Bacterias_Bacterioses.pptx',
+      { title: 'Bactérias e bacterioses', key: 'bacterias-bacterioses', material: 'Bacterias_Bacterioses(2).pptx',
         topics: ['estrutura bacteriana', 'reprodução', 'conjugação', 'resistência bacteriana', 'antibióticos', 'bacterioses e prevenção'],
         tips: ['Antibióticos não tratam viroses.', 'Resistência surge por seleção de variantes resistentes; o antibiótico não cria a mutação necessária.'] },
-      { title: 'Protozoários e protozooses', material: 'Protozoários e Protozooses.pptx',
+      { title: 'Protozoários e protozooses', key: 'protozoarios-protozooses', material: 'Protozoários e Protozooses.pptx',
         topics: ['protozoários', 'ciclos parasitários', 'doença de Chagas', 'malária', 'amebíase', 'leishmaniose', 'prevenção'],
         tips: ['Para cada parasitose, domine agente, vetor/hospedeiro, transmissão e prevenção.', 'Desenhe o ciclo quando houver hospedeiros diferentes.'] },
-      { title: 'Algas', material: 'Algas.pptx',
+      { title: 'Algas', key: 'algas', material: 'Algas.pptx',
         topics: ['características', 'grupos', 'fitoplâncton', 'produção primária', 'marés vermelhas', 'importância econômica'],
         tips: ['Relacione algas à produção de oxigênio e às cadeias aquáticas.', 'Cuidado: “alga” reúne linhagens diferentes.'] },
-      { title: 'Reino Fungi', material: 'Reino Fungi.pptx',
+      { title: 'Reino Fungi', key: 'reino-fungi', material: 'Reino Fungi.pptx',
         topics: ['hifas e micélio', 'nutrição por absorção', 'reprodução', 'decomposição', 'micorrizas', 'líquens', 'micoses'],
         tips: ['Fungos são heterótrofos por absorção, não plantas sem clorofila.', 'Fermentação e decomposição aparecem muito em aplicações.'] },
-      { title: 'Reino Animalia', material: 'Reino_Animalia.pptx',
+      { title: 'Reino Animalia', key: 'reino-animalia', material: 'Reino_Animalia.pptx',
         topics: ['planos corporais', 'simetria', 'folhetos embrionários', 'celoma', 'protostômios e deuterostômios', 'principais filos'],
         tips: ['Estude comparativamente: novidade evolutiva → grupo em que aparece.', 'Evite decorar listas sem relacionar anatomia, ambiente e evolução.'] },
-      { title: 'Vertebrados', material: 'Vertebrados.pptx',
+      { title: 'Vertebrados', key: 'vertebrados', material: 'Vertebrados.pptx',
         topics: ['peixes', 'anfíbios', 'répteis', 'aves', 'mamíferos', 'circulação', 'respiração', 'excreção', 'reprodução'],
         tips: ['Monte uma matriz comparando respiração, circulação, excreta e reprodução.', 'O ovo amniótico é central para a independência reprodutiva da água.'] },
     ],
@@ -107,10 +109,10 @@ const modules: Module[] = [
     id: 'saude', title: '6. Parasitologia, virologia e saúde',
     description: 'Doenças, ciclos, transmissão, prevenção e saúde pública.',
     lessons: [
-      { title: 'Verminoses', material: 'Verminoses.pptx',
+      { title: 'Verminoses', key: 'verminoses', material: 'Verminoses.pptx',
         topics: ['platelmintos', 'nematódeos', 'esquistossomose', 'teníase', 'cisticercose', 'ascaridíase', 'ancilostomose', 'prevenção'],
         tips: ['Teníase e cisticercose têm o mesmo gênero envolvido, mas vias de infecção diferentes.', 'Saneamento básico é peça central em muitas questões epidemiológicas.'] },
-      { title: 'Dengue', material: 'Dengue.pptx',
+      { title: 'Dengue', key: 'dengue', material: 'Dengue(2).pptx',
         topics: ['vírus da dengue', 'Aedes aegypti', 'ciclo do vetor', 'transmissão', 'sinais de alarme', 'prevenção', 'controle epidemiológico'],
         tips: ['Separe agente etiológico, vetor e hospedeiro.', 'Questões de dengue frequentemente exigem interpretação de campanhas, gráficos e medidas coletivas.'] },
     ],
@@ -119,7 +121,7 @@ const modules: Module[] = [
     id: 'evolucao', title: '7. Evolução',
     description: 'Processos evolutivos e história evolutiva humana.',
     lessons: [
-      { title: 'Evolução humana', material: 'Evolução_Humana.pptx',
+      { title: 'Evolução humana', key: 'evolucao-humana', material: 'Evolução_Humana(1).pptx',
         topics: ['ancestralidade comum', 'hominínios', 'bipedalismo', 'gênero Homo', 'migrações', 'seleção natural', 'evidências evolutivas'],
         tips: ['Evolução humana não é uma escada linear; pense em árvore ramificada.', 'Humanos atuais não descendem dos macacos atuais: compartilhamos ancestrais comuns.'] },
     ],
@@ -155,6 +157,32 @@ export default function BiologyCourse() {
   const [quizOpen, setQuizOpen] = useState(false);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [materials, setMaterials] = useState<Record<string, { pptx?: { storage_path: string; file_name: string }; pdf?: { storage_path: string; file_name: string } }>>({});
+  const [openingMaterial, setOpeningMaterial] = useState('');
+
+  useEffect(() => {
+    if (!unlocked || !supabase) return;
+    void supabase.from('biology_course_materials').select('lesson_key,file_name,storage_path,format').then(({ data }) => {
+      const next: typeof materials = {};
+      for (const row of data ?? []) {
+        const key = String(row.lesson_key); const format = row.format as 'pptx' | 'pdf';
+        next[key] = { ...next[key], [format]: { storage_path: row.storage_path, file_name: row.file_name } };
+      }
+      setMaterials(next);
+    });
+  }, [unlocked]);
+
+  async function openMaterial(lessonKey: string, format: 'pptx' | 'pdf', download = false) {
+    if (!supabase) return;
+    const file = materials[lessonKey]?.[format];
+    if (!file) return;
+    const token = `${lessonKey}:${format}:${download ? 'download' : 'view'}`; setOpeningMaterial(token);
+    try {
+      const { data, error } = await supabase.storage.from('biology-course-materials').createSignedUrl(file.storage_path, 900, download ? { download: file.file_name } : undefined);
+      if (error || !data?.signedUrl) throw error ?? new Error('Link indisponível');
+      window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+    } finally { setOpeningMaterial(''); }
+  }
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -246,7 +274,15 @@ export default function BiologyCourse() {
                 {open && <div className="border-t border-[#edf0f7] p-5 sm:p-6">
                   <div className="grid gap-4 lg:grid-cols-2">
                     {module.lessons.map(lesson => <div key={lesson.title} className="rounded-2xl bg-[#f8f9fe] p-5">
-                      <div className="flex items-start gap-3"><div className="rounded-xl bg-[#e9edff] p-2 text-[#3155e7]"><FileText className="h-5 w-5" /></div><div><h4 className="font-black">{lesson.title}</h4>{lesson.material && <p className="mt-1 text-xs font-bold text-[#3155e7]">Material-base: {lesson.material}</p>}</div></div>
+                      <div className="flex items-start gap-3"><div className="rounded-xl bg-[#e9edff] p-2 text-[#3155e7]"><FileText className="h-5 w-5" /></div><div><h4 className="font-black">{lesson.title}</h4>{lesson.material && <p className="mt-1 text-xs font-bold text-[#3155e7]">Material original: {lesson.material}</p>}</div></div>
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        {(['pptx','pdf'] as const).map(format => {
+                          const available = Boolean(materials[lesson.key]?.[format]);
+                          const token = `${lesson.key}:${format}:view`;
+                          return <button key={format} disabled={!available || openingMaterial === token} onClick={() => void openMaterial(lesson.key, format)} className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-black ${available ? 'border-[#3155e7] bg-white text-[#3155e7] hover:bg-[#eef1ff]' : 'cursor-not-allowed border-[#e3e7ef] bg-[#f1f3f7] text-[#9aa4b8]'}`}><ExternalLink className="h-4 w-4" />{openingMaterial === token ? 'Abrindo…' : `Abrir ${format.toUpperCase()}`}</button>;
+                        })}
+                      </div>
+                      {(materials[lesson.key]?.pptx || materials[lesson.key]?.pdf) && <div className="mt-2 flex gap-2">{(['pptx','pdf'] as const).map(format => materials[lesson.key]?.[format] ? <button key={format} onClick={() => void openMaterial(lesson.key, format, true)} className="inline-flex items-center gap-1 text-xs font-extrabold text-[#596681] hover:text-[#3155e7]"><Download className="h-3.5 w-3.5" />Baixar {format.toUpperCase()}</button> : null)}</div>}</div></div>
                       <p className="mt-4 text-xs font-black uppercase tracking-[0.12em] text-[#69758f]">Domine estes pontos</p>
                       <div className="mt-2 flex flex-wrap gap-2">{lesson.topics.map(t => <span key={t} className="rounded-full border border-[#dce3f4] bg-white px-3 py-1 text-xs font-bold text-[#4e5b77]">{t}</span>)}</div>
                       <div className="mt-4 rounded-xl border border-[#dce3f4] bg-white p-4"><div className="mb-2 flex items-center gap-2 text-sm font-black text-[#3155e7]"><Lightbulb className="h-4 w-4" /> Dicas de prova</div>{lesson.tips.map(t => <p key={t} className="mt-1 text-sm leading-relaxed text-[#596681]">• {t}</p>)}</div>
