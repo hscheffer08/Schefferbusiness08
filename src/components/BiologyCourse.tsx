@@ -144,7 +144,12 @@ const questions = [
   { q: 'A independência reprodutiva do ambiente aquático nos amniotas está fortemente relacionada:', a: ['ao ovo amniótico', 'às brânquias externas', 'à fecundação exclusivamente externa', 'à ausência de anexos embrionários'], correct: 0, why: 'Âmnio e outros anexos embrionários permitem desenvolvimento protegido fora da água.' },
 ];
 
+const BIOLOGY_PASSWORD = 'cursobiologiacissa';
+
 export default function BiologyCourse() {
+  const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem('biology-course-unlocked') === 'true');
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [query, setQuery] = useState('');
   const [openModule, setOpenModule] = useState<string>('celula');
   const [quizOpen, setQuizOpen] = useState(false);
@@ -164,6 +169,35 @@ export default function BiologyCourse() {
 
   const lessonCount = modules.reduce((n, m) => n + m.lessons.length, 0);
   const score = questions.reduce((n, q, i) => n + (answers[i] === q.correct ? 1 : 0), 0);
+
+  if (!unlocked) {
+    const unlock = () => {
+      if (password === BIOLOGY_PASSWORD) {
+        sessionStorage.setItem('biology-course-unlocked', 'true');
+        setUnlocked(true);
+        setPasswordError('');
+      } else {
+        setPasswordError('Senha incorreta. Tente novamente.');
+      }
+    };
+
+    return (
+      <main className="min-h-screen bg-[#f6f8ff] px-4 py-7 font-['Plus_Jakarta_Sans'] text-[#111936] sm:px-8">
+        <div className="mx-auto flex min-h-[80vh] w-full max-w-lg items-center">
+          <section className="w-full rounded-[28px] border border-[#d7deee] bg-white p-7 shadow-xl sm:p-9">
+            <div className="mb-5 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#101a43] text-white"><Dna className="h-8 w-8" /></div>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#3155e7]">Curso particular</p>
+            <h1 className="mt-2 text-3xl font-black tracking-[-0.035em]">Curso de Biologia</h1>
+            <p className="mt-2 text-sm leading-relaxed text-[#69758f]">Digite a senha do curso para acessar as aulas, materiais e questões.</p>
+            <input type="password" value={password} onChange={e => { setPassword(e.target.value); setPasswordError(''); }} onKeyDown={e => e.key === 'Enter' && unlock()} placeholder="Senha do curso" autoFocus className="mt-6 w-full rounded-xl border border-[#d7deee] bg-[#f8f9fe] px-4 py-3 font-semibold outline-none focus:border-[#3155e7]" />
+            {passwordError && <p className="mt-2 text-sm font-bold text-red-600">{passwordError}</p>}
+            <button onClick={unlock} className="mt-4 w-full rounded-xl bg-[#3155e7] px-5 py-3 font-black text-white">Entrar no curso</button>
+            <button onClick={() => window.location.assign('/cursos-particulares')} className="mt-4 flex w-full items-center justify-center gap-2 text-sm font-extrabold text-[#596681] hover:text-[#3155e7]"><ArrowLeft className="h-4 w-4" /> Voltar</button>
+          </section>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[#f6f8ff] px-4 py-7 font-['Plus_Jakarta_Sans'] text-[#111936] sm:px-8">
