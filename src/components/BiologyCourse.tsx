@@ -174,6 +174,7 @@ export default function BiologyCourse() {
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [query, setQuery] = useState('');
+  const [selectedLesson, setSelectedLesson] = useState<string | null>(null);
   const [openModule, setOpenModule] = useState<string>('celula');
   const [quizOpen, setQuizOpen] = useState(false);
   const [answers, setAnswers] = useState<Record<number, number>>({});
@@ -221,86 +222,40 @@ export default function BiologyCourse() {
     );
   }
 
+  const allLessons = modules.flatMap(module => module.lessons.map(lesson => ({ ...lesson, moduleTitle: module.title })));
+  const currentLesson = allLessons.find(lesson => lesson.key === selectedLesson);
+  const questionMap: Record<string, number[]> = {
+    'membrana-transporte':[0], 'metabolismo-celular':[1], 'ciclo-celular':[11],
+    'replicacao-dna':[2], 'sintese-rna':[2], 'genetica-mendeliana':[3],
+    'histologia-humana':[5], 'sistema-digestorio':[4], 'sistema-respiratorio':[5],
+    'histologia-vegetal':[6], 'fitormonios':[7], 'microorganismos':[8],
+    'bacterias-bacterioses':[8], 'protozoarios-protozooses':[9], 'algas':[1],
+    'reino-fungi':[12], 'reino-animalia':[14], 'vertebrados':[14],
+    'verminoses':[9], 'dengue':[10], 'evolucao-humana':[13]
+  };
+  const currentQuestions = currentLesson ? (questionMap[currentLesson.key] || []).map(i => ({...questions[i], index:i})) : [];
+
   return (
     <main className="min-h-screen bg-[#f6f8ff] px-4 py-7 font-['Plus_Jakarta_Sans'] text-[#111936] sm:px-8">
       <div className="mx-auto w-full max-w-6xl">
-        <button onClick={() => window.location.assign('/cursos-particulares')} className="mb-7 inline-flex items-center gap-2 font-extrabold text-[#596681] hover:text-[#3155e7]">
-          <ArrowLeft className="h-5 w-5" /> Voltar
-        </button>
-
-        <section className="overflow-hidden rounded-[32px] bg-[#101a43] p-7 text-white shadow-xl sm:p-10">
-          <div className="flex flex-col justify-between gap-8 lg:flex-row lg:items-end">
-            <div className="max-w-3xl">
-              <div className="mb-5 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10"><Dna className="h-8 w-8" /></div>
-              <p className="text-sm font-black uppercase tracking-[0.18em] text-[#9db1ff]">Curso particular • Biologia</p>
-              <h1 className="mt-2 text-4xl font-black tracking-[-0.045em] sm:text-6xl">Biologia completa para provas e vestibulares</h1>
-              <p className="mt-5 max-w-2xl text-base leading-relaxed text-[#d5ddff] sm:text-lg">Materiais exclusivos organizados por tema, revisão ativa, pontos de atenção, questões comentadas e estratégia de prova.</p>
-            </div>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-2xl bg-white/10 p-4"><strong className="block text-2xl">{modules.length}</strong><span className="text-xs text-[#d5ddff]">módulos</span></div>
-              <div className="rounded-2xl bg-white/10 p-4"><strong className="block text-2xl">{lessonCount}</strong><span className="text-xs text-[#d5ddff]">aulas</span></div>
-              <div className="rounded-2xl bg-white/10 p-4"><strong className="block text-2xl">{questions.length}</strong><span className="text-xs text-[#d5ddff]">questões</span></div>
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-6 grid gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-[#dce3f4] bg-white p-5"><BookOpen className="mb-3 text-[#3155e7]" /><h2 className="font-black">PowerPoints do curso</h2><p className="mt-1 text-sm leading-relaxed text-[#69758f]">Cada aula mostra o arquivo-base enviado para aquele conteúdo, sem misturar matérias.</p></div>
-          <div className="rounded-2xl border border-[#dce3f4] bg-white p-5"><Lightbulb className="mb-3 text-[#3155e7]" /><h2 className="font-black">Revisão inteligente</h2><p className="mt-1 text-sm leading-relaxed text-[#69758f]">Pontos essenciais, pegadinhas e conexões que ajudam a interpretar questões.</p></div>
-          <div className="rounded-2xl border border-[#dce3f4] bg-white p-5"><Target className="mb-3 text-[#3155e7]" /><h2 className="font-black">Treino comentado</h2><p className="mt-1 text-sm leading-relaxed text-[#69758f]">Questões autorais de revisão com resposta e justificativa imediata.</p></div>
-        </section>
-
-        <div className="mt-7 flex items-center gap-3 rounded-2xl border border-[#d7deee] bg-white px-4 py-3">
-          <Search className="h-5 w-5 text-[#7a86a0]" />
-          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar tema, aula, conceito ou material..." className="w-full bg-transparent text-sm font-semibold outline-none placeholder:text-[#9aa4b8]" />
-        </div>
-
-        <section className="mt-7">
-          <div className="mb-4 flex items-end justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.16em] text-[#3155e7]">Trilha completa</p><h2 className="text-3xl font-black">Módulos do curso</h2></div><Microscope className="hidden h-8 w-8 text-[#3155e7] sm:block" /></div>
-          <div className="space-y-4">
-            {filtered.map(module => {
-              const open = openModule === module.id || Boolean(query);
-              return <article key={module.id} className="overflow-hidden rounded-[24px] border border-[#d7deee] bg-white shadow-sm">
-                <button onClick={() => setOpenModule(openModule === module.id ? '' : module.id)} className="flex w-full items-center justify-between gap-5 p-5 text-left sm:p-6">
-                  <div><h3 className="text-xl font-black">{module.title}</h3><p className="mt-1 text-sm text-[#74809a]">{module.description}</p></div>
-                  {open ? <ChevronUp className="shrink-0 text-[#3155e7]" /> : <ChevronDown className="shrink-0 text-[#3155e7]" />}
-                </button>
-                {open && <div className="border-t border-[#edf0f7] p-5 sm:p-6">
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    {module.lessons.map(lesson => <div key={lesson.title} className="rounded-2xl bg-[#f8f9fe] p-5">
-                      <div className="flex items-start gap-3"><div className="rounded-xl bg-[#e9edff] p-2 text-[#3155e7]"><FileText className="h-5 w-5" /></div><div><h4 className="font-black">{lesson.title}</h4>{lesson.material && <p className="mt-1 text-xs font-bold text-[#3155e7]">Material original: {lesson.material}</p>}</div></div>
-                      {PDF_LINKS[lesson.key] && <div className="mt-4"><a href={PDF_LINKS[lesson.key]} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl border border-[#3155e7] bg-white px-3 py-2.5 text-xs font-black text-[#3155e7] hover:bg-[#eef1ff]"><ExternalLink className="h-4 w-4" />Abrir PDF</a></div>}
-                      <p className="mt-4 text-xs font-black uppercase tracking-[0.12em] text-[#69758f]">Domine estes pontos</p>
-                      <div className="mt-2 flex flex-wrap gap-2">{lesson.topics.map(t => <span key={t} className="rounded-full border border-[#dce3f4] bg-white px-3 py-1 text-xs font-bold text-[#4e5b77]">{t}</span>)}</div>
-                      <div className="mt-4 rounded-xl border border-[#dce3f4] bg-white p-4"><div className="mb-2 flex items-center gap-2 text-sm font-black text-[#3155e7]"><Lightbulb className="h-4 w-4" /> Dicas de prova</div>{lesson.tips.map(t => <p key={t} className="mt-1 text-sm leading-relaxed text-[#596681]">• {t}</p>)}</div>
-                    </div>)}
-                  </div>
-                </div>}
-              </article>;
-            })}
-          </div>
-        </section>
-
-        <section className="mt-8 rounded-[28px] border border-[#d7deee] bg-white p-6 shadow-sm sm:p-8">
-          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-            <div><div className="flex items-center gap-2 text-[#3155e7]"><Brain className="h-5 w-5" /><span className="text-xs font-black uppercase tracking-[0.14em]">Prática ativa</span></div><h2 className="mt-2 text-2xl font-black">Banco de questões comentadas</h2><p className="mt-2 text-sm text-[#69758f]">Faça primeiro sem consultar o material. Depois use a explicação para revisar o erro.</p></div>
-            <button onClick={() => { setQuizOpen(!quizOpen); setSubmitted(false); }} className="rounded-xl bg-[#3155e7] px-5 py-3 text-sm font-black text-white">{quizOpen ? 'Fechar questões' : 'Começar questões'}</button>
-          </div>
-          {quizOpen && <div className="mt-7 space-y-5">
-            {questions.map((q, i) => <div key={q.q} className="rounded-2xl bg-[#f8f9fe] p-5">
-              <p className="font-black">{i + 1}. {q.q}</p>
-              <div className="mt-3 grid gap-2">{q.a.map((option, j) => <button key={option} onClick={() => !submitted && setAnswers(v => ({ ...v, [i]: j }))} className={`rounded-xl border px-4 py-3 text-left text-sm font-semibold transition ${answers[i] === j ? 'border-[#3155e7] bg-[#eef1ff]' : 'border-[#dce3f4] bg-white'}`}>{String.fromCharCode(65 + j)}. {option}</button>)}</div>
-              {submitted && <div className={`mt-3 rounded-xl p-4 text-sm leading-relaxed ${answers[i] === q.correct ? 'bg-[#eefbf3] text-[#24613b]' : 'bg-[#fff4f2] text-[#7b342c]'}`}><strong>{answers[i] === q.correct ? 'Correto.' : `Resposta: ${String.fromCharCode(65 + q.correct)}.`}</strong> {q.why}</div>}
-            </div>)}
-            <button onClick={() => setSubmitted(true)} className="w-full rounded-xl bg-[#101a43] px-5 py-4 font-black text-white">Corrigir questões</button>
-            {submitted && <div className="rounded-2xl border border-[#cad5ff] bg-[#eef1ff] p-5 text-center"><CheckCircle2 className="mx-auto mb-2 text-[#3155e7]" /><p className="text-2xl font-black">{score}/{questions.length}</p><p className="text-sm font-semibold text-[#596681]">Use os comentários das questões erradas como roteiro de revisão.</p></div>}
-          </div>}
-        </section>
-
-        <section className="mt-8 grid gap-4 lg:grid-cols-2">
-          <div className="rounded-[24px] bg-[#101a43] p-6 text-white"><FlaskConical className="mb-4 h-7 w-7 text-[#9db1ff]" /><h2 className="text-xl font-black">Método recomendado</h2><p className="mt-3 text-sm leading-relaxed text-[#d5ddff]">1) estude o PowerPoint da aula; 2) feche o material e explique o tema em voz alta; 3) faça questões; 4) registre o motivo de cada erro; 5) revise os erros em 24 h, 7 dias e antes da prova.</p></div>
-          <div className="rounded-[24px] border border-[#d7deee] bg-white p-6"><Stethoscope className="mb-4 h-7 w-7 text-[#3155e7]" /><h2 className="text-xl font-black">Como atacar questões de Biologia</h2><p className="mt-3 text-sm leading-relaxed text-[#596681]">Identifique o fenômeno biológico pedido, marque variáveis e relações causais, elimine alternativas absolutas sem suporte e só depois escolha. Em gráficos e experimentos, diferencie correlação de mecanismo causal.</p></div>
-        </section>
+        <button onClick={() => currentLesson ? setSelectedLesson(null) : window.location.assign('/cursos-particulares')} className="mb-7 inline-flex items-center gap-2 font-extrabold text-[#596681] hover:text-[#3155e7]"><ArrowLeft className="h-5 w-5" /> {currentLesson ? 'Todos os tópicos' : 'Voltar'}</button>
+        {!currentLesson ? <>
+          <section className="overflow-hidden rounded-[32px] bg-[#101a43] p-7 text-white shadow-xl sm:p-10">
+            <p className="text-sm font-black uppercase tracking-[0.18em] text-[#9db1ff]">Curso particular • Biologia</p>
+            <h1 className="mt-2 text-4xl font-black tracking-[-0.045em] sm:text-6xl">Escolha o tópico que quer estudar.</h1>
+            <p className="mt-5 max-w-2xl text-base leading-relaxed text-[#d5ddff] sm:text-lg">Cada assunto tem sua própria aula, material, revisão, dicas e questões específicas.</p>
+            <div className="mt-7 grid max-w-xl grid-cols-3 gap-2 text-center"><div className="rounded-2xl bg-white/10 p-4"><strong className="block text-2xl">{modules.length}</strong><span className="text-xs text-[#d5ddff]">áreas</span></div><div className="rounded-2xl bg-white/10 p-4"><strong className="block text-2xl">{lessonCount}</strong><span className="text-xs text-[#d5ddff]">tópicos</span></div><div className="rounded-2xl bg-white/10 p-4"><strong className="block text-2xl">ENEM</strong><span className="text-xs text-[#d5ddff]">+ CMMG</span></div></div>
+          </section>
+          <div className="mt-7 flex items-center gap-3 rounded-2xl border border-[#d7deee] bg-white px-4 py-3"><Search className="h-5 w-5 text-[#7a86a0]" /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar um tópico…" className="w-full bg-transparent text-sm font-semibold outline-none placeholder:text-[#9aa4b8]" /></div>
+          <section className="mt-8 space-y-9">{filtered.map(module => <div key={module.id}><div className="mb-4"><p className="text-xs font-black uppercase tracking-[0.14em] text-[#3155e7]">{module.title}</p><p className="mt-1 text-sm text-[#69758f]">{module.description}</p></div><div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{module.lessons.map((lesson,index)=><button key={lesson.key} onClick={()=>{setSelectedLesson(lesson.key);setAnswers({});setSubmitted(false);}} className="group rounded-[24px] border border-[#d7deee] bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-[#9fb0ff] hover:shadow-lg"><div className="flex items-start justify-between gap-3"><div className="rounded-xl bg-[#e9edff] p-2 text-[#3155e7]"><FileText className="h-5 w-5"/></div><span className="text-xs font-black text-[#9aa4b8]">{String(index+1).padStart(2,'0')}</span></div><h2 className="mt-4 text-lg font-black">{lesson.title}</h2><p className="mt-2 text-sm leading-relaxed text-[#69758f]">{lesson.topics.slice(0,3).join(' • ')}</p><div className="mt-5 flex items-center justify-between border-t border-[#edf0f7] pt-4 text-xs font-black text-[#3155e7]"><span>Material + questões</span><span>Entrar →</span></div></button>)}</div></div>)}</section>
+        </> : <>
+          <section className="overflow-hidden rounded-[30px] bg-[#101a43] p-7 text-white shadow-xl sm:p-9"><p className="text-xs font-black uppercase tracking-[0.16em] text-[#9db1ff]">{currentLesson.moduleTitle}</p><h1 className="mt-2 text-3xl font-black sm:text-5xl">{currentLesson.title}</h1><p className="mt-4 max-w-3xl text-[#d5ddff]">Material original, conceitos essenciais, dicas e treino específico do assunto.</p></section>
+          <div className="mt-6 grid gap-5 lg:grid-cols-[1.35fr_.65fr]"><div className="space-y-5">
+            <section className="rounded-[24px] border border-[#d7deee] bg-white p-6"><p className="text-xs font-black uppercase tracking-[0.14em] text-[#3155e7]">Material da aula</p><h2 className="mt-2 text-xl font-black">{currentLesson.material || 'Material de apoio'}</h2>{PDF_LINKS[currentLesson.key]?<a href={PDF_LINKS[currentLesson.key]} target="_blank" rel="noopener noreferrer" className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-[#3155e7] px-4 py-3 text-sm font-black text-white"><ExternalLink className="h-4 w-4"/>Abrir PDF da aula</a>:<p className="mt-4 rounded-xl bg-[#fff8e8] p-4 text-sm font-bold text-[#7c5a18]">PDF em preparação para este tópico.</p>}</section>
+            <section className="rounded-[24px] border border-[#d7deee] bg-white p-6"><p className="text-xs font-black uppercase tracking-[0.14em] text-[#3155e7]">O que dominar</p><div className="mt-4 flex flex-wrap gap-2">{currentLesson.topics.map(t=><span key={t} className="rounded-full border border-[#dce3f4] bg-[#f8f9fe] px-3 py-2 text-xs font-bold text-[#4e5b77]">{t}</span>)}</div></section>
+            <section className="rounded-[24px] border border-[#d7deee] bg-white p-6"><div className="flex items-center gap-2 text-[#3155e7]"><Target className="h-5 w-5"/><p className="text-xs font-black uppercase tracking-[0.14em]">Questões do tópico</p></div><h2 className="mt-2 text-2xl font-black">Treino específico</h2><p className="mt-2 text-sm text-[#69758f]">Questões separadas por assunto. Itens oficiais ENEM/CMMG validados entram no respectivo tópico.</p><div className="mt-5 space-y-5">{currentQuestions.map(({index,...q},localIndex)=><div key={index} className="rounded-2xl bg-[#f8f9fe] p-5"><p className="font-black">{localIndex+1}. {q.q}</p><div className="mt-3 grid gap-2">{q.a.map((option,j)=><button key={option} onClick={()=>!submitted&&setAnswers(v=>({...v,[index]:j}))} className={`rounded-xl border px-4 py-3 text-left text-sm font-semibold ${answers[index]===j?'border-[#3155e7] bg-[#eef1ff]':'border-[#dce3f4] bg-white'}`}>{String.fromCharCode(65+j)}. {option}</button>)}</div>{submitted&&<div className={`mt-3 rounded-xl p-4 text-sm ${answers[index]===q.correct?'bg-[#eefbf3] text-[#24613b]':'bg-[#fff4f2] text-[#7b342c]'}`}><strong>{answers[index]===q.correct?'Correto.':`Resposta: ${String.fromCharCode(65+q.correct)}.`}</strong> {q.why}</div>}</div>)}{currentQuestions.length>0&&<button onClick={()=>setSubmitted(true)} className="w-full rounded-xl bg-[#101a43] px-5 py-4 font-black text-white">Corrigir questões</button>}</div></section>
+          </div><aside className="space-y-5"><section className="rounded-[24px] border border-[#d7deee] bg-white p-6"><div className="flex items-center gap-2 text-[#3155e7]"><Lightbulb className="h-5 w-5"/><h2 className="font-black">Dicas de prova</h2></div>{currentLesson.tips.map(t=><p key={t} className="mt-3 text-sm leading-relaxed text-[#596681]">• {t}</p>)}</section><section className="rounded-[24px] bg-[#101a43] p-6 text-white"><BookOpen className="mb-3 h-6 w-6 text-[#9db1ff]"/><h2 className="font-black">Como estudar esta aula</h2><p className="mt-3 text-sm leading-relaxed text-[#d5ddff]">1. Abra o PDF.<br/>2. Revise os conceitos-chave.<br/>3. Explique o tema sem consultar.<br/>4. Faça as questões.<br/>5. Revise apenas os erros.</p></section></aside></div>
+        </>}
       </div>
     </main>
   );
