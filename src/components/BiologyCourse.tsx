@@ -178,33 +178,6 @@ export default function BiologyCourse() {
   const [quizOpen, setQuizOpen] = useState(false);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
-  const [materials, setMaterials] = useState<Record<string, { pptx?: { storage_path: string; file_name: string }; pdf?: { storage_path: string; file_name: string } }>>({});
-  const [openingMaterial, setOpeningMaterial] = useState('');
-
-  useEffect(() => {
-    if (!unlocked || !supabase) return;
-    void supabase.from('biology_course_materials').select('lesson_key,file_name,storage_path,format').then(({ data }) => {
-      const next: typeof materials = {};
-      for (const row of data ?? []) {
-        const key = String(row.lesson_key); const format = row.format as 'pptx' | 'pdf';
-        next[key] = { ...next[key], [format]: { storage_path: row.storage_path, file_name: row.file_name } };
-      }
-      setMaterials(next);
-    });
-  }, [unlocked]);
-
-  async function openMaterial(lessonKey: string, format: 'pptx' | 'pdf', download = false) {
-    if (!supabase) return;
-    const file = materials[lessonKey]?.[format];
-    if (!file) return;
-    const token = `${lessonKey}:${format}:${download ? 'download' : 'view'}`; setOpeningMaterial(token);
-    try {
-      const { data, error } = await supabase.storage.from('biology-course-materials').createSignedUrl(file.storage_path, 900, download ? { download: file.file_name } : undefined);
-      if (error || !data?.signedUrl) throw error ?? new Error('Link indisponível');
-      window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
-    } finally { setOpeningMaterial(''); }
-  }
-
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
     if (!term) return modules;
