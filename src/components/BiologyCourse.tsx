@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useMemo, useState } from 'react';
 import {
   ArrowLeft, BookOpen, Brain, CheckCircle2, ChevronDown, ChevronUp, Dna,
-  Download, ExternalLink, FileText, FlaskConical, Lightbulb, Microscope, Search, Stethoscope, Target
+  ExternalLink, FileText, FlaskConical, Lightbulb, Microscope, Search, Stethoscope, Target
 } from 'lucide-react';
 
 type Lesson = {
@@ -147,6 +146,28 @@ const questions = [
 ];
 
 const BIOLOGY_PASSWORD = 'cursobiologiacissa';
+const PDF_LINKS: Record<string,string> = {
+  "membrana-transporte": "https://drive.google.com/file/d/14P7sf-Xac-81BO5pXdSB-NSgllkKoEJ_/view",
+  "metabolismo-celular": "https://drive.google.com/file/d/11j33cGhVuKXksRPvjxVb07cWQ8DyCsR5/view",
+  "ciclo-celular": "https://drive.google.com/file/d/1H0GVC2b6isY8lLg6nsZQ80RXjwgt5JzJ/view",
+  "replicacao-dna": "https://drive.google.com/file/d/1-ZUzf9E0qrtDizlx2d4NE40YKPWOkTNN/view",
+  "sintese-rna": "https://drive.google.com/file/d/1c-hqfnsdmpIm6NIwh4uz3-EvrrXwxI9X/view",
+  "genetica-mendeliana": "https://drive.google.com/file/d/1vHEpO1bE4debwpPHiK0onQSatZeY9IG6/view",
+  "histologia-humana": "https://drive.google.com/file/d/1sLvfFQAwQyBsRtQ0jPmHRiHhPhEWXe6_/view",
+  "sistema-digestorio": "https://drive.google.com/file/d/1Y48gHotyBeNjdfxPuBXVxr9GjZZdv2CF/view",
+  "sistema-respiratorio": "https://drive.google.com/file/d/1yvvuEMGrvGWi2O8HSEfNJasZ6UbsD0gu/view",
+  "histologia-vegetal": "https://drive.google.com/file/d/1QDB-QAbf_HVBmzJVciveUBk5-2dGLrQy/view",
+  "fitormonios": "https://drive.google.com/file/d/1MQpgB3IG7eemE8iYCxh1GKgkf-7-mbrp/view",
+  "microorganismos": "https://drive.google.com/file/d/1TPHL1iNErmGtuFPH5kpbyZ5H6yeQ2uiR/view",
+  "bacterias-bacterioses": "https://drive.google.com/file/d/1F8EmKhzo52VFk5MudNs4ibPSpPEloK5D/view",
+  "protozoarios-protozooses": "https://drive.google.com/file/d/16nnbCX1t40kzkh796A8AVSwR46RLkwk3/view",
+  "algas": "https://drive.google.com/file/d/1Dp-LHlq0OjcbjFl3XCRg5LKDbHwxY3DQ/view",
+  "reino-fungi": "https://drive.google.com/file/d/1CK_rQm3Qxd8qHwpUpynnQ1rBVqwJqkUL/view",
+  "vertebrados": "https://drive.google.com/file/d/1D26D9W3cyOUUWrZgy_fI6MzzYg9IY3Kf/view",
+  "verminoses": "https://drive.google.com/file/d/1ZwbGoOJNrdmg9FbnByjNujjDlJ5FZ1Yo/view",
+  "dengue": "https://drive.google.com/file/d/1S2DmTfa1_JdXesPIFqYHwuKWMUNK_W5K/view",
+  "evolucao-humana": "https://drive.google.com/file/d/1z-lYfde92sv9rGAKmVIMSXUydnj3vtw6/view"
+};
 
 export default function BiologyCourse() {
   const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem('biology-course-unlocked') === 'true');
@@ -275,14 +296,7 @@ export default function BiologyCourse() {
                   <div className="grid gap-4 lg:grid-cols-2">
                     {module.lessons.map(lesson => <div key={lesson.title} className="rounded-2xl bg-[#f8f9fe] p-5">
                       <div className="flex items-start gap-3"><div className="rounded-xl bg-[#e9edff] p-2 text-[#3155e7]"><FileText className="h-5 w-5" /></div><div><h4 className="font-black">{lesson.title}</h4>{lesson.material && <p className="mt-1 text-xs font-bold text-[#3155e7]">Material original: {lesson.material}</p>}</div></div>
-                      <div className="mt-4 grid grid-cols-2 gap-2">
-                        {(['pptx','pdf'] as const).map(format => {
-                          const available = Boolean(materials[lesson.key]?.[format]);
-                          const token = `${lesson.key}:${format}:view`;
-                          return <button key={format} disabled={!available || openingMaterial === token} onClick={() => void openMaterial(lesson.key, format)} className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-black ${available ? 'border-[#3155e7] bg-white text-[#3155e7] hover:bg-[#eef1ff]' : 'cursor-not-allowed border-[#e3e7ef] bg-[#f1f3f7] text-[#9aa4b8]'}`}><ExternalLink className="h-4 w-4" />{openingMaterial === token ? 'Abrindo…' : `Abrir ${format.toUpperCase()}`}</button>;
-                        })}
-                      </div>
-                      {(materials[lesson.key]?.pptx || materials[lesson.key]?.pdf) && <div className="mt-2 flex gap-2">{(['pptx','pdf'] as const).map(format => materials[lesson.key]?.[format] ? <button key={format} onClick={() => void openMaterial(lesson.key, format, true)} className="inline-flex items-center gap-1 text-xs font-extrabold text-[#596681] hover:text-[#3155e7]"><Download className="h-3.5 w-3.5" />Baixar {format.toUpperCase()}</button> : null)}</div>}</div></div>
+                      {PDF_LINKS[lesson.key] && <div className="mt-4"><a href={PDF_LINKS[lesson.key]} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl border border-[#3155e7] bg-white px-3 py-2.5 text-xs font-black text-[#3155e7] hover:bg-[#eef1ff]"><ExternalLink className="h-4 w-4" />Abrir PDF</a></div>}</div></div>
                       <p className="mt-4 text-xs font-black uppercase tracking-[0.12em] text-[#69758f]">Domine estes pontos</p>
                       <div className="mt-2 flex flex-wrap gap-2">{lesson.topics.map(t => <span key={t} className="rounded-full border border-[#dce3f4] bg-white px-3 py-1 text-xs font-bold text-[#4e5b77]">{t}</span>)}</div>
                       <div className="mt-4 rounded-xl border border-[#dce3f4] bg-white p-4"><div className="mb-2 flex items-center gap-2 text-sm font-black text-[#3155e7]"><Lightbulb className="h-4 w-4" /> Dicas de prova</div>{lesson.tips.map(t => <p key={t} className="mt-1 text-sm leading-relaxed text-[#596681]">• {t}</p>)}</div>
