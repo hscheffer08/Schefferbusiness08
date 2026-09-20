@@ -142,7 +142,7 @@ export default function CourseHome() {
             <div>
               <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-black text-[#b8c8ff]"><Sparkles className="h-4 w-4" /> NOVO · ENTREVISTA COM IA</div>
               <h2 className="mt-4 text-2xl font-black tracking-[-.035em] md:text-4xl">Treine por voz e receba uma análise completa.</h2>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-white/70 md:text-base">Simule entrevistas de Insper e Link, grave sua resposta e receba feedback sobre conteúdo, clareza, ritmo, pausas, dicção, entonação e como melhorar.</p>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-white/70 md:text-base">Simule entrevistas da Link School of Business, grave sua resposta e receba feedback sobre conteúdo, clareza, ritmo, pausas, dicção, entonação e como melhorar.</p>
             </div>
             <span className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-white px-5 text-sm font-black text-[#172344] transition group-hover:translate-x-1">Abrir treino <ArrowRight className="h-4 w-4" /></span>
           </button>

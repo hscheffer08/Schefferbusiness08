@@ -68,7 +68,12 @@ function InterviewCoach() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ ...payload, totalQuestions }),
-      signal: AbortSignal.timeout(230_000),
+      signal: AbortSignal.timeout(payload.audio ? 170_000 : 75_000),
+    }).catch((error: unknown) => {
+      if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+        throw new Error('A análise demorou mais que o esperado. Sua resposta foi preservada. Tente enviar novamente.');
+      }
+      throw error;
     });
     let response = await request(currentSession.access_token);
     // Retry only an authentication rejection, before the API has run the AI.

@@ -1,0 +1,14 @@
+.tutor-formatted-content { min-width: 0; overflow-wrap: anywhere; line-height: 1.7; }
+.tutor-formatted-content > :first-child { margin-top: 0; }
+.tutor-formatted-content > :last-child { margin-bottom: 0; }
+.tutor-formatted-content p { margin: .65em 0; }
+.tutor-formatted-content h1, .tutor-formatted-content h2, .tutor-formatted-content h3, .tutor-formatted-content h4 { margin: 1em 0 .4em; font-size: 1.05em; line-height: 1.4; font-weight: 800; }
+.tutor-formatted-content strong { font-weight: 800; }
+.tutor-formatted-content ol, .tutor-formatted-content ul { padding-left: 1.5em; margin: .6em 0; }
+.tutor-formatted-content ol { list-style: decimal; }
+.tutor-formatted-content ul { list-style: disc; }
+.tutor-formatted-content li { margin: .3em 0; }
+.tutor-formatted-content pre, .tutor-formatted-content .katex-display { max-width: 100%; overflow-x: auto; overflow-y: hidden; padding: .65em .25em; }
+.tutor-formatted-content .katex { font-size: 1.08em; }
+.tutor-formatted-content a { color: #2455b5; text-decoration: underline; }
+.tutor-formatted-content blockquote { border-left: 3px solid #b9caeb; padding-left: .8em; margin: .75em 0; }

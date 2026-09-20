@@ -39,7 +39,7 @@ assert.equal((await request({ phase: 'start' })).statusCode, 401);
 authServiceError = null;
 delete context.process.env.SUPABASE_URL;
 const start = await request({ phase: 'start', totalQuestions: 5 });
-assert.equal(start.statusCode, 200); assert.equal(start.body.model, 'openai/gpt-6-astra');
+assert.equal(start.statusCode, 200); assert.equal(start.body.questionNumber, 1); assert.ok(start.body.question.includes('Link School')); assert.equal(calls.length, 0);
 const history = [{ question: 'Conte uma experiência', answer: 'Organizei uma equipe e aprendi a dividir responsabilidades.' }];
 const typed = await request({ phase: 'answer', totalQuestions: 1, history });
 assert.equal(typed.body.complete, true); assert.equal(typed.body.report.sevenDayPlan.length, 7); assert.equal(typed.body.voice, null);

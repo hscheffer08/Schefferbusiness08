@@ -3,7 +3,7 @@ import { Bot, CheckCircle2, ImagePlus, Loader2, Maximize2, Minimize2, PlusCircle
 import { useAuth } from '@/lib/auth-context';
 import { ensureFreshSession, supabase } from '@/lib/supabase';
 
-const DAILY_LIMIT = 10;
+import TutorFormattedContent from './TutorFormattedContent';
 const STARTERS = [
   'Explique minha maior dificuldade recente',
   'O que eu deveria revisar hoje?',
@@ -123,58 +123,6 @@ async function tutorRequest(payload: unknown, initialToken: string) {
 }
 
 
-function cleanTutorLatex(value: string) {
-  return value
-    .replace(/\\\\\[|\\\\\]/g, '')
-    .replace(/\\\\\(|\\\\\)/g, '')
-    .replace(/\\\\times/g, '×')
-    .replace(/\\\\cdot/g, '·')
-    .replace(/\\\\text\{([^}]*)\}/g, '$1')
-    .replace(/\\\\mathrm\{([^}]*)\}/g, '$1')
-    .replace(/\\\\frac\{([^}]*)\}\{([^}]*)\}/g, '($1)/($2)')
-    .replace(/\^\{([^}]*)\}/g, '^$1')
-    .replace(/_\{([^}]*)\}/g, '_$1')
-    .replace(/\{,\}/g, ',')
-    .trim();
-}
-
-function TutorInline({ text }: { text: string }) {
-  const cleaned = cleanTutorLatex(text);
-  const parts = cleaned.split(/(\*\*[^*]+\*\*)/g);
-  return <>{parts.map((part, index) =>
-    part.startsWith('**') && part.endsWith('**')
-      ? <strong key={index} className="font-extrabold text-inherit">{part.slice(2, -2)}</strong>
-      : <span key={index}>{part}</span>
-  )}</>;
-}
-
-function TutorFormattedContent({ content }: { content: string }) {
-  const lines = content.replace(/\\r/g, '').split('\\n');
-  const blocks = [];
-  let displayMath = false;
-  for (let i = 0; i < lines.length; i += 1) {
-    const raw = lines[i].trim();
-    if (raw === '\\\\[') { displayMath = true; continue; }
-    if (raw === '\\\\]') { displayMath = false; continue; }
-    if (!raw) { blocks.push(<div key={i} className="h-2" />); continue; }
-    const heading = raw.match(/^(#{1,4})\s+(.+)$/);
-    const numbered = raw.match(/^(\d+)\.\s+(.+)$/);
-    const bullet = raw.match(/^[-*]\s+(.+)$/);
-    if (heading) {
-      blocks.push(<div key={i} className={heading[1].length <= 2 ? 'mt-3 mb-1 text-[15px] font-extrabold leading-snug' : 'mt-2 mb-1 font-bold leading-snug'}><TutorInline text={heading[2]} /></div>);
-    } else if (numbered) {
-      blocks.push(<div key={i} className="flex gap-2 py-0.5"><span className="shrink-0 font-bold">{numbered[1]}.</span><span><TutorInline text={numbered[2]} /></span></div>);
-    } else if (bullet) {
-      blocks.push(<div key={i} className="flex gap-2 py-0.5"><span className="shrink-0 font-bold">•</span><span><TutorInline text={bullet[1]} /></span></div>);
-    } else if (displayMath || /\\\\(times|frac|text|mathrm)|\^\{|_\{/.test(raw)) {
-      blocks.push(<div key={i} className="my-2 overflow-x-auto rounded-xl bg-white/70 px-3 py-2 text-center font-mono text-[13px] font-semibold"><TutorInline text={raw} /></div>);
-    } else {
-      blocks.push(<div key={i} className="leading-relaxed"><TutorInline text={raw} /></div>);
-    }
-  }
-  return <div className="tutor-formatted-content">{blocks}</div>;
-}
-
 export default function AIEducationTutor({ mobileDocked = false }: { mobileDocked?: boolean } = {}) {
   const { user, session, loading: authLoading } = useAuth();
   const signedIn = Boolean(user && session);
@@ -192,7 +140,6 @@ export default function AIEducationTutor({ mobileDocked = false }: { mobileDocke
   const [pendingFocus, setPendingFocus] = useState<LearningFocus | null>(null);
   const [planStatus, setPlanStatus] = useState('');
   const [feedbackBusy, setFeedbackBusy] = useState<number | null>(null);
-  const [remainingQuestions, setRemainingQuestions] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -297,15 +244,13 @@ export default function AIEducationTutor({ mobileDocked = false }: { mobileDocke
 
       const response = await tutorRequest(payload, token);
       const data = await response.json().catch(() => ({}));
-      if (typeof data?.remainingQuestions === 'number') setRemainingQuestions(data.remainingQuestions);
       if (response.status === 401 || response.status === 403) {
         setErrorKind('auth');
         throw new Error('A sessão do Curso expirou no servidor. Atualize a página para renovar a sessão sem precisar entrar novamente.');
       }
       if (response.status === 429) {
-        setRemainingQuestions(0);
-        setErrorKind('limit');
-        throw new Error(data?.error || 'Você atingiu o limite de 10 usos de hoje. Amanhã a IA será liberada novamente.');
+        setErrorKind('generic');
+        throw new Error(data?.error || 'A IA está temporariamente ocupada. Tente novamente em instantes; suas perguntas são ilimitadas.');
       }
       if (!response.ok) {
         setErrorKind('generic');
@@ -411,7 +356,7 @@ export default function AIEducationTutor({ mobileDocked = false }: { mobileDocke
     setOpen(false);
   };
 
-  const statusText = authLoading ? 'verificando sessão…' : signedIn ? (remainingQuestions === null ? `${DAILY_LIMIT} usos/dia` : `${remainingQuestions} usos restantes hoje`) : 'sessão não confirmada';
+  const statusText = authLoading ? 'verificando sessão…' : signedIn ? 'Perguntas ilimitadas' : 'sessão não confirmada';
 
   return <>
     {open && <div className={`fixed z-[120] flex flex-col overflow-hidden border border-[#b9c7e2] bg-white text-[#13203d] shadow-2xl shadow-[#0c1d45]/20 ${expanded ? 'inset-2 md:inset-6 rounded-[22px]' : mobileDocked ? 'bottom-[calc(78px+env(safe-area-inset-bottom))] right-2 w-[calc(100vw-16px)] max-w-[460px] h-[min(720px,calc(100dvh-158px))] rounded-[22px] md:bottom-20 md:right-5 md:h-[min(720px,calc(100vh-100px))]' : 'bottom-20 right-2 w-[calc(100vw-16px)] max-w-[460px] h-[min(720px,calc(100vh-100px))] rounded-[22px] md:right-5'}`}>
@@ -466,7 +411,7 @@ export default function AIEducationTutor({ mobileDocked = false }: { mobileDocke
           <textarea value={input} onChange={event => { setInput(event.target.value); if (error) { setError(''); setErrorKind(''); } }} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void send(); } }} rows={1} placeholder="Digite sua dúvida ou anexe uma questão…" className="max-h-28 min-h-10 flex-1 resize-none bg-transparent px-1 py-2 text-sm text-[#172641] outline-none placeholder:text-[#7b8ba3]"/>
           <button onClick={() => void send()} disabled={busy || authLoading || !input.trim()} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#315bea] text-white disabled:opacity-40" aria-label="Enviar"><Send size={18}/></button>
         </div>
-        <div className="mt-2 flex items-center justify-between gap-3 text-[10px] font-medium text-[#60708a]"><span className="inline-flex items-center gap-1"><ShieldCheck size={11}/>{signedIn ? `Conta reconhecida · ${remainingQuestions ?? DAILY_LIMIT} usos disponíveis hoje` : authLoading ? 'Verificando a conta do Curso…' : 'Sessão do Curso não confirmada'}</span>{messages.length > 0 && <button onClick={clearConversation} className="shrink-0 font-bold text-[#31517e]">Limpar conversa</button>}</div>
+        <div className="mt-2 flex items-center justify-between gap-3 text-[10px] font-medium text-[#60708a]"><span className="inline-flex items-center gap-1"><ShieldCheck size={11}/>{signedIn ? 'Conta reconhecida · Perguntas ilimitadas' : authLoading ? 'Verificando a conta do Curso…' : 'Sessão do Curso não confirmada'}</span>{messages.length > 0 && <button onClick={clearConversation} className="shrink-0 font-bold text-[#31517e]">Limpar conversa</button>}</div>
       </div>
     </div>}
 

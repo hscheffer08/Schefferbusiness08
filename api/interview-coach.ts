@@ -5,7 +5,6 @@ const MODEL = 'openai/gpt-6-astra';
 const AUDIO_MODEL = 'google/gemini-3.6-flash';
 const FALLBACK_MODELS = ['anthropic/claude-opus-4.8'];
 const MAX_QUESTIONS = 15;
-const DAILY_LIMIT: number | null = null;
 const FALLBACK_SUPABASE_URL = 'https://kmognvgnfisdchzffkgh.supabase.co';
 const FALLBACK_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_2DCxkYOlTKqsVjDxYg5pxg_pf5YqdTA';
 
@@ -106,6 +105,13 @@ export default async function handler(req: any, res: any) {
     if (Array.isArray(body.history) && body.history.length > totalQuestions) return json(res, 400, { error: 'A entrevista já atingiu o total de perguntas.' });
     if (phase === 'answer' && !history.length) return json(res, 400, { error: 'Escreva sua resposta antes de continuar.' });
 
+    // The opening is fixed; only evaluation and follow-up questions need generation.
+    if (phase === 'start') return json(res, 200, {
+      complete: false, feedback: null, voice: null, questionNumber: 1,
+      question: `O que na sua trajetória motivou a escolha por ${course} e por que você considera a formação prática da Link School of Business adequada aos seus objetivos?`,
+      competency: 'Motivação pelo curso e aderência à instituição',
+    });
+
     // Interview practice is unlimited for authenticated users.
 
     let voice: any = null;
@@ -141,6 +147,7 @@ export default async function handler(req: any, res: any) {
           { type: 'file', data: bytes, mediaType: mime },
         ] }],
         maxOutputTokens: isVideo ? 8500 : 6000,
+        maxRetries: 0,
         abortSignal: AbortSignal.timeout(isVideo ? 90_000 : 60_000),
         providerOptions: { gateway: { user: user.id, tags: [isVideo ? 'feature:interview-video' : 'feature:interview-audio'] } },
       });
@@ -172,9 +179,10 @@ export default async function handler(req: any, res: any) {
       model: MODEL,
       system,
       messages: [{ role: 'user', content: `${task}\nHISTÓRICO: ${JSON.stringify(history)}` }],
-      maxOutputTokens: isFinal ? 12000 : 9000,
-      abortSignal: AbortSignal.timeout(110_000),
-      providerOptions: { openai: { reasoningEffort: 'high' }, gateway: { models: FALLBACK_MODELS, user: user.id, tags: ['feature:interview-coach', `institution:${institution}`] } },
+      maxOutputTokens: isFinal ? 8000 : 6000,
+      maxRetries: 0,
+      abortSignal: AbortSignal.timeout(60_000),
+      providerOptions: { openai: { reasoningEffort: 'medium' }, gateway: { models: FALLBACK_MODELS, user: user.id, tags: ['feature:interview-coach', `institution:${institution}`] } },
     } as any);
 
     const parsed: any = parseJson(String(generated.text || ''));
@@ -191,6 +199,7 @@ export default async function handler(req: any, res: any) {
 
     await fetch(`${cfg.url}/rest/v1/ai_tutor_usage`, {
       method: 'POST',
+      signal: AbortSignal.timeout(2_000),
       headers: { apikey: cfg.key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
       body: JSON.stringify({ user_id: user.id, exam_id: institution, has_image: mediaKind === 'video' }),
     }).catch(() => {});
@@ -223,6 +232,9 @@ export default async function handler(req: any, res: any) {
     });
   } catch (error: any) {
     console.error('interview-coach failed', error?.message || error);
+    if (error?.name === 'TimeoutError' || error?.name === 'AbortError') return json(res, 504, {
+      error: 'A análise demorou mais que o esperado. Sua resposta foi preservada. Tente enviar novamente.',
+    });
     return json(res, 500, { error: 'A entrevista ficou indisponível. Tente novamente em instantes.' });
   }
 }
