@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import TutorFormattedContent from './TutorFormattedContent';
+import { supabase, ensureFreshSession } from '../lib/supabase';
 import {
-  ArrowLeft, BookOpen, Brain, CheckCircle2, ChevronDown, ChevronUp, Dna,
-  ExternalLink, FileText, FlaskConical, Lightbulb, Microscope, Search, Stethoscope, Target, Sparkles, Send, Loader2
+  ArrowLeft, BookOpen, Dna,
+  ExternalLink, FileText, Lightbulb, Search, Target, Sparkles, Send, Loader2
 } from 'lucide-react';
 
 type Lesson = {
@@ -144,6 +145,12 @@ const questions = [
   { q: 'Fungos obtêm nutrientes principalmente por:', a: ['fotossíntese', 'ingestão e digestão interna', 'absorção após digestão extracelular', 'quimiossíntese obrigatória'], correct: 2, why: 'Fungos secretam enzimas no substrato e absorvem moléculas resultantes da digestão extracelular.' },
   { q: 'Sobre evolução humana, é correto afirmar que:', a: ['humanos descendem dos chimpanzés atuais', 'a evolução ocorreu como uma sequência linear única', 'humanos e outros primatas atuais compartilham ancestrais comuns', 'todas as espécies de Homo viveram em épocas totalmente separadas'], correct: 2, why: 'A evolução é ramificada; espécies atuais podem compartilhar ancestrais sem que uma descenda diretamente da outra.' },
   { q: 'A independência reprodutiva do ambiente aquático nos amniotas está fortemente relacionada:', a: ['ao ovo amniótico', 'às brânquias externas', 'à fecundação exclusivamente externa', 'à ausência de anexos embrionários'], correct: 0, why: 'Âmnio e outros anexos embrionários permitem desenvolvimento protegido fora da água.' },
+  {"q": "O RNA mensageiro atua na síntese proteica ao:", "a": ["transportar a informação do DNA até os ribossomos", "duplicar o DNA", "transportar oxigênio", "formar a membrana celular"], "correct": 0, "why": "O RNAm contém códons que orientam a sequência de aminoácidos na tradução."},
+  {"q": "Uma característica do tecido epitelial é:", "a": ["células muito afastadas", "células justapostas e pouca matriz extracelular", "ausência de renovação celular", "presença obrigatória de vasos sanguíneos"], "correct": 1, "why": "Os epitélios apresentam células próximas, revestem superfícies e formam glândulas; são avasculares."},
+  {"q": "A malária é causada por um protozoário do gênero:", "a": ["Taenia", "Plasmodium", "Aedes", "Ascaris"], "correct": 1, "why": "Plasmodium é o agente da malária; fêmeas de mosquitos Anopheles são vetores."},
+  {"q": "Em uma cadeia alimentar aquática, algas fotossintetizantes atuam como:", "a": ["consumidores primários", "decompositores exclusivos", "produtores", "consumidores terciários"], "correct": 2, "why": "Elas convertem energia luminosa em energia química e fixam carbono em matéria orgânica."},
+  {"q": "Animais são organismos:", "a": ["procariontes autotróficos", "eucariontes multicelulares heterotróficos", "eucariontes unicelulares", "procariontes multicelulares"], "correct": 1, "why": "A multicelularidade, as células eucarióticas e a heterotrofia caracterizam os animais."},
+
 ];
 
 const BIOLOGY_PASSWORD = 'cursobiologiacissa';
@@ -170,6 +177,28 @@ const PDF_LINKS: Record<string,string> = {
   "evolucao-humana": "https://drive.google.com/file/d/1z-lYfde92sv9rGAKmVIMSXUydnj3vtw6/view"
 };
 
+  const allLessons = modules.flatMap(module => module.lessons.map(lesson => ({ ...lesson, moduleTitle: module.title })));
+  const questionMap: Record<string, number[]> = {
+    'membrana-transporte':[0], 'metabolismo-celular':[1], 'ciclo-celular':[11],
+    'replicacao-dna':[2], 'sintese-rna':[15], 'genetica-mendeliana':[3],
+    'histologia-humana':[16], 'sistema-digestorio':[4], 'sistema-respiratorio':[5],
+    'histologia-vegetal':[6], 'fitormonios':[7], 'microorganismos':[8],
+    'bacterias-bacterioses':[8], 'protozoarios-protozooses':[17], 'algas':[18],
+    'reino-fungi':[12], 'reino-animalia':[19], 'vertebrados':[14],
+    'verminoses':[9], 'dengue':[10], 'evolucao-humana':[13]
+  };
+
+  const topicTerms: Record<string, string[]> = {
+    'membrana-transporte':['membrana','osmose','transporte celular'], 'metabolismo-celular':['metabolismo','bioenergética','fermentação','respiração celular'], 'ciclo-celular':['divisão celular','mitose','meiose'],
+    'replicacao-dna':['replicação do DNA','DNA'], 'sintese-rna':['RNA','transcrição','expressão gênica'], 'genetica-mendeliana':['genética','hereditariedade','probabilidade genética'],
+    'histologia-humana':['histologia humana','tecido epitelial','tecido conjuntivo','tecido muscular','tecido nervoso'], 'sistema-digestorio':['digestório','digestão'], 'sistema-respiratorio':['sistema respiratório','respiratório'],
+    'histologia-vegetal':['tecido vegetal','xilema','floema','meristema','estômato'], 'fitormonios':['fitormônio','hormônio vegetal'], 'microorganismos':['microbiologia','micro-organismo'],
+    'bacterias-bacterioses':['bactéria','bacteriose','microbiologia'], 'protozoarios-protozooses':['protozoário','protozoose'], 'algas':['alga','fitoplâncton'],
+    'reino-fungi':['fungo','fungi'], 'reino-animalia':['animal','zoologia'], 'vertebrados':['vertebrado','anfíbio','mamífero','répteis','peixes','aves'],
+    'verminoses':['verminose','helminto','parasita'], 'dengue':['dengue','Aedes'], 'evolucao-humana':['evolução','seleção natural']
+  };
+
+
 export default function BiologyCourse() {
   const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem('biology-course-unlocked') === 'true');
   const [password, setPassword] = useState('');
@@ -178,27 +207,116 @@ export default function BiologyCourse() {
   const [selectedLesson, setSelectedLesson] = useState<string | null>(null);
   const [topicQuestions, setTopicQuestions] = useState<any[]>([]);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
-  const [openModule, setOpenModule] = useState<string>('celula');
-  const [quizOpen, setQuizOpen] = useState(false);
-  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [answers, setAnswers] = useState<Record<string, number>>({});
   const [submitted, setSubmitted] = useState(false);
   const [aiMessages, setAiMessages] = useState<Array<{role:'user'|'assistant';content:string}>>([]);
   const [aiInput, setAiInput] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
+  const [questionsError, setQuestionsError] = useState('');
+  const aiRequest = useRef(0);
   const filtered = useMemo(() => {
-    const term = query.trim().toLowerCase();
+    const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const term = normalize(query.trim());
     if (!term) return modules;
     return modules.map(m => ({
       ...m,
-      lessons: m.lessons.filter(l =>
-        [l.title, l.material ?? '', ...l.topics, ...l.tips].join(' ').toLowerCase().includes(term)
+      lessons: normalize(m.title).includes(term) ? m.lessons : m.lessons.filter(l =>
+        normalize([l.title, l.material ?? '', ...l.topics, ...l.tips].join(' ')).includes(term)
       ),
-    })).filter(m => m.title.toLowerCase().includes(term) || m.lessons.length);
+    })).filter(m => m.lessons.length);
   }, [query]);
 
   const lessonCount = modules.reduce((n, m) => n + m.lessons.length, 0);
-  const score = questions.reduce((n, q, i) => n + (answers[i] === q.correct ? 1 : 0), 0);
+
+  const currentLesson = allLessons.find(lesson => lesson.key === selectedLesson);
+  const currentQuestions = currentLesson ? (questionMap[currentLesson.key] || []).map(i => ({...questions[i], index:i})) : [];
+  useEffect(() => {
+    aiRequest.current += 1;
+    setAiMessages([]); setAiInput(''); setAiError(''); setAiLoading(false);
+    setTopicQuestions([]); setQuestionsError(''); setAnswers({}); setSubmitted(false);
+    setLoadingQuestions(false);
+    if (!unlocked || !currentLesson || !supabase) return;
+    let active = true;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 15000);
+    setLoadingQuestions(true);
+    const terms = topicTerms[currentLesson.key] || currentLesson.topics;
+    const filters = terms.flatMap(term => [`skill_name.ilike.%${term}%`, `prompt.ilike.%${term}%`]).join(',');
+    void (async () => {
+      try {
+        const { data, error } = await supabase.from('exam_practice_questions')
+          .select('id,exam_id,skill_name,difficulty,prompt,option_a,option_b,option_c,option_d,option_e,correct_option,explanation,source_kind,source_exam_year,source_question_number,image_url,image_alt')
+          .in('exam_id', ['enem', 'cmmg']).eq('active', true).or(filters)
+          .order('id').limit(100).abortSignal(controller.signal);
+        if (error) throw error;
+        if (!active) return;
+        const seen = new Set<string>();
+        const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        const rows = (data || []).filter(q => {
+          const prompt = normalize(q.prompt || '');
+          const text = normalize(`${q.skill_name} ${q.prompt}`);
+          const matchesTopic = terms.some(term => new RegExp(`(^|[^a-z])${normalize(term)}[a-z]*(?=$|[^a-z])`).test(text));
+          const answer = String(q.correct_option || '').trim().toUpperCase();
+          const options = [q.option_a, q.option_b, q.option_c, q.option_d, q.option_e];
+          if (!prompt || !matchesTopic || !/^[A-E]$/.test(answer) || !options[answer.charCodeAt(0) - 65] || options.filter(Boolean).length < 2 || seen.has(prompt)) return false;
+          seen.add(prompt);
+          q.correct_option = answer;
+          return true;
+        }).sort((a, b) => {
+          const rank = (x: typeof a) => x.source_kind === 'official' ? 0 : x.source_kind === 'official_adapted' ? 1 : 2;
+          return rank(a) - rank(b);
+        });
+        setTopicQuestions(rows.slice(0, 8));
+      } catch {
+        if (active) setQuestionsError('Não foi possível carregar o banco de questões. O exercício de revisão continua disponível.');
+      } finally {
+        window.clearTimeout(timeout);
+        if (active) setLoadingQuestions(false);
+      }
+    })();
+    return () => { active = false; controller.abort(); window.clearTimeout(timeout); };
+  }, [currentLesson, unlocked]);
+
+  async function askCourseAI(text?: string) {
+    const message=(text ?? aiInput).trim();
+    if (!message || !currentLesson || !supabase || aiLoading) return;
+    const request = ++aiRequest.current;
+    const previous=aiMessages;
+    setAiMessages(v=>[...v,{role:'user',content:message}]);
+    setAiInput(''); setAiError(''); setAiLoading(true);
+    try {
+      const session = await ensureFreshSession(false);
+      if (!session?.access_token) throw new Error('Entre na sua conta do Conectaê para usar o tutor. A senha do curso continua válida.');
+      const send = (token: string) => fetch('/api/education-tutor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ message, examId: 'enem', context: {
+          course: 'Curso de Biologia', lessonTitle: currentLesson.title,
+          topics: currentLesson.topics, tips: currentLesson.tips,
+          history: previous.slice(-6),
+          guidance: 'Priorize esta aula. Exercícios criados são autorais, não oficiais. O conteúdo integral do PDF não foi fornecido.'
+        } }),
+        signal: AbortSignal.timeout(60000),
+      });
+      let response = await send(session.access_token);
+      if (response.status === 401) {
+        const refreshed = await ensureFreshSession(true);
+        if (refreshed?.access_token) response = await send(refreshed.access_token);
+      }
+      const data = await response.json();
+      if (request !== aiRequest.current) return;
+      if (!response.ok) throw new Error(data?.error || 'Não foi possível consultar o tutor agora.');
+      if (!data?.answer) throw new Error(data?.error || 'A IA não respondeu.');
+      setAiMessages(v=>[...v,{role:'assistant',content:data.answer}]);
+    } catch (e:any) {
+      if (request === aiRequest.current) {
+        setAiInput(message);
+        setAiMessages(previous);
+        setAiError(e?.message || 'Não foi possível consultar a IA agora.');
+      }
+    } finally { if (request === aiRequest.current) setAiLoading(false); }
+  }
 
   if (!unlocked) {
     const unlock = () => {
@@ -219,7 +337,7 @@ export default function BiologyCourse() {
             <p className="text-xs font-black uppercase tracking-[0.16em] text-[#3155e7]">Curso particular</p>
             <h1 className="mt-2 text-3xl font-black tracking-[-0.035em]">Curso de Biologia</h1>
             <p className="mt-2 text-sm leading-relaxed text-[#69758f]">Digite a senha do curso para acessar as aulas, materiais e questões.</p>
-            <input type="password" value={password} onChange={e => { setPassword(e.target.value); setPasswordError(''); }} onKeyDown={e => e.key === 'Enter' && unlock()} placeholder="Senha do curso" autoFocus className="mt-6 w-full rounded-xl border border-[#d7deee] bg-[#f8f9fe] px-4 py-3 font-semibold outline-none focus:border-[#3155e7]" />
+            <input aria-label="Senha do curso" type="password" value={password} onChange={e => { setPassword(e.target.value); setPasswordError(''); }} onKeyDown={e => e.key === 'Enter' && unlock()} placeholder="Senha do curso" autoFocus className="mt-6 w-full rounded-xl border border-[#d7deee] bg-[#f8f9fe] px-4 py-3 font-semibold outline-none focus:border-[#3155e7]" />
             {passwordError && <p className="mt-2 text-sm font-bold text-red-600">{passwordError}</p>}
             <button onClick={unlock} className="mt-4 w-full rounded-xl bg-[#3155e7] px-5 py-3 font-black text-white">Entrar no curso</button>
             <button onClick={() => window.location.assign('/cursos-particulares')} className="mt-4 flex w-full items-center justify-center gap-2 text-sm font-extrabold text-[#596681] hover:text-[#3155e7]"><ArrowLeft className="h-4 w-4" /> Voltar</button>
@@ -229,66 +347,6 @@ export default function BiologyCourse() {
     );
   }
 
-  const allLessons = modules.flatMap(module => module.lessons.map(lesson => ({ ...lesson, moduleTitle: module.title })));
-  const currentLesson = allLessons.find(lesson => lesson.key === selectedLesson);
-  const questionMap: Record<string, number[]> = {
-    'membrana-transporte':[0], 'metabolismo-celular':[1], 'ciclo-celular':[11],
-    'replicacao-dna':[2], 'sintese-rna':[2], 'genetica-mendeliana':[3],
-    'histologia-humana':[5], 'sistema-digestorio':[4], 'sistema-respiratorio':[5],
-    'histologia-vegetal':[6], 'fitormonios':[7], 'microorganismos':[8],
-    'bacterias-bacterioses':[8], 'protozoarios-protozooses':[9], 'algas':[1],
-    'reino-fungi':[12], 'reino-animalia':[14], 'vertebrados':[14],
-    'verminoses':[9], 'dengue':[10], 'evolucao-humana':[13]
-  };
-  const currentQuestions = currentLesson ? (questionMap[currentLesson.key] || []).map(i => ({...questions[i], index:i})) : [];
-
-  const topicTerms: Record<string, string[]> = {
-    'membrana-transporte':['membrana','osmose','transporte celular'], 'metabolismo-celular':['metabolismo','bioenergética','fermentação','respiração celular'], 'ciclo-celular':['divisão celular','mitose','meiose'],
-    'replicacao-dna':['replicação do DNA','DNA'], 'sintese-rna':['RNA','transcrição','expressão gênica'], 'genetica-mendeliana':['genética','hereditariedade','probabilidade genética'],
-    'histologia-humana':['histologia','tecido'], 'sistema-digestorio':['digestório','digestão'], 'sistema-respiratorio':['sistema respiratório','respiratório'],
-    'histologia-vegetal':['vegetal','tecido vegetal'], 'fitormonios':['fitormônio','hormônio vegetal'], 'microorganismos':['microbiologia','micro-organismo'],
-    'bacterias-bacterioses':['bactéria','bacteriose','microbiologia'], 'protozoarios-protozooses':['protozoário','protozoose'], 'algas':['alga','fotossíntese'],
-    'reino-fungi':['fungo','fungi'], 'reino-animalia':['animal','zoologia'], 'vertebrados':['vertebrado','zoologia'],
-    'verminoses':['verminose','helminto','parasita'], 'dengue':['dengue','arbovirose','vírus'], 'evolucao-humana':['evolução','seleção natural']
-  };
-
-  useEffect(() => {
-    if (!currentLesson || !supabase) { setTopicQuestions([]); return; }
-    let active = true;
-    setLoadingQuestions(true);
-    const terms = topicTerms[currentLesson.key] || currentLesson.topics;
-    const filters = terms.flatMap(term => [`skill_name.ilike.%${term}%`, `prompt.ilike.%${term}%`]).join(',');
-    supabase.from('exam_practice_questions')
-      .select('id,exam_id,skill_name,difficulty,prompt,option_a,option_b,option_c,option_d,option_e,correct_option,explanation,source_kind,source_exam_year,source_question_number')
-      .in('exam_id',['enem','cmmg']).eq('active',true).or(filters).limit(16)
-      .then(({data,error}:any) => {
-        if (!active) return;
-        if (error) console.warn('Biology topic questions unavailable', error);
-        const rows = (data || []).filter((q:any) => q.prompt && q.correct_option).sort((a:any,b:any) => {
-          const rank=(x:any)=>x.source_kind==='official'?0:x.source_kind==='official_adapted'?1:2;
-          return rank(a)-rank(b);
-        });
-        setTopicQuestions(rows.slice(0,8));
-        setLoadingQuestions(false);
-      });
-    return () => { active=false; };
-  }, [selectedLesson]);
-
-  async function askCourseAI(text?: string) {
-    const message=(text ?? aiInput).trim();
-    if (!message || !currentLesson || !supabase || aiLoading) return;
-    const previous=aiMessages;
-    setAiMessages(v=>[...v,{role:'user',content:message}]);
-    setAiInput(''); setAiError(''); setAiLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('biology-course-ai', { body: { message, lessonTitle: currentLesson.title, topics: currentLesson.topics, tips: currentLesson.tips, history: previous } });
-      if (error) throw error;
-      if (!data?.answer) throw new Error(data?.error || 'A IA não respondeu.');
-      setAiMessages(v=>[...v,{role:'assistant',content:data.answer}]);
-    } catch (e:any) {
-      setAiError(e?.message || 'Não foi possível consultar a IA agora.');
-    } finally { setAiLoading(false); }
-  }
 
   return (
     <main className="min-h-screen bg-[#f6f8ff] px-4 py-7 font-['Plus_Jakarta_Sans'] text-[#111936] sm:px-8">
@@ -301,15 +359,15 @@ export default function BiologyCourse() {
             <p className="mt-5 max-w-2xl text-base leading-relaxed text-[#415574] sm:text-lg">Cada assunto tem sua própria aula, material, revisão, dicas e questões específicas.</p>
             <div className="mt-7 grid max-w-xl grid-cols-3 gap-2 text-center"><div className="rounded-2xl bg-white/80 p-4 ring-1 ring-[#c9daf7]"><strong className="block text-2xl">{modules.length}</strong><span className="text-xs text-[#526684]">áreas</span></div><div className="rounded-2xl bg-white/80 p-4 ring-1 ring-[#c9daf7]"><strong className="block text-2xl">{lessonCount}</strong><span className="text-xs text-[#526684]">tópicos</span></div><div className="rounded-2xl bg-white/80 p-4 ring-1 ring-[#c9daf7]"><strong className="block text-2xl">ENEM</strong><span className="text-xs text-[#526684]">+ CMMG</span></div></div>
           </section>
-          <div className="mt-7 flex items-center gap-3 rounded-2xl border border-[#d7deee] bg-white px-4 py-3"><Search className="h-5 w-5 text-[#7a86a0]" /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar um tópico…" className="w-full bg-transparent text-sm font-semibold outline-none placeholder:text-[#9aa4b8]" /></div>
-          <section className="mt-8 space-y-9">{filtered.map(module => <div key={module.id}><div className="mb-4"><p className="text-xs font-black uppercase tracking-[0.14em] text-[#3155e7]">{module.title}</p><p className="mt-1 text-sm text-[#69758f]">{module.description}</p></div><div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{module.lessons.map((lesson,index)=><button key={lesson.key} onClick={()=>{setSelectedLesson(lesson.key);setAnswers({});setSubmitted(false);}} className="group rounded-[24px] border border-[#d7deee] bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-[#9fb0ff] hover:shadow-lg"><div className="flex items-start justify-between gap-3"><div className="rounded-xl bg-[#e9edff] p-2 text-[#3155e7]"><FileText className="h-5 w-5"/></div><span className="text-xs font-black text-[#9aa4b8]">{String(index+1).padStart(2,'0')}</span></div><h2 className="mt-4 text-lg font-black">{lesson.title}</h2><p className="mt-2 text-sm leading-relaxed text-[#69758f]">{lesson.topics.slice(0,3).join(' • ')}</p><div className="mt-5 flex items-center justify-between border-t border-[#edf0f7] pt-4 text-xs font-black text-[#3155e7]"><span>Material + questões</span><span>Entrar →</span></div></button>)}</div></div>)}</section>
+          <div className="mt-7 flex items-center gap-3 rounded-2xl border border-[#d7deee] bg-white px-4 py-3"><Search className="h-5 w-5 text-[#7a86a0]" /><input aria-label="Buscar tópico" value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar um tópico…" className="w-full bg-transparent text-sm font-semibold outline-none placeholder:text-[#596681]" /></div>
+          <section className="mt-8 space-y-9">{filtered.length === 0 && <p role="status" className="rounded-xl bg-white p-5 text-[#415574]">Nenhum tópico encontrado. Tente outro termo.</p>}{filtered.map(module => <div key={module.id}><div className="mb-4"><p className="text-xs font-black uppercase tracking-[0.14em] text-[#3155e7]">{module.title}</p><p className="mt-1 text-sm text-[#69758f]">{module.description}</p></div><div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{module.lessons.map((lesson,index)=><button key={lesson.key} onClick={()=>{setSelectedLesson(lesson.key);setAnswers({});setSubmitted(false);}} className="group rounded-[24px] border border-[#d7deee] bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-[#9fb0ff] hover:shadow-lg"><div className="flex items-start justify-between gap-3"><div className="rounded-xl bg-[#e9edff] p-2 text-[#3155e7]"><FileText className="h-5 w-5"/></div><span className="text-xs font-black text-[#596681]">{String(index+1).padStart(2,'0')}</span></div><h2 className="mt-4 text-lg font-black">{lesson.title}</h2><p className="mt-2 text-sm leading-relaxed text-[#69758f]">{lesson.topics.slice(0,3).join(' • ')}</p><div className="mt-5 flex items-center justify-between border-t border-[#edf0f7] pt-4 text-xs font-black text-[#3155e7]"><span>Material + questões</span><span>Entrar →</span></div></button>)}</div></div>)}</section>
         </> : <>
-          <section className="overflow-hidden rounded-[30px] bg-gradient-to-br from-[#eef5ff] to-[#dceaff] p-7 text-[#0b1b4d] shadow-sm ring-1 ring-[#c9daf7] sm:p-9"><p className="text-xs font-black uppercase tracking-[0.16em] text-[#1262c9]">{currentLesson.moduleTitle}</p><h1 className="mt-2 text-3xl font-black sm:text-5xl">{currentLesson.title}</h1><p className="mt-4 max-w-3xl text-[#415574]">Material original, conceitos essenciais, dicas e treino específico do assunto.</p></section>
+          <section className="overflow-hidden rounded-[30px] bg-gradient-to-br from-[#eef5ff] to-[#dceaff] p-7 text-[#0b1b4d] shadow-sm ring-1 ring-[#c9daf7] sm:p-9"><p className="text-xs font-black uppercase tracking-[0.16em] text-[#1262c9]">{currentLesson.moduleTitle}</p><h1 className="mt-2 text-3xl font-black sm:text-5xl">{currentLesson.title}</h1><p className="mt-4 max-w-3xl text-[#415574]">Conceitos essenciais, dicas, material da aula e treino do assunto.</p></section>
           <div className="mt-6 grid gap-5 lg:grid-cols-[1.35fr_.65fr]"><div className="space-y-5">
-            <section className="rounded-[24px] border border-[#d7deee] bg-white p-6"><p className="text-xs font-black uppercase tracking-[0.14em] text-[#3155e7]">Material da aula</p><h2 className="mt-2 text-xl font-black">{currentLesson.material || 'Material de apoio'}</h2>{PDF_LINKS[currentLesson.key]?<a href={PDF_LINKS[currentLesson.key]} target="_blank" rel="noopener noreferrer" className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-[#3155e7] px-4 py-3 text-sm font-black text-white"><ExternalLink className="h-4 w-4"/>Abrir PDF da aula</a>:<p className="mt-4 rounded-xl bg-[#fff8e8] p-4 text-sm font-bold text-[#7c5a18]">PDF em preparação para este tópico.</p>}</section>
+            <section className="rounded-[24px] border border-[#d7deee] bg-white p-6"><p className="text-xs font-black uppercase tracking-[0.14em] text-[#3155e7]">Material da aula</p><p className="mt-3 text-sm text-[#7c5a18]">O acesso aos PDFs pelo Drive ainda precisa ser liberado para os alunos.</p><h2 className="mt-2 text-xl font-black">{currentLesson.material?.replace(/\.pptx$/i, '.pdf') || 'Material de apoio'}</h2>{PDF_LINKS[currentLesson.key]?<a href={PDF_LINKS[currentLesson.key]} target="_blank" rel="noopener noreferrer" className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-[#3155e7] px-4 py-3 text-sm font-black text-white"><ExternalLink className="h-4 w-4"/>Abrir PDF da aula</a>:<p className="mt-4 rounded-xl bg-[#fff8e8] p-4 text-sm font-bold text-[#7c5a18]">PDF em preparação para este tópico.</p>}</section>
             <section className="rounded-[24px] border border-[#d7deee] bg-white p-6"><p className="text-xs font-black uppercase tracking-[0.14em] text-[#3155e7]">O que dominar</p><div className="mt-4 flex flex-wrap gap-2">{currentLesson.topics.map(t=><span key={t} className="rounded-full border border-[#dce3f4] bg-[#f8f9fe] px-3 py-2 text-xs font-bold text-[#4e5b77]">{t}</span>)}</div></section>
-            <section className="rounded-[24px] border border-[#d7deee] bg-white p-6"><div className="flex items-center gap-2 text-[#3155e7]"><Target className="h-5 w-5"/><p className="text-xs font-black uppercase tracking-[0.14em]">Questões do tópico</p></div><h2 className="mt-2 text-2xl font-black">Treino específico</h2><p className="mt-2 text-sm text-[#69758f]">Treino ampliado com até 8 questões por aula: as primeiras são específicas do tópico e as seguintes reforçam conteúdos relacionados de Biologia. Itens oficiais ENEM/CMMG validados entram identificados no respectivo tópico.</p><div className="mt-5 space-y-5">{loadingQuestions && <p className="rounded-xl bg-[#f8f9fe] p-4 text-sm font-bold text-[#596681]">Carregando questões específicas…</p>}{topicQuestions.map((q:any,localIndex:number)=>{const opts=[q.option_a,q.option_b,q.option_c,q.option_d,q.option_e].filter(Boolean);const correct=Math.max(0,'ABCDE'.indexOf(q.correct_option));const key='db-'+q.id;return <div key={key} className="rounded-2xl bg-[#f8f9fe] p-5"><div className="mb-3 flex flex-wrap gap-2"><span className="rounded-full bg-[#e8efff] px-2.5 py-1 text-[10px] font-black uppercase text-[#1769e0]">{q.exam_id.toUpperCase()}</span><span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black uppercase text-[#596681]">{q.source_kind==='official'?'Oficial':q.source_kind==='official_adapted'?'Oficial adaptada':'Treino alinhado'}</span>{q.source_exam_year&&<span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-[#596681]">{q.source_exam_year}{q.source_question_number?` • Q${q.source_question_number}`:''}</span>}</div><p className="font-black">{localIndex+1}. {q.prompt}</p><div className="mt-3 grid gap-2">{opts.map((option:any,j:number)=><button key={j} onClick={()=>!submitted&&setAnswers(v=>({...v,[key]:j}))} className={`rounded-xl border px-4 py-3 text-left text-sm font-semibold ${answers[key]===j?'border-[#3155e7] bg-[#eef1ff]':'border-[#dce3f4] bg-white'}`}>{String.fromCharCode(65+j)}. {option}</button>)}</div>{submitted&&<div className={`mt-3 rounded-xl p-4 text-sm ${answers[key]===correct?'bg-[#eefbf3] text-[#24613b]':'bg-[#fff4f2] text-[#7b342c]'}`}><strong>{answers[key]===correct?'Correto.':`Resposta: ${String.fromCharCode(65+correct)}.`}</strong> {q.explanation}</div>}</div>})}{topicQuestions.length===0&&!loadingQuestions&&currentQuestions.map(({index,...q},localIndex)=><div key={index} className="rounded-2xl bg-[#f8f9fe] p-5"><p className="font-black">{localIndex+1}. {q.q}</p><div className="mt-3 grid gap-2">{q.a.map((option,j)=><button key={option} onClick={()=>!submitted&&setAnswers(v=>({...v,[index]:j}))} className={`rounded-xl border px-4 py-3 text-left text-sm font-semibold ${answers[index]===j?'border-[#3155e7] bg-[#eef1ff]':'border-[#dce3f4] bg-white'}`}>{String.fromCharCode(65+j)}. {option}</button>)}</div>{submitted&&<div className={`mt-3 rounded-xl p-4 text-sm ${answers[index]===q.correct?'bg-[#eefbf3] text-[#24613b]':'bg-[#fff4f2] text-[#7b342c]'}`}><strong>{answers[index]===q.correct?'Correto.':`Resposta: ${String.fromCharCode(65+q.correct)}.`}</strong> {q.why}</div>}</div>)}{(topicQuestions.length>0 || currentQuestions.length>0)&&<button onClick={()=>setSubmitted(true)} className="w-full rounded-xl bg-[#1769e0] px-5 py-4 font-black text-white">Corrigir questões</button>}</div></section>
-          </div><aside className="space-y-5"><section className="rounded-[24px] border border-[#d7deee] bg-white p-6"><div className="flex items-center gap-2 text-[#3155e7]"><Lightbulb className="h-5 w-5"/><h2 className="font-black">Dicas de prova</h2></div>{currentLesson.tips.map(t=><p key={t} className="mt-3 text-sm leading-relaxed text-[#596681]">• {t}</p>)}</section><section className="rounded-[24px] border border-[#b8c8ff] bg-gradient-to-br from-[#f3f6ff] to-white p-6 text-[#0b1b4d]"><div className="flex items-center gap-2 text-[#3155e7]"><Sparkles className="h-5 w-5"/><p className="text-xs font-black uppercase tracking-[0.14em]">IA da aula</p></div><h2 className="mt-2 text-xl font-black">Tutor de Biologia</h2><p className="mt-2 text-sm leading-relaxed text-[#596681]">Pergunte sobre <strong>{currentLesson.title}</strong>, peça uma explicação, revisão ou novas questões.</p><div className="mt-4 flex flex-wrap gap-2">{['Explique este tema de forma simples','Faça uma revisão para prova','Crie uma questão estilo ENEM'].map(s=><button key={s} onClick={()=>askCourseAI(s)} disabled={aiLoading} className="rounded-full border border-[#cbd6ff] bg-white px-3 py-2 text-left text-xs font-bold text-[#3155e7] hover:bg-[#eef2ff] disabled:opacity-50">{s}</button>)}</div>{aiMessages.length>0&&<div className="mt-4 max-h-80 space-y-3 overflow-y-auto rounded-2xl bg-white p-3 ring-1 ring-[#e2e7f4]">{aiMessages.map((m,i)=><div key={i} className={`rounded-xl p-3 text-sm leading-relaxed whitespace-pre-wrap ${m.role==='user'?'ml-6 bg-[#3155e7] text-white':'mr-4 bg-[#f4f6fb] text-[#34415e]'}`}>{m.content}</div>)}{aiLoading&&<div className="flex items-center gap-2 p-3 text-sm font-bold text-[#596681]"><Loader2 className="h-4 w-4 animate-spin"/>Pensando…</div>}</div>}{aiError&&<p className="mt-3 rounded-xl bg-[#fff4f2] p-3 text-xs font-bold text-[#9a3d34]">{aiError}</p>}<div className="mt-4 flex gap-2"><textarea value={aiInput} onChange={e=>setAiInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();void askCourseAI();}}} placeholder="Tire uma dúvida sobre esta aula…" rows={2} className="min-w-0 flex-1 resize-none rounded-xl border border-[#d7deee] bg-white px-3 py-2 text-sm outline-none focus:border-[#3155e7]"/><button onClick={()=>askCourseAI()} disabled={aiLoading||!aiInput.trim()} aria-label="Enviar pergunta" className="self-stretch rounded-xl bg-[#3155e7] px-4 text-white disabled:opacity-40"><Send className="h-4 w-4"/></button></div></section><section className="rounded-[24px] border border-[#c9daf7] bg-[#eef5ff] p-6 text-[#0b1b4d]"><BookOpen className="mb-3 h-6 w-6 text-[#1769e0]"/><h2 className="font-black">Como estudar esta aula</h2><p className="mt-3 text-sm leading-relaxed text-[#415574]">1. Abra o PDF.<br/>2. Revise os conceitos-chave.<br/>3. Explique o tema sem consultar.<br/>4. Faça as questões.<br/>5. Revise apenas os erros.</p></section></aside></div>
+            <section className="rounded-[24px] border border-[#d7deee] bg-white p-6"><div className="flex items-center gap-2 text-[#3155e7]"><Target className="h-5 w-5"/><p className="text-xs font-black uppercase tracking-[0.14em]">Questões do tópico</p></div><h2 className="mt-2 text-2xl font-black">Treino específico</h2><p className="mt-2 text-sm text-[#69758f]">Questões disponíveis para este assunto, com origem identificada. Na ausência de itens do banco, faça o exercício autoral de revisão.</p><div className="mt-5 space-y-5">{questionsError && <p role="status" className="rounded-xl bg-[#fff8e8] p-4 text-sm text-[#7c5a18]">{questionsError}</p>}{loadingQuestions && <p className="rounded-xl bg-[#f8f9fe] p-4 text-sm font-bold text-[#596681]">Carregando questões específicas…</p>}{topicQuestions.map((q:any,localIndex:number)=>{const opts=[q.option_a,q.option_b,q.option_c,q.option_d,q.option_e];const correct='ABCDE'.indexOf(q.correct_option);const key='db-'+q.id;return <div key={key} className="rounded-2xl bg-[#f8f9fe] p-5"><div className="mb-3 flex flex-wrap gap-2"><span className="rounded-full bg-[#e8efff] px-2.5 py-1 text-[10px] font-black uppercase text-[#1769e0]">{q.exam_id.toUpperCase()}</span><span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black uppercase text-[#596681]">{q.source_kind==='official'?'Oficial':q.source_kind==='official_adapted'?'Oficial adaptada':'Treino alinhado'}</span>{q.source_exam_year&&<span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-[#596681]">{q.source_exam_year}{q.source_question_number?` • Q${q.source_question_number}`:''}</span>}</div><p className="font-black">{localIndex+1}. {q.prompt}</p>{q.image_url && <img src={q.image_url} alt={q.image_alt || "Imagem da questão"} className="mt-3 max-h-96 max-w-full object-contain" onError={e => { e.currentTarget.alt = "Imagem indisponível. Não responda sem consultar a figura original."; }} />}<div className="mt-3 grid gap-2">{opts.map((option:any,j:number)=>option ? <button key={j} onClick={()=>!submitted&&setAnswers(v=>({...v,[key]:j}))} className={`rounded-xl border px-4 py-3 text-left text-sm font-semibold ${answers[key]===j?'border-[#3155e7] bg-[#eef1ff]':'border-[#dce3f4] bg-white'}`}>{String.fromCharCode(65+j)}. {option}</button> : null)}</div>{submitted&&<div className={`mt-3 rounded-xl p-4 text-sm ${answers[key]===correct?'bg-[#eefbf3] text-[#24613b]':'bg-[#fff4f2] text-[#7b342c]'}`}><strong>{answers[key]===correct?'Correto.':`Resposta: ${String.fromCharCode(65+correct)}.`}</strong> {q.explanation}</div>}</div>})}{topicQuestions.length===0&&!loadingQuestions&&currentQuestions.map(({index,...q},localIndex)=><div key={index} className="rounded-2xl bg-[#f8f9fe] p-5"><p className="mb-2 text-sm font-bold text-[#3155e7]">Revisão autoral • não é questão oficial</p><p className="font-black">{localIndex+1}. {q.q}</p><div className="mt-3 grid gap-2">{q.a.map((option,j)=><button key={option} onClick={()=>!submitted&&setAnswers(v=>({...v,[index]:j}))} className={`rounded-xl border px-4 py-3 text-left text-sm font-semibold ${answers[index]===j?'border-[#3155e7] bg-[#eef1ff]':'border-[#dce3f4] bg-white'}`}>{String.fromCharCode(65+j)}. {option}</button>)}</div>{submitted&&<div className={`mt-3 rounded-xl p-4 text-sm ${answers[index]===q.correct?'bg-[#eefbf3] text-[#24613b]':'bg-[#fff4f2] text-[#7b342c]'}`}><strong>{answers[index]===q.correct?'Correto.':`Resposta: ${String.fromCharCode(65+q.correct)}.`}</strong> {q.why}</div>}</div>)}{!loadingQuestions && (topicQuestions.length>0 || currentQuestions.length>0)&&<button onClick={()=>{if(submitted)setAnswers({});setSubmitted(!submitted);}} className="w-full rounded-xl bg-[#1769e0] px-5 py-4 font-black text-white">{submitted ? 'Tentar novamente' : 'Corrigir questões'}</button>}</div></section>
+          </div><aside className="space-y-5"><section className="rounded-[24px] border border-[#d7deee] bg-white p-6"><div className="flex items-center gap-2 text-[#3155e7]"><Lightbulb className="h-5 w-5"/><h2 className="font-black">Dicas de prova</h2></div>{currentLesson.tips.map(t=><p key={t} className="mt-3 text-sm leading-relaxed text-[#596681]">• {t}</p>)}</section><section className="rounded-[24px] border border-[#b8c8ff] bg-gradient-to-br from-[#f3f6ff] to-white p-6 text-[#0b1b4d]"><div className="flex items-center gap-2 text-[#3155e7]"><Sparkles className="h-5 w-5"/><p className="text-xs font-black uppercase tracking-[0.14em]">IA da aula</p></div><h2 className="mt-2 text-xl font-black">Tutor de Biologia</h2><p className="mt-2 text-sm leading-relaxed text-[#596681]">Pergunte sobre <strong>{currentLesson.title}</strong>, peça uma explicação, revisão ou novas questões.</p><div className="mt-4 flex flex-wrap gap-2">{['Explique este tema de forma simples','Faça uma revisão para prova','Crie uma questão estilo ENEM'].map(s=><button key={s} onClick={()=>askCourseAI(s)} disabled={aiLoading} className="rounded-full border border-[#cbd6ff] bg-white px-3 py-2 text-left text-xs font-bold text-[#3155e7] hover:bg-[#eef2ff] disabled:opacity-50">{s}</button>)}</div>{aiMessages.length>0&&<div className="mt-4 max-h-80 space-y-3 overflow-y-auto rounded-2xl bg-white p-3 ring-1 ring-[#e2e7f4]">{aiMessages.map((m,i)=><div key={i} className={`rounded-xl p-3 text-sm leading-relaxed whitespace-pre-wrap ${m.role==='user'?'ml-6 bg-[#3155e7] text-white':'mr-4 bg-[#f4f6fb] text-[#34415e]'}`}>{m.role === 'assistant' ? <TutorFormattedContent content={m.content}/> : m.content}</div>)}{aiLoading&&<div className="flex items-center gap-2 p-3 text-sm font-bold text-[#596681]"><Loader2 className="h-4 w-4 animate-spin"/>Pensando…</div>}</div>}{aiError&&<p className="mt-3 rounded-xl bg-[#fff4f2] p-3 text-xs font-bold text-[#9a3d34]">{aiError}</p>}<div className="mt-4 flex gap-2"><textarea aria-label="Pergunta ao tutor" value={aiInput} onChange={e=>setAiInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();void askCourseAI();}}} placeholder="Tire uma dúvida sobre esta aula…" rows={2} className="min-w-0 flex-1 resize-none rounded-xl border border-[#d7deee] bg-white px-3 py-2 text-sm outline-none focus:border-[#3155e7]"/><button onClick={()=>askCourseAI()} disabled={aiLoading||!aiInput.trim()} aria-label="Enviar pergunta" className="self-stretch rounded-xl bg-[#3155e7] px-4 text-white disabled:opacity-40"><Send className="h-4 w-4"/></button></div></section><section className="rounded-[24px] border border-[#c9daf7] bg-[#eef5ff] p-6 text-[#0b1b4d]"><BookOpen className="mb-3 h-6 w-6 text-[#1769e0]"/><h2 className="font-black">Como estudar esta aula</h2><p className="mt-3 text-sm leading-relaxed text-[#415574]">1. Abra o PDF.<br/>2. Revise os conceitos-chave.<br/>3. Explique o tema sem consultar.<br/>4. Faça as questões.<br/>5. Revise apenas os erros.</p></section></aside></div>
         </>}
       </div>
     </main>
