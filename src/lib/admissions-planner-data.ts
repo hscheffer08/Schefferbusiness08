@@ -72,6 +72,13 @@ export const EXAMS: Record<string, ExamProfile> = {
     admissions: 'Vestibular FGV; cursos elegíveis também oferecem ingresso via ENEM, exames internacionais e outras modalidades',
     sourceUrl: 'https://vestibular.fgv.br/formas-de-ingresso/vestibular-fgv',
   },
+  espm: {
+    id: 'espm',
+    label: 'Vestibular ESPM 2027.1',
+    date: '2026-11-29',
+    admissions: 'Entrevista online (40 pontos) + prova presencial com 80 questões de Português, Matemática, Inglês e Humanidades/Cultura Geral (80 pontos) + Redação (40 pontos). A ESPM também oferece ingresso via ENEM e certificações internacionais, conforme modalidade e edital.',
+    sourceUrl: 'https://www.espm.br/cursos-de-graduacao/processos-seletivos/vestibular/',
+  },
 };
 
 const defaultSkills: Record<EnemArea, string[]> = {
@@ -166,13 +173,14 @@ export function getInstitutionExam(universityName: string): ExamProfile {
   if (/uerj/.test(n)) return EXAMS.uerj;
   if (/insper/.test(n)) return EXAMS.insper;
   if (/fgv|fundação getulio vargas/.test(n)) return EXAMS.fgv;
+  if (/espm|escola superior de propaganda e marketing/.test(n)) return EXAMS.espm;
   return EXAMS.enem;
 }
 
 export function getInstitutionAdjustment(universityName: string, institutionType?: string | null): number {
   const n = universityName.toLowerCase();
   if (/usp|unicamp|ufrj|ufmg|unb|ufrgs|ufsc|ufpr|ufpe|ufba|uerj|unesp/.test(n)) return 18;
-  if (/fgv|insper|einstein|puc-rio|puc-sp|mackenzie/.test(n)) return 10;
+  if (/fgv|insper|espm|einstein|puc-rio|puc-sp|mackenzie/.test(n)) return 10;
   if (institutionType === 'public') return 8;
   return 0;
 }
