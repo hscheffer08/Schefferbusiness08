@@ -1,0 +1,55 @@
+name: Add ESPM interview simulator
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/add-espm-interview.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch ESPM interview support
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('src/components/InterviewCoachPage.tsx')
+          s = p.read_text()
+          s = s.replace("type Institution = 'link';", "type Institution = 'link' | 'espm';")
+          s = s.replace("  link: { name: 'Link School of Business', accent: '#72a5ff', description: 'Jornada, iniciativa, liderança, decisões, impacto e visão empreendedora.', source: 'https://lsb.edu.br/processo-seletivo' },\n};", "  link: { name: 'Link School of Business', accent: '#72a5ff', description: 'Jornada, iniciativa, liderança, decisões, impacto e visão empreendedora.', source: 'https://lsb.edu.br/processo-seletivo' },\n  espm: { name: 'ESPM', accent: '#ff6047', description: 'Entrevista 2027.1: inovação e criatividade, articulação conceitual, repertório, comunicação oral e solução de problemas.', source: 'https://www.espm.br/cursos-de-graduacao/processos-seletivos/vestibular/' },\n};")
+          s = s.replace("document.title = 'Treino de entrevista para Link School of Business | Conectaê';", "document.title = 'Treino de entrevistas Link e ESPM | Conectaê';")
+          s = s.replace("if (description) description.content = 'Pratique a entrevista de admissão da Link School of Business com perguntas adaptativas, feedback por competência e plano de melhoria.';", "if (description) description.content = 'Pratique as entrevistas da Link School of Business e da ESPM com perguntas adaptativas e feedback específico por instituição.';")
+          p.write_text(s)
+
+          p = Path('api/interview-coach.ts')
+          s = p.read_text()
+          s = s.replace("type Institution = 'link';", "type Institution = 'link' | 'espm';")
+          old = "function guide(_institution: Institution) {\n  return 'LINK SCHOOL OF BUSINESS: treine jornada pessoal, iniciativa empreendedora, liderança, aprendizado com erro, resolução de problemas, decisões sob incerteza, colaboração, impacto, autoconhecimento, ambição e fit com uma formação prática em negócios. A página oficial descreve a entrevista como etapa final da Link Journey e enfatiza trajetória, potencial, mindset e objetivos.';\n}"
+          new = "function guide(institution: Institution) {\n  if (institution === 'espm') return 'ESPM VESTIBULAR 2027.1: entrevista online individual de até 30 minutos, valendo 40 pontos. Tema oficial: Inovação e criatividade em tempos de transformações sociais e tecnológicas. A ESPM informa que avalia competências comportamentais individuais, especialmente articulação conceitual da temática com embasamento em referencial teórico. Editais e orientações institucionais também destacam planejamento, comunicação oral, solução de problemas, leitura/interpretação e reflexão fundamentada que ultrapasse o senso comum. As leituras indicadas no edital são centrais. Treine domínio conceitual, comparação de referências, aplicação a casos atuais, contrapontos, síntese, clareza oral e conexão pertinente com o curso/proposta pedagógica. Não transforme esta entrevista em entrevista comportamental genérica e não invente perguntas oficiais ou critérios secretos.';\n  return 'LINK SCHOOL OF BUSINESS: treine jornada pessoal, iniciativa empreendedora, liderança, aprendizado com erro, resolução de problemas, decisões sob incerteza, colaboração, impacto, autoconhecimento, ambição e fit com uma formação prática em negócios. A página oficial descreve a entrevista como etapa final da Link Journey e enfatiza trajetória, potencial, mindset e objetivos.';\n}"
+          if old not in s: raise SystemExit('guide block not found')
+          s = s.replace(old, new)
+          s = s.replace("institutions: ['link']", "institutions: ['link', 'espm']")
+          s = s.replace("if (body.institution && body.institution !== 'link') return json(res, 400, { error: 'Esta ferramenta de entrevista não é oferecida para o processo seletivo atual do Insper Graduação.' });\n    const institution: Institution = 'link';", "if (body.institution && !['link', 'espm'].includes(String(body.institution))) return json(res, 400, { error: 'Instituição de entrevista não suportada.' });\n    const institution: Institution = body.institution === 'espm' ? 'espm' : 'link';")
+          old_open = "question: `O que na sua trajetória motivou a escolha por ${course} e por que você considera a formação prática da Link School of Business adequada aos seus objetivos?`,\n      competency: 'Motivação pelo curso e aderência à instituição',"
+          new_open = "question: institution === 'espm'\n        ? 'Para começar, como você define inovação e criatividade no contexto das transformações sociais e tecnológicas atuais? Construa uma tese e fundamente-a com pelo menos uma referência ou conceito que você estudou.'\n        : `O que na sua trajetória motivou a escolha por ${course} e por que você considera a formação prática da Link School of Business adequada aos seus objetivos?`,\n      competency: institution === 'espm' ? 'Articulação conceitual e embasamento teórico' : 'Motivação pelo curso e aderência à instituição',"
+          if old_open not in s: raise SystemExit('opening block not found')
+          s = s.replace(old_open, new_open)
+          old_sys = "Ao longo das perguntas, cubra temas diferentes: motivação pelo curso e instituição, trajetória, iniciativa, liderança ou colaboração, conflito ou dificuldade, aprendizado com erro, decisão sob incerteza, autoconhecimento, contribuição para a comunidade e planos futuros."
+          new_sys = "Ao longo das perguntas, cubra temas diferentes. Se institution=espm, priorize: definição e relação entre inovação/criatividade/transformações sociais e tecnológicas; uso real de referencial teórico; comparação entre leituras; aplicação a casos contemporâneos; benefícios, riscos e trade-offs; solução de problemas; planejamento; contrapontos; síntese; comunicação oral; e conexão pertinente com ${course} e a ESPM. Se institution=link, priorize: motivação pelo curso e instituição, trajetória, iniciativa, liderança ou colaboração, conflito ou dificuldade, aprendizado com erro, decisão sob incerteza, autoconhecimento, contribuição para a comunidade e planos futuros."
+          if old_sys not in s: raise SystemExit('system coverage block not found')
+          s = s.replace(old_sys, new_sys)
+          p.write_text(s)
+          PY
+      - name: Commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/components/InterviewCoachPage.tsx api/interview-coach.ts
+          git diff --cached --quiet || git commit -m 'Add ESPM-specific interview simulator'
+          git push
