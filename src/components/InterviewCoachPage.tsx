@@ -7,7 +7,7 @@ import Auth from '@/components/Auth';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { ensureFreshSession } from '@/lib/supabase';
 
-type Institution = 'link';
+type Institution = 'link' | 'espm';
 type Scores = { clareza: number; especificidade: number; autenticidade: number; reflexao: number; aderencia: number };
 type Detail = { criterion: string; evidence: string; impact: string; how: string; example: string; exercise: string };
 type Voice = { transcript: string; duration: number; pace: string; pauses: string; fillers: string; articulation: string; intonation: string; limitations: string; observations: { time: string; evidence: string; impact: string; exercise: string }[] };
@@ -19,6 +19,7 @@ type ApiResult = { voice?: Voice; model?: string; error?: string; question?: str
 
 const institutions = {
   link: { name: 'Link School of Business', accent: '#72a5ff', description: 'Jornada, iniciativa, liderança, decisões, impacto e visão empreendedora.', source: 'https://lsb.edu.br/processo-seletivo' },
+  espm: { name: 'ESPM', accent: '#ff6047', description: 'Entrevista 2027.1: inovação e criatividade, articulação conceitual, repertório, comunicação oral e solução de problemas.', source: 'https://www.espm.br/cursos-de-graduacao/processos-seletivos/vestibular/' },
 };
 const scoreLabels: Array<[keyof Scores, string]> = [['clareza', 'Clareza'], ['especificidade', 'Exemplos concretos'], ['autenticidade', 'Autenticidade'], ['reflexao', 'Reflexão'], ['aderencia', 'Aderência']];
 
@@ -52,9 +53,9 @@ function InterviewCoach() {
   }, [turns]);
 
   useEffect(() => {
-    document.title = 'Treino de entrevista para Link School of Business | Conectaê';
+    document.title = 'Treino de entrevistas Link e ESPM | Conectaê';
     const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-    if (description) description.content = 'Pratique a entrevista de admissão da Link School of Business com perguntas adaptativas, feedback por competência e plano de melhoria.';
+    if (description) description.content = 'Pratique as entrevistas da Link School of Business e da ESPM com perguntas adaptativas e feedback específico por instituição.';
   }, []);
 
   async function callApi(payload: Record<string, unknown>) {
