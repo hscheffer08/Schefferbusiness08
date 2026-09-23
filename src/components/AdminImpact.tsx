@@ -10,6 +10,7 @@ import {
   Loader2,
   MessageCircleQuestion,
   MousePointerClick,
+  RefreshCw,
   Target,
   TrendingUp,
   UserPlus,
@@ -89,6 +90,8 @@ export default function AdminImpact() {
   const [traffic, setTraffic] = useState<TrafficStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -122,10 +125,18 @@ export default function AdminImpact() {
         setStats(null);
         setTraffic(null);
       }
-      setLoading(false);
+      if (active) {
+        setLastUpdated(new Date());
+        setLoading(false);
+      }
     })();
     return () => { active = false; };
-  }, [period]);
+  }, [period, refreshKey]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setRefreshKey((value) => value + 1), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const studyHours = useMemo(() => stats ? Math.round((stats.tracked_study_minutes / 60) * 10) / 10 : 0, [stats]);
   const engagementRate = useMemo(
@@ -149,12 +160,20 @@ export default function AdminImpact() {
             Visitantes e sessões vêm do rastreamento próprio do Conectaê. Uso real exclui simples pageviews e abertura de sessão.
           </p>
         </div>
-        <div className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-ink-800 bg-ink-900/60 p-1">
-          {(['3hours', 'today', '7days', '30days', '90days', 'total'] as Period[]).map((item) => (
-            <button key={item} onClick={() => setPeriod(item)} className={`shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${period === item ? 'bg-brand-500 text-ink-950' : 'text-ink-400 hover:text-ink-200'}`}>
-              {item === '3hours' ? '3 horas' : item === 'today' ? 'Hoje' : item === '7days' ? '7 dias' : item === '30days' ? '30 dias' : item === '90days' ? '90 dias' : 'Total'}
+        <div className="flex flex-col gap-2">
+          <div className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-ink-800 bg-ink-900/60 p-1">
+            {(['3hours', 'today', '7days', '30days', '90days', 'total'] as Period[]).map((item) => (
+              <button key={item} onClick={() => setPeriod(item)} className={`shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${period === item ? 'bg-brand-500 text-ink-950' : 'text-ink-400 hover:text-ink-200'}`}>
+                {item === '3hours' ? '3 horas' : item === 'today' ? 'Hoje' : item === '7days' ? '7 dias' : item === '30days' ? '30 dias' : item === '90days' ? '90 dias' : 'Total'}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center justify-end gap-3 text-[11px] text-ink-500">
+            {lastUpdated && <span>Atualizado às {lastUpdated.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>}
+            <button type="button" onClick={() => setRefreshKey((value) => value + 1)} className="inline-flex items-center gap-1.5 font-semibold text-ink-300">
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Atualizar
             </button>
-          ))}
+          </div>
         </div>
       </div>
 
