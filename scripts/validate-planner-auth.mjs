@@ -10,46 +10,60 @@ const account = fs.readFileSync(accountPath, 'utf8');
 
 const requiredGatePatterns = [
   /useAuth\(\)/,
-  /window\.location\.replace\(['\"]\/\?auth=login&next=course['\"]\)/,
-  /if\s*\(\s*loading\s*\|\|\s*!user\s*\)/,
+  /if\s*\(\s*loading\s*\)/,
+  /auth['\"],\s*['\"]login/,
+  /next['\"],\s*['\"]course/,
+  /Criar uma conta ajuda a salvar e sincronizar seu progresso/,
   /<Gate\b/,
 ];
 
 for (const pattern of requiredGatePatterns) {
   if (!pattern.test(gate)) {
-    console.error(`Planner auth invariant failed: ${gatePath} is missing ${pattern}`);
+    console.error(`Planner access invariant failed: ${gatePath} is missing ${pattern}`);
+    process.exit(1);
+  }
+}
+
+const forbiddenGatePatterns = [
+  /window\.location\.(?:replace|assign)\(['\"]\/\?auth=login&next=course['\"]\)/,
+  /if\s*\(\s*loading\s*\|\|\s*!user\s*\)/,
+];
+
+for (const pattern of forbiddenGatePatterns) {
+  if (pattern.test(gate)) {
+    console.error(`Planner access invariant failed: ${gatePath} still requires an account to enter the course: ${pattern}`);
     process.exit(1);
   }
 }
 
 if (/<Auth\b/.test(gate)) {
-  console.error(`Planner auth invariant failed: ${gatePath} must not render a separate login. Authentication belongs to the Home.`);
+  console.error(`Planner access invariant failed: ${gatePath} must not render a separate login. Authentication belongs to the shared account flow.`);
   process.exit(1);
 }
 
 if (!/import\s*\{\s*AuthProvider\s*\}\s*from\s*['\"]\.\/lib\/auth-context(?:\.tsx)?['\"]/.test(main) || !/<AuthProvider>/.test(main)) {
-  console.error('Planner auth invariant failed: src/main.tsx must own the single root AuthProvider.');
+  console.error('Planner access invariant failed: src/main.tsx must own the single root AuthProvider.');
   process.exit(1);
 }
 
 if (/\bAuthProvider\b/.test(gate)) {
-  console.error(`Planner auth invariant failed: ${gatePath} must consume root auth and must not create a nested AuthProvider.`);
+  console.error(`Planner access invariant failed: ${gatePath} must consume root auth and must not create a nested AuthProvider.`);
   process.exit(1);
 }
 
 if (/\bAuthProvider\b/.test(account)) {
-  console.error(`Planner auth invariant failed: ${accountPath} must consume root auth and must not create a nested AuthProvider.`);
+  console.error(`Planner access invariant failed: ${accountPath} must consume root auth and must not create a nested AuthProvider.`);
   process.exit(1);
 }
 
 if (!/AdmissionsPlannerGate/.test(main)) {
-  console.error('Planner auth invariant failed: src/main.tsx must route the approval planner through AdmissionsPlannerGate.');
+  console.error('Planner access invariant failed: src/main.tsx must route the approval planner through AdmissionsPlannerGate.');
   process.exit(1);
 }
 
 if (/from ['\"]@\/components\/AdmissionsPlannerV\d+['\"]/.test(main)) {
-  console.error('Planner auth invariant failed: src/main.tsx must never import a planner version directly.');
+  console.error('Planner access invariant failed: src/main.tsx must never import a planner version directly.');
   process.exit(1);
 }
 
-console.log('Planner auth invariant OK: Home owns login and one root AuthProvider protects the approval planner.');
+console.log('Planner access invariant OK: the course is public, while account login is optional for saving and syncing progress.');
