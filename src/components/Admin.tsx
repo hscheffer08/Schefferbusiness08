@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Shield, Users, Trophy, TrendingUp, Percent, DollarSign, Loader2, BarChart3, Share2, Gift, FileText, ChevronDown, ChevronRight, Mail } from 'lucide-react';
+import { ArrowLeft, Shield, Users, Trophy, TrendingUp, Percent, DollarSign, Loader2, BarChart3, Share2, Gift, FileText, ChevronDown, ChevronRight, Mail, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import type { AdminSettings } from '@/types';
@@ -52,12 +52,15 @@ export default function Admin({ onBack }: AdminProps) {
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<FilterPeriod>('30days');
   const [savingSettings, setSavingSettings] = useState(false);
+  const [dashboardError, setDashboardError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminTab, setAdminTab] = useState<'dashboard' | 'impact' | 'referrals' | 'answers'>('dashboard');
 
   const loadStats = useCallback(async (p: FilterPeriod) => {
     if (!supabase) return;
     setLoading(true);
+    setDashboardError(null);
 
     let startDate: string | null = null;
     if (p === 'today') {
@@ -93,6 +96,9 @@ export default function Admin({ onBack }: AdminProps) {
         : supabase.from('analytics_events').select('event_type, created_at').order('created_at', { ascending: false }).limit(20),
     ]);
 
+    const failedQuery = [visitorsRes, usersRes, startedRes, completedRes, matchesRes, topUniRes, recentRes].find((result) => result.error);
+    if (failedQuery?.error) setDashboardError('Algumas métricas não puderam ser atualizadas. Tente novamente.');
+
     const topUniMap = new Map<string, number>();
     (topUniRes.data ?? []).forEach((row: { top_university_name: string }) => {
       topUniMap.set(row.top_university_name, (topUniMap.get(row.top_university_name) ?? 0) + 1);
@@ -122,6 +128,7 @@ export default function Admin({ onBack }: AdminProps) {
       consentTotal: consentStats.total,
       consentByScope: consentStats.byScope,
     });
+    setLastUpdated(new Date());
     setLoading(false);
   }, []);
 
@@ -138,6 +145,12 @@ export default function Admin({ onBack }: AdminProps) {
     loadStats(period);
     getAdminSettings().then((s) => setSettings(s));
   }, [user, period, loadStats]);
+
+  useEffect(() => {
+    if (!isAdmin || adminTab !== 'dashboard') return;
+    const timer = window.setInterval(() => { void loadStats(period); }, 30_000);
+    return () => window.clearInterval(timer);
+  }, [isAdmin, adminTab, period, loadStats]);
 
   const handleSaveSettings = async () => {
     if (!supabase || !settings) return;
@@ -254,6 +267,22 @@ export default function Admin({ onBack }: AdminProps) {
           <AnswersTab />
         ) : (
         <>
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-xs text-ink-500">
+            Atualização automática a cada 30s{lastUpdated ? ` · última: ${lastUpdated.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : ''}
+          </div>
+          <button
+            type="button"
+            onClick={() => void loadStats(period)}
+            disabled={loading}
+            className="inline-flex w-fit items-center gap-2 rounded-xl border border-ink-700 bg-ink-800 px-3 py-2 text-xs font-semibold text-ink-200 transition hover:bg-ink-700 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Atualizar agora
+          </button>
+        </div>
+        {dashboardError && <div className="mb-4 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">{dashboardError}</div>}
+
         {/* Period filter */}
         <div className="flex gap-1 mb-6 p-1 rounded-xl bg-ink-900/60 border border-ink-800 w-fit">
           {(['today', '7days', '30days', 'total'] as FilterPeriod[]).map((p) => (
@@ -458,25 +487,36 @@ function AnswersTab() {
   const [loadingAnswers, setLoadingAnswers] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadSessions = useCallback(async (showSpinner = false) => {
     if (!supabase) return;
-    (async () => {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
-      if (!token) { setError('Sessão expirada.'); setLoading(false); return; }
-      try {
-        const res = await fetch('/api/admin-rpc', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ rpc: 'get_admin_sessions' }),
-        });
-        const json = await res.json();
-        if (!res.ok) { setError(json.error || 'Erro ao carregar.'); }
-        else { setSessions((json.data ?? []) as AdminSession[]); }
-      } catch { setError('Erro de conexão.'); }
+    if (showSpinner) setLoading(true);
+    const session = await supabase.auth.getSession();
+    const token = session.data.session?.access_token;
+    if (!token) { setError('Sessão expirada.'); setLoading(false); return; }
+    try {
+      const res = await fetch('/api/admin-rpc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ rpc: 'get_admin_sessions' }),
+      });
+      const json = await res.json();
+      if (!res.ok) setError(json.error || 'Erro ao carregar.');
+      else {
+        setSessions((json.data ?? []) as AdminSession[]);
+        setError(null);
+      }
+    } catch {
+      setError('Erro de conexão.');
+    } finally {
       setLoading(false);
-    })();
+    }
   }, []);
+
+  useEffect(() => {
+    void loadSessions(true);
+    const timer = window.setInterval(() => { void loadSessions(false); }, 30_000);
+    return () => window.clearInterval(timer);
+  }, [loadSessions]);
 
   const toggleSession = async (sessionId: string) => {
     if (expandedId === sessionId) { setExpandedId(null); return; }
@@ -557,6 +597,12 @@ function AnswersTab() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-xs text-ink-500">Atualização automática a cada 30s.</span>
+        <button type="button" onClick={() => void loadSessions(false)} className="inline-flex items-center gap-2 rounded-xl border border-ink-700 bg-ink-800 px-3 py-2 text-xs font-semibold text-ink-200">
+          <RefreshCw className="h-4 w-4" /> Atualizar
+        </button>
+      </div>
       {/* Summary stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard icon={<FileText className="w-5 h-5" />} label="Questionários respondidos" value={sessions.length} />
