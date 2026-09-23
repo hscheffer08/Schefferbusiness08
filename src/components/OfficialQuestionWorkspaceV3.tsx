@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { normalizeSearchText } from '@/lib/search-text';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import QuestionPrompt from '@/components/QuestionPrompt';
 import { CheckCircle2, ExternalLink, Loader2, RotateCcw, Search, X, XCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -45,6 +46,8 @@ export default function OfficialQuestionWorkspaceV3(){
   const[enemSubjectMaps,setEnemSubjectMaps]=useState<EnemSubjectMaps>({}); const[subjectMapLoading,setSubjectMapLoading]=useState(false); const[subjectMapError,setSubjectMapError]=useState('');
   const[activeOfficial,setActiveOfficial]=useState<OfficialRef|null>(null); const[activePractice,setActivePractice]=useState<Practice|null>(null); const[extracted,setExtracted]=useState<Extracted|null>(null); const[failedVisuals,setFailedVisuals]=useState<string[]>([]);
   const[extracting,setExtracting]=useState(false); const[extractError,setExtractError]=useState(''); const[bankError,setBankError]=useState(''); const[selected,setSelected]=useState(''); const[correct,setCorrect]=useState<string|null>(null); const[submitted,setSubmitted]=useState(false); const[answering,setAnswering]=useState(false); const[visibleCount,setVisibleCount]=useState(120);
+  const requestVersion=useRef(0);
+  useEffect(()=>()=>{requestVersion.current+=1},[]);
   const cfg=EXAMS.find(x=>x.id===exam)!; const areasKey=cfg.areas.join('|');
 
   useEffect(()=>{localStorage.setItem('conectae:active-exam',exam);setArea('Todas');setSubject('Todas');setYear('Todos');setSearch('');setSubjectMapError('');setMode(cfg.vestibular?'official':'authorial')},[exam,cfg.vestibular]);
@@ -101,7 +104,7 @@ export default function OfficialQuestionWorkspaceV3(){
     return Array.from(new Set(base.map(q=>officialSubject(q,enemSubjectMaps)).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'pt-BR'));
   },[official,area,mode,exam,enemSubjectMaps]);
   const years=useMemo(()=>['Todos',...Array.from(new Set(rows.map((q:any)=>mode==='official'?q.year:q.source_exam_year).filter((v:any)=>Number.isFinite(v)))).sort((a:any,b:any)=>b-a).map(String)],[rows,mode]);
-  const filtered=useMemo(()=>rows.filter((q:any)=>{if(area!=='Todas'&&q.area!==area)return false;if(mode==='official'&&subject!=='Todas'&&officialSubject(q,enemSubjectMaps)!==subject)return false;const y=mode==='official'?q.year:q.source_exam_year;if(year!=='Todos'&&String(y)!==year)return false;const t=search.trim().toLowerCase();if(!t)return true;const h=mode==='official'?`${q.area||''} ${officialSubject(q,enemSubjectMaps)} ${q.subject||''} ${q.skill_name||''} ${q.question_number} ${q.year} ${q.series_id==='cmmg'?semester(q):''}`:`${q.area||''} ${q.skill_name||''} ${q.prompt||''} ${q.source_question_number||''}`;return h.toLowerCase().includes(t)}),[rows,area,subject,year,search,mode,enemSubjectMaps]);
+  const filtered=useMemo(()=>rows.filter((q:any)=>{if(area!=='Todas'&&q.area!==area)return false;if(mode==='official'&&subject!=='Todas'&&officialSubject(q,enemSubjectMaps)!==subject)return false;const y=mode==='official'?q.year:q.source_exam_year;if(year!=='Todos'&&String(y)!==year)return false;const t=normalizeSearchText(search);if(!t)return true;const h=mode==='official'?`${q.area||''} ${officialSubject(q,enemSubjectMaps)} ${q.subject||''} ${q.skill_name||''} ${q.prompt_text||''} ${q.question_number} ${q.year} ${q.series_id==='cmmg'?semester(q):''}`:`${q.area||''} ${q.skill_name||''} ${q.prompt||''} ${q.source_question_number||''}`;return normalizeSearchText(h).includes(t)}),[rows,area,subject,year,search,mode,enemSubjectMaps]);
   const counts=useMemo(()=>Object.fromEntries(cfg.areas.map(a=>[a,official.filter(q=>q.area===a).length])),[official,cfg.areas]);
   const subjectCounts=useMemo(()=>Object.fromEntries(availableSubjects.map(s=>[s,official.filter(q=>(area==='Todas'||q.area===area)&&(year==='Todos'||String(q.year)===year)&&officialSubject(q,enemSubjectMaps)===s).length])),[official,area,year,availableSubjects,enemSubjectMaps]);
   const modalOpen=Boolean(activeOfficial||activePractice);
@@ -109,12 +112,30 @@ export default function OfficialQuestionWorkspaceV3(){
   useEffect(()=>{if(subject!=='Todas'&&!availableSubjects.includes(subject))setSubject('Todas')},[availableSubjects,subject]);
   useEffect(()=>{window.dispatchEvent(new CustomEvent('conectae:question-modal',{detail:{open:modalOpen}}));document.body.style.overflow=modalOpen?'hidden':'';return()=>{document.body.style.overflow='';window.dispatchEvent(new CustomEvent('conectae:question-modal',{detail:{open:false}}))}},[modalOpen]);
 
+  useEffect(()=>{
+    if(!modalOpen)return;
+    const previous=document.activeElement as HTMLElement|null;
+    const dialog=document.querySelector<HTMLElement>('[role="dialog"][aria-label="Resolver questão"]');
+    dialog?.focus();
+    const onKey=(event:KeyboardEvent)=>{
+      if(event.key==='Escape'){event.preventDefault();close();return;}
+      if(event.key!=='Tab'||!dialog)return;
+      const elements=Array.from(dialog.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), textarea:not(:disabled), [tabindex="0"]')).filter(el=>el.getClientRects().length>0);
+      const first=elements[0],last=elements[elements.length-1];
+      if(!first){event.preventDefault();dialog.focus();return;}
+      if(event.shiftKey&&(document.activeElement===first||document.activeElement===dialog)){event.preventDefault();last.focus();}
+      else if(!event.shiftKey&&(document.activeElement===last||!dialog.contains(document.activeElement))){event.preventDefault();first.focus();}
+    };
+    document.addEventListener('keydown',onKey);
+    return()=>{document.removeEventListener('keydown',onKey);previous?.focus();};
+  },[modalOpen]);
+
   function changeMode(next:Mode){setMode(next);setArea('Todas');setSubject('Todas');setYear('Todos');setSearch('')}
   function chooseArea(next:string){setArea(next);setSubject('Todas')}
-  function reset(){setSelected('');setCorrect(null);setSubmitted(false);setAnswering(false);setExtracted(null);setExtractError('');setFailedVisuals([])}
+  function reset(){requestVersion.current+=1;setExtracting(false);setSelected('');setCorrect(null);setSubmitted(false);setAnswering(false);setExtracted(null);setExtractError('');setFailedVisuals([])}
   function close(){setActiveOfficial(null);setActivePractice(null);reset()}
   async function loadOfficial(q:OfficialRef){
-    reset();setActiveOfficial(q);setActivePractice(null);setExtracting(true);const key=`conectae:official-v17:${q.question_id}`;
+    reset();setActiveOfficial(q);setActivePractice(null);setExtracting(true);const version=requestVersion.current;const key=`conectae:official-v17:${q.question_id}`;
     let value:Extracted|null=null;
     try{const cached=JSON.parse(sessionStorage.getItem(key)||'null');if(isUsableOfficialQuestion(cached)){setExtracted(cached);value=cached;if(!cached.needs_source_image||cached.images?.length||Object.keys(cached.option_images||{}).length||cached.source_page){setExtracting(false);return}}}catch{}
     try{
@@ -160,6 +181,7 @@ export default function OfficialQuestionWorkspaceV3(){
         }catch(e){console.warn('official deterministic page locator failed',e)}
       }
       // Se a página já é conhecida, o texto abre na hora e o screenshot é hidratado em seguida.
+      if(version!==requestVersion.current)return;
       setExtracted(value);setExtracting(false);
       if(value.needs_source_image&&!value.images?.length&&!value.source_page&&q.source_pdf_url){
         try{const localMeta=await extractOfficialQuestion(q.source_pdf_url,q.question_number);if(localMeta?.source_page)value={...value,source_page:localMeta.source_page,image_note:value.image_note||localMeta.image_note||null}}catch(e){console.warn('official visual page lookup failed',e)}
@@ -171,18 +193,20 @@ export default function OfficialQuestionWorkspaceV3(){
       if(value.needs_source_image&&!value.images?.length&&!value.source_page&&q.source_page)value={...value,source_page:q.source_page};
       if(value.needs_source_image&&!value.images?.length&&value.source_page&&q.source_pdf_url){try{const image=await renderOfficialPdfPage(q.source_pdf_url,value.source_page);if(image)value={...value,images:[image]}}catch(e){console.warn('official source page rendering failed',e)}}
       if(value.needs_source_image&&!value.images?.length&&!Object.keys(value.option_images||{}).length&&!value.source_page)throw new Error('A figura obrigatória desta questão não carregou. Tente novamente para responder com o enunciado completo.');
+      if(version!==requestVersion.current)return;
       setExtracted(value);if(!value.needs_source_image||value.images?.length){try{sessionStorage.setItem(key,JSON.stringify(value))}catch{}}
-    }catch(e:any){setExtractError(e?.message||'Não consegui carregar essa questão oficial agora.')}finally{setExtracting(false)}
+    }catch(e:any){if(version===requestVersion.current)setExtractError(e?.message||'Não consegui carregar essa questão oficial agora.')}finally{if(version===requestVersion.current)setExtracting(false)}
   }
   function openPractice(q:Practice){reset();setActivePractice(q);setActiveOfficial(null)}
   async function retry(){if(activeOfficial)await loadOfficial(activeOfficial)}
 
-  async function submitOfficial(){if(!activeOfficial||!selected||submitted)return;setAnswering(true);try{
+  async function submitOfficial(){if(!activeOfficial||!selected||submitted||answering)return;const version=requestVersion.current;setAnswering(true);try{
     let ans=extracted?.correct_option?.toUpperCase()||activeOfficial.correct_option?.toUpperCase()||null;
     if(!ans&&activeOfficial.series_id!=='cmmg'&&activeOfficial.answer_key_url&&!/^https:\/\/download\.inep\.gov\.br\//i.test(activeOfficial.answer_key_url)){try{ans=await extractOfficialAnswer(activeOfficial.answer_key_url,activeOfficial.question_number)}catch(e){console.warn('deterministic answer extraction failed',e)}}
     if(!ans&&activeOfficial.answer_key_url&&/\.pdf(?:$|\?)/i.test(activeOfficial.answer_key_url)){try{ans=await extractOfficialAnswerRemotely(activeOfficial.answer_key_url,activeOfficial.question_number,activeOfficial.vestibular,activeOfficial.year)}catch(e){console.warn('remote answer extraction failed',e)}}
+    if(version!==requestVersion.current)return;
     setCorrect(ans);setSubmitted(true);
-  }finally{setAnswering(false)}}
+  }finally{if(version===requestVersion.current)setAnswering(false)}}
   function submitPractice(){if(!activePractice||!selected||submitted)return;setCorrect(activePractice.correct_option?.toUpperCase()||null);setSubmitted(true)}
   const source:Extracted|Practice|null=activeOfficial?extracted:activePractice; const prompt=activeOfficial?extracted?.prompt:activePractice?.prompt; const result=Boolean(submitted&&correct&&selected===correct); const visibleImages=(extracted?.images||[]).filter(src=>!failedVisuals.includes(src));
 
@@ -195,7 +219,7 @@ export default function OfficialQuestionWorkspaceV3(){
     <div className="mt-3 grid grid-cols-3 gap-2 rounded-2xl border border-[#173765] bg-[#06152f] p-2"><button disabled={!cfg.vestibular} onClick={()=>changeMode('official')} className={`rounded-xl px-2 py-3 text-xs font-extrabold disabled:opacity-35 ${mode==='official'?'bg-amber-500/15 text-amber-200':'text-[#9fb5d4]'}`}>Oficiais<span className="block text-lg">{official.length}</span></button><button onClick={()=>changeMode('adapted')} className={`rounded-xl px-2 py-3 text-xs font-extrabold ${mode==='adapted'?'bg-[#0b2856] text-white':'text-[#9fb5d4]'}`}>Adaptadas<span className="block text-lg">{adapted.length}</span></button><button onClick={()=>changeMode('authorial')} className={`rounded-xl px-2 py-3 text-xs font-extrabold ${mode==='authorial'?'bg-[#0b2856] text-white':'text-[#9fb5d4]'}`}>Estilo da prova<span className="block text-lg">{authorial.length}</span></button></div>
     {mode==='official'&&cfg.vestibular&&<div className="mt-3 rounded-2xl border border-amber-400/25 bg-amber-400/[.05] p-4"><div className="font-extrabold">{cfg.label} · acervo oficial interativo</div><div className="mt-3 flex gap-2 overflow-x-auto pb-1">{cfg.areas.map(a=><button key={a} onClick={()=>chooseArea(a)} className={`shrink-0 rounded-xl border px-3 py-2 text-left ${area===a?'border-amber-300/50 bg-amber-300/10':'border-[#173765] bg-[#06152f]'}`}><strong className="block text-sm">{a}</strong><span className="text-[10px] text-[#9fb5d4]">{counts[a]||0} oficiais</span></button>)}</div>{availableSubjects.length>0&&<div className="mt-4 border-t border-amber-300/10 pt-4"><div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[.12em] text-amber-200">Matéria específica {subjectMapLoading&&<Loader2 size={12} className="animate-spin"/>}</div>{subjectMapLoading&&exam==='enem'&&<p className="mt-2 text-[11px] text-[#9fb5d4]">Organizando as questões oficiais do ENEM por matéria. Na primeira vez pode levar alguns segundos.</p>}{subjectMapError&&<p className="mt-2 text-[11px] text-amber-200">{subjectMapError}</p>}<div className="mt-2 flex flex-wrap gap-2"><button onClick={()=>setSubject('Todas')} className={`rounded-lg border px-3 py-2 text-xs font-bold ${subject==='Todas'?'border-[#72a5ff] bg-[#173765]':'border-[#173765] bg-[#06152f] text-[#9fb5d4]'}`}>Todas</button>{availableSubjects.map(s=><button key={s} disabled={subjectMapLoading&&exam==='enem'} onClick={()=>setSubject(s)} className={`rounded-lg border px-3 py-2 text-xs font-bold disabled:opacity-45 ${subject===s?'border-[#72a5ff] bg-[#173765]':'border-[#173765] bg-[#06152f] text-[#9fb5d4]'}`}>{s} <span className="opacity-70">({subjectMapLoading&&exam==='enem'?'…':subjectCounts[s]||0})</span></button>)}</div></div>}</div>}
     <div className="mt-3 flex flex-wrap gap-2"><button onClick={()=>chooseArea('Todas')} className={`rounded-lg border px-3 py-2 text-xs font-bold ${area==='Todas'?'border-[#72a5ff] bg-[#173765]':'border-[#173765] bg-[#06152f] text-[#9fb5d4]'}`}>Todas as áreas</button>{availableAreas.map(a=><button key={a} onClick={()=>chooseArea(a)} className={`rounded-lg border px-3 py-2 text-xs font-bold ${area===a?'border-[#72a5ff] bg-[#173765]':'border-[#173765] bg-[#06152f] text-[#9fb5d4]'}`}>{a}</button>)}</div>
-    <div className="relative mt-3"><Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#7691b5]" size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar conteúdo, matéria ou número" className="h-11 w-full rounded-xl border border-[#173765] bg-[#06152f] pl-10 pr-3 text-sm text-white outline-none placeholder:text-[#6680a5]"/></div>
+    <div className="relative mt-3"><Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#7691b5]" size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} aria-label="Buscar conteúdo, matéria ou número" placeholder="Buscar conteúdo, matéria ou número" className="h-11 w-full rounded-xl border border-[#173765] bg-[#06152f] pl-10 pr-3 text-sm text-white outline-none placeholder:text-[#6680a5]"/></div>
     {years.length>1&&<div className="mt-2 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">{years.map(v=><button key={v} onClick={()=>{setYear(v);setSubject('Todas')}} className={`shrink-0 rounded-lg border px-3 py-1.5 text-[11px] font-bold ${year===v?'border-[#72a5ff] bg-[#173765] text-white':'border-[#173765] bg-[#06152f] text-[#9fb5d4]'}`}>{v==='Todos'?'Todos os anos':v}</button>)}</div>}
     {bankError&&<div className="mt-4 rounded-2xl border border-amber-400/25 bg-amber-400/[.06] p-4 text-sm text-amber-100">{bankError}</div>}
     <div className="mt-4 text-xs font-bold text-[#9fb5d4]">{filtered.length} {filtered.length===1?'questão encontrada':'questões encontradas'}{mode==='official'&&<span className="ml-1 text-amber-200">· somente oficiais</span>}</div>
@@ -203,7 +227,7 @@ export default function OfficialQuestionWorkspaceV3(){
     {visibleCount<filtered.length&&<button onClick={()=>setVisibleCount(v=>v+120)} className="mt-4 min-h-11 w-full rounded-xl border border-[#72a5ff] bg-[#0b2856] px-4 text-sm font-extrabold">Carregar mais questões</button>}
     {!filtered.length&&<div className="mt-4 rounded-2xl border border-[#173765] bg-[#06152f] p-5 text-sm text-[#9fb5d4]">Nenhuma questão com esses filtros.</div>}
 
-    {modalOpen&&<div className="fixed inset-0 z-[220] overflow-y-auto bg-[#020817] text-white" role="dialog" aria-modal="true"><div className="mx-auto min-h-full w-full max-w-3xl px-4 pb-[calc(env(safe-area-inset-bottom)+28px)] pt-[max(12px,env(safe-area-inset-top))] md:px-6"><div className="sticky top-0 z-10 -mx-1 flex items-center justify-between gap-3 border-b border-[#173765] bg-[#020817]/97 px-1 py-3 backdrop-blur-xl"><div><div className={`text-[11px] font-black uppercase tracking-wide ${activeOfficial?'text-amber-200':'text-[#72a5ff]'}`}>{activeOfficial?'Questão oficial':mode==='adapted'?'Adaptada de prova real':'Estilo da prova'}</div><div className="text-sm font-extrabold">{activeOfficial?edition(activeOfficial,cfg.label):cfg.label}</div></div><button onClick={close} className="grid h-11 w-11 place-items-center rounded-xl border border-[#173765] bg-[#06152f]" aria-label="Fechar"><X size={20}/></button></div>
+    {modalOpen&&<div className="fixed inset-0 z-[220] overflow-y-auto bg-[#020817] text-white" role="dialog" aria-modal="true" aria-label="Resolver questão" tabIndex={-1}><div className="mx-auto min-h-full w-full max-w-3xl px-4 pb-[calc(env(safe-area-inset-bottom)+28px)] pt-[max(12px,env(safe-area-inset-top))] md:px-6"><div className="sticky top-0 z-10 -mx-1 flex items-center justify-between gap-3 border-b border-[#173765] bg-[#020817]/97 px-1 py-3 backdrop-blur-xl"><div><div className={`text-[11px] font-black uppercase tracking-wide ${activeOfficial?'text-amber-200':'text-[#72a5ff]'}`}>{activeOfficial?'Questão oficial':mode==='adapted'?'Adaptada de prova real':'Estilo da prova'}</div><div className="text-sm font-extrabold">{activeOfficial?edition(activeOfficial,cfg.label):cfg.label}</div></div><button onClick={close} className="grid h-11 w-11 place-items-center rounded-xl border border-[#173765] bg-[#06152f]" aria-label="Fechar"><X size={20}/></button></div>
       <div className="py-5">{extracting&&<div className="grid min-h-[260px] place-items-center"><div className="text-center"><Loader2 className="mx-auto animate-spin text-[#72a5ff]"/><p className="mt-3 text-sm text-[#9fb5d4]">Lendo a questão da prova oficial…</p></div></div>}
       {!extracting&&extractError&&<div className="rounded-2xl border border-amber-400/25 bg-amber-400/[.06] p-5"><strong>Não consegui reconstruir a questão nesta tentativa.</strong><p className="mt-2 text-sm text-[#9fb5d4]">{extractError}</p><button onClick={retry} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#72a5ff] px-4 text-sm font-extrabold text-[#020817]"><RotateCcw size={16}/>Tentar novamente</button>{activeOfficial?.source_pdf_url&&<a href={activeOfficial.source_pdf_url} target="_blank" rel="noreferrer" className="ml-3 mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#72a5ff]"><ExternalLink size={15}/>Fonte oficial</a>}</div>}
       {!extracting&&!extractError&&prompt&&source&&<><div className="text-xs font-bold text-[#72a5ff]">{activeOfficial?(officialSubject(activeOfficial,enemSubjectMaps)||activeOfficial.area):activePractice?.area}</div><QuestionPrompt text={prompt}/>{visibleImages.map((url,index)=><img key={url} src={url} alt={`Elemento visual ${index+1} da questão`} loading="lazy" onError={()=>setFailedVisuals(current=>current.includes(url)?current:[...current,url])} className="mt-4 w-full rounded-xl border border-[#173765] bg-white object-contain"/>)}{activeOfficial?.source_pdf_url&&extracted?.needs_source_image&&visibleImages.length===0&&!Object.keys(extracted.option_images||{}).length&&Boolean(extracted.source_page)&&<iframe title="Imagem da página oficial da questão" src={`/api/proxy-official-pdf?url=${encodeURIComponent(activeOfficial.source_pdf_url)}#page=${Math.max(1,extracted.source_page||1)}`} className="mt-4 h-[70vh] min-h-[520px] w-full rounded-xl border border-[#173765] bg-white"/>}<div className="mt-5 grid gap-2.5">{LETTERS.map(l=>{const text=option(source,l);if(!text)return null;const chosen=selected===l,isCorrect=submitted&&correct===l,isWrong=submitted&&chosen&&correct!==l;const optionImage=extracted?.option_images?.[l];return <button key={l} disabled={submitted} onClick={()=>setSelected(l)} className={`flex min-h-14 items-start gap-3 rounded-xl border px-4 py-3 text-left ${isCorrect?'border-amber-400 bg-amber-400/10':isWrong?'border-amber-400 bg-amber-400/10':chosen?'border-[#72a5ff] bg-[#173765]':'border-[#173765] bg-[#06152f]'}`}><strong>{l}</strong><span className="min-w-0 flex-1 text-sm leading-relaxed">{text}{optionImage&&!failedVisuals.includes(optionImage)&&<img src={optionImage} alt={`Imagem da alternativa ${l}`} loading="lazy" onError={()=>setFailedVisuals(current=>current.includes(optionImage)?current:[...current,optionImage])} className="mt-2 max-h-72 w-full rounded-lg bg-white object-contain"/>}</span></button>})}</div>
