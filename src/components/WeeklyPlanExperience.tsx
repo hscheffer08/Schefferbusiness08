@@ -15,6 +15,10 @@ function progressPlanKey(examId:ExamId,w:RoadmapWeek){
     .slice(0,220);
 }
 
+function localProgressKey(examId:ExamId,planKey:string,weekStart:string){
+  return `conectae:weekly-progress:${examId}:${planKey}:${weekStart}`;
+}
+
 export default function WeeklyPlanExperience({week:w,examId,formatDate,onOpenQuestions}:Props){
   const[videoOpen,setVideoOpen]=useState(false);
   const[completed,setCompleted]=useState<string[]>([]);
@@ -28,6 +32,10 @@ export default function WeeklyPlanExperience({week:w,examId,formatDate,onOpenQue
 
   useEffect(()=>{let alive=true;(async()=>{
     setProgressLoading(true);setProgressError('');
+    const localKey=localProgressKey(examId,planKey,w.start);
+    let localCompleted:string[]=[];
+    try{const raw=localStorage.getItem(localKey);const parsed=raw?JSON.parse(raw):[];localCompleted=Array.isArray(parsed)?parsed:[]}catch{localCompleted=[]}
+    if(alive)setCompleted(localCompleted);
     try{
       if(!supabase)return;
       const{data:userData}=await supabase.auth.getUser();
@@ -40,19 +48,25 @@ export default function WeeklyPlanExperience({week:w,examId,formatDate,onOpenQue
         .eq('week_start',w.start)
         .maybeSingle();
       if(error)throw error;
-      if(alive)setCompleted(Array.isArray(data?.completed_sessions)?data.completed_sessions:[]);
+      const synced=Array.isArray(data?.completed_sessions)?data.completed_sessions:localCompleted;
+      try{localStorage.setItem(localKey,JSON.stringify(synced))}catch{/* ignore local storage errors */}
+      if(alive)setCompleted(synced);
     }catch{
-      if(alive){setCompleted([]);setProgressError('Não foi possível carregar o progresso desta semana.');}
+      if(alive)setProgressError('Seu progresso local continua disponível, mas não foi possível sincronizar com a conta agora.');
     }finally{if(alive)setProgressLoading(false)}
   })();return()=>{alive=false}},[examId,planKey,w.start]);
 
   const toggleSession=async(key:string)=>{
-    if(savingKey||!supabase)return;
+    if(savingKey)return;
     const previous=completed;
     const next=previous.includes(key)?previous.filter(x=>x!==key):[...previous,key];
+    const localKey=localProgressKey(examId,planKey,w.start);
     setCompleted(next);setSavingKey(key);setProgressError('');
+    try{localStorage.setItem(localKey,JSON.stringify(next))}catch{/* ignore local storage errors */}
     try{
-      const{data:userData}=await supabase.auth.getUser();if(!userData.user)throw new Error();
+      if(!supabase){setProgressError('Progresso salvo neste dispositivo. Crie uma conta para sincronizar entre dispositivos.');return}
+      const{data:userData}=await supabase.auth.getUser();
+      if(!userData.user){setProgressError('Progresso salvo neste dispositivo. Crie uma conta para sincronizar entre dispositivos.');return}
       const{error}=await supabase.from('student_weekly_plan_progress').upsert({
         user_id:userData.user.id,
         exam_id:examId,
@@ -63,8 +77,7 @@ export default function WeeklyPlanExperience({week:w,examId,formatDate,onOpenQue
       },{onConflict:'user_id,exam_id,plan_key,week_start'});
       if(error)throw error;
     }catch{
-      setCompleted(previous);
-      setProgressError('Não foi possível salvar esta conclusão. Tente novamente.');
+      setProgressError('Progresso salvo neste dispositivo, mas não foi possível sincronizar com a conta agora.');
     }finally{setSavingKey(null)}
   };
 
