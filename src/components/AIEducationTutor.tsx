@@ -358,7 +358,7 @@ export default function AIEducationTutor({ mobileDocked = false }: { mobileDocke
     setOpen(false);
   };
 
-  const statusText = authLoading ? 'verificando sessão…' : signedIn ? 'Perguntas ilimitadas' : 'sessão não confirmada';
+  const statusText = authLoading ? 'verificando conta…' : signedIn ? 'Progresso sincronizado' : 'Sem conta';
 
   return <>
     {open && <div className={`fixed z-[120] flex flex-col overflow-hidden border border-[#b9c7e2] bg-white text-[#13203d] shadow-2xl shadow-[#0c1d45]/20 ${expanded ? 'inset-2 md:inset-6 rounded-[22px]' : mobileDocked ? 'bottom-[calc(78px+env(safe-area-inset-bottom))] right-2 w-[calc(100vw-16px)] max-w-[460px] h-[min(720px,calc(100dvh-158px))] rounded-[22px] md:bottom-20 md:right-5 md:h-[min(720px,calc(100vh-100px))]' : 'bottom-20 right-2 w-[calc(100vw-16px)] max-w-[460px] h-[min(720px,calc(100vh-100px))] rounded-[22px] md:right-5'}`}>
