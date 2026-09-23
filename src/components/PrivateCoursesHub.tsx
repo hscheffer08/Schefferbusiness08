@@ -18,6 +18,12 @@ export default function PrivateCoursesHub() {
           <p className="mb-2 text-sm font-black uppercase tracking-[0.16em] text-[#3155e7]">Cursos exclusivos</p>
           <h1 className="text-4xl font-black tracking-[-0.04em] sm:text-5xl">Cursos Particulares</h1>
           <p className="mt-4 max-w-2xl text-lg leading-relaxed text-[#6f7b96]">Escolha o curso que você quer acessar.</p>
+          <p className="mt-3 max-w-2xl text-sm font-semibold leading-relaxed text-[#596681]">
+            Entre em contato para saber mais:{' '}
+            <a href="tel:+5531991621397" className="font-black text-[#3155e7] hover:underline">
+              (31) 99162-1397
+            </a>
+          </p>
 
           <div className="mt-9 grid gap-4 sm:grid-cols-2">
             <button
