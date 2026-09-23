@@ -15,7 +15,7 @@
     { "source": "/faq", "destination": "/faq/index.html" },
     { "source": "/privacidade", "destination": "/privacidade/index.html" },
     { "source": "/termos", "destination": "/termos/index.html" },
-    { "source": "/((?!assets/).*)", "destination": "/index.html" }
+    { "source": "/((?!assets/|api/).*)", "destination": "/index.html" }
   ],
   "headers": [
     {
