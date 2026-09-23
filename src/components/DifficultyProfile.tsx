@@ -6,6 +6,8 @@ import { countGranularTopics, expandStudyCatalog } from '@/lib/granular-study-to
 import { buildStudyTwin, type TwinAttempt, type TwinDiagnostic, type TwinPriority } from '@/lib/study-twin-engine';
 import type { ExamId } from '@/lib/exam-models';
 
+const GUEST_PREF_KEY='conectae:planner-guest-preference';
+
 export default function DifficultyProfile({examId,course,value,onChange,weeklyHours}:{examId:ExamId;course:string;value:DifficultySelection;onChange:(next:DifficultySelection)=>void;weeklyHours:number}){
  const baseCatalog=useMemo(()=>getExamSkillCatalog(examId,course),[examId,course]);
  const catalog=useMemo(()=>expandStudyCatalog(baseCatalog),[baseCatalog]);
@@ -52,25 +54,39 @@ export default function DifficultyProfile({examId,course,value,onChange,weeklyHo
 
  const save=async()=>{
    if(!selectedDetails.length){setStarted(true);setMsg('Escolha pelo menos um conteúdo específico antes de criar o gêmeo. Ex.: Matemática → função quadrática; Física → MRUV.');return}
-   setSaving(true);setMsg('');try{
-   if(!supabase)throw new Error();
-   const{data}=await supabase.auth.getUser();if(!data.user)throw new Error();
-   const{error}=await supabase.from('student_exam_preferences').upsert({user_id:data.user.id,exam_id:examId,difficulty_topics:value,updated_at:new Date().toISOString()},{onConflict:'user_id,exam_id'});if(error)throw error;
-   await supabase.from('student_skill_diagnostics').delete().eq('user_id',data.user.id).eq('exam_id',examId).eq('evidence_path','manual_difficulty');
+   setSaving(true);setMsg('');
    const exactFocus=selectedDetails.slice(0,12);
-   if(exactFocus.length){
-     const{error:diagnosticError}=await supabase.from('student_skill_diagnostics').insert(exactFocus.map(item=>({
-       user_id:data.user.id,exam_id:examId,skill_code:null,area:item.area,question_text:null,correct:null,confidence:1,
-       error_type:'declared_difficulty',error_detail:`Dificuldade declarada: ${item.subject} > ${item.topic}`,
-       diagnosis:{source:'manual_difficulty',skill_name:item.topic,subject:item.subject,area:item.area,level:item.level},evidence_path:'manual_difficulty'
-     })));
-     if(diagnosticError)throw diagnosticError;
-   }
-   setMsg(`Gêmeo atualizado com ${exactFocus.length} dificuldades específicas. O plano já pode priorizar esses conteúdos.`);
-   window.dispatchEvent(new CustomEvent('conectae:difficulties-saved',{detail:{examId,value}}));
-   window.dispatchEvent(new CustomEvent('conectae:diagnostic-saved',{detail:{examId,source:'manual_difficulty'}}));
-   await refreshTwin();
- }catch{setMsg('Não foi possível salvar agora. Tente novamente.')}finally{setSaving(false)}};
+   try{
+     try{
+       const current=JSON.parse(localStorage.getItem(GUEST_PREF_KEY)||'{}');
+       localStorage.setItem(GUEST_PREF_KEY,JSON.stringify({...current,difficultyTopics:value}));
+     }catch{/* ignore local storage errors */}
+     if(!supabase){
+       setMsg(`Gêmeo salvo neste dispositivo com ${exactFocus.length} dificuldades específicas. Crie uma conta para sincronizar o progresso.`);
+       window.dispatchEvent(new CustomEvent('conectae:difficulties-saved',{detail:{examId,value}}));
+       return;
+     }
+     const{data}=await supabase.auth.getUser();
+     if(!data.user){
+       setMsg(`Gêmeo salvo neste dispositivo com ${exactFocus.length} dificuldades específicas. Crie uma conta para sincronizar o progresso.`);
+       window.dispatchEvent(new CustomEvent('conectae:difficulties-saved',{detail:{examId,value}}));
+       return;
+     }
+     const{error}=await supabase.from('student_exam_preferences').upsert({user_id:data.user.id,exam_id:examId,difficulty_topics:value,updated_at:new Date().toISOString()},{onConflict:'user_id,exam_id'});if(error)throw error;
+     await supabase.from('student_skill_diagnostics').delete().eq('user_id',data.user.id).eq('exam_id',examId).eq('evidence_path','manual_difficulty');
+     if(exactFocus.length){
+       const{error:diagnosticError}=await supabase.from('student_skill_diagnostics').insert(exactFocus.map(item=>({
+         user_id:data.user.id,exam_id:examId,skill_code:null,area:item.area,question_text:null,correct:null,confidence:1,
+         error_type:'declared_difficulty',error_detail:`Dificuldade declarada: ${item.subject} > ${item.topic}`,
+         diagnosis:{source:'manual_difficulty',skill_name:item.topic,subject:item.subject,area:item.area,level:item.level},evidence_path:'manual_difficulty'
+       })));
+       if(diagnosticError)throw diagnosticError;
+     }
+     setMsg(`Gêmeo atualizado com ${exactFocus.length} dificuldades específicas e sincronizado na sua conta.`);
+     window.dispatchEvent(new CustomEvent('conectae:difficulties-saved',{detail:{examId,value}}));
+     window.dispatchEvent(new CustomEvent('conectae:diagnostic-saved',{detail:{examId,source:'manual_difficulty'}}));
+     await refreshTwin();
+   }catch{setMsg('O gêmeo ficou salvo neste dispositivo, mas não foi possível sincronizar com a conta agora.')}finally{setSaving(false)}};
  return <section className="plan6-card span12" style={{overflow:'hidden'}}>
   <div className="plan6-sectionlabel"><BrainCircuit size={14} style={{display:'inline',marginRight:6}}/>Seu gêmeo de estudos</div>
   <div style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) auto',gap:18,alignItems:'start'}}>
