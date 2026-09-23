@@ -99,7 +99,7 @@ async function imageToDataUrl(file: File) {
 }
 
 async function tutorRequest(payload: unknown, initialToken: string) {
-  const run = (token: string) => fetch('/api/education-tutor', {
+  const runAuthenticated = (token: string) => fetch('/api/education-tutor', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -107,17 +107,24 @@ async function tutorRequest(payload: unknown, initialToken: string) {
     },
     body: JSON.stringify(payload),
   });
+  const runPublic = () => fetch('/api/education-tutor-public', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
 
-  let response = await run(initialToken);
+  if (!initialToken) return runPublic();
+
+  let response = await runAuthenticated(initialToken);
   if (response.status === 401 || response.status === 403) {
     const refreshed = await ensureFreshSession(true).catch(() => null);
     const refreshedToken = refreshed?.access_token || '';
-    if (refreshedToken && refreshedToken !== initialToken) response = await run(refreshedToken);
+    if (refreshedToken && refreshedToken !== initialToken) response = await runAuthenticated(refreshedToken);
+    if (response.status === 401 || response.status === 403) response = await runPublic();
   }
   if (response.status === 503) {
     await new Promise(resolve => window.setTimeout(resolve, 1800));
-    const refreshed = await ensureFreshSession(false).catch(() => null);
-    response = await run(refreshed?.access_token || initialToken);
+    response = initialToken ? await runAuthenticated(initialToken) : await runPublic();
   }
   return response;
 }
@@ -230,11 +237,6 @@ export default function AIEducationTutor({ mobileDocked = false }: { mobileDocke
       const freshSession = await ensureFreshSession(false).catch(() => null);
       const activeSession = freshSession || session;
       const token = activeSession?.access_token || '';
-      if (!token || !activeSession?.user) {
-        setErrorKind('auth');
-        throw new Error('Sua sessão do Curso não pôde ser confirmada. Atualize a página; se o Curso continuar aberto, a IA reconhecerá a mesma conta automaticamente.');
-      }
-
       const next = normalizeHistory([...messages, { role: 'user' as const, content: text }]);
       const recent = next.slice(-6);
       const requestMessages = recent.map((message, index) => index === recent.length - 1 && message.role === 'user'
@@ -246,7 +248,7 @@ export default function AIEducationTutor({ mobileDocked = false }: { mobileDocke
       const data = await response.json().catch(() => ({}));
       if (response.status === 401 || response.status === 403) {
         setErrorKind('auth');
-        throw new Error('A sessão do Curso expirou no servidor. Atualize a página para renovar a sessão sem precisar entrar novamente.');
+        throw new Error('Não foi possível liberar a IA agora. Tente novamente em instantes.');
       }
       if (response.status === 429) {
         setErrorKind('generic');
@@ -364,7 +366,7 @@ export default function AIEducationTutor({ mobileDocked = false }: { mobileDocke
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#315bea] text-white"><Bot size={21} /></div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-sm font-extrabold text-[#142242]">IA Conectaê <span className="rounded-full bg-[#e7f7ed] px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-[#18743c]">{statusText}</span> <Sparkles size={14} className="text-[#315bea]" /></div>
-          <div className="truncate text-[11px] font-medium text-[#596b89]">Tutor educacional · {studentContext.exam?.toUpperCase?.() || 'sua prova'} · {signedIn ? 'conta do Curso reconhecida' : 'aguardando sessão'}</div>
+          <div className="truncate text-[11px] font-medium text-[#596b89]">Tutor educacional · {studentContext.exam?.toUpperCase?.() || 'sua prova'} · {signedIn ? 'progresso sincronizado' : 'uso sem conta'}</div>
         </div>
         <button onClick={() => setExpanded(v => !v)} className="rounded-lg bg-[#eef3fb] p-2 text-[#31517e]" aria-label={expanded ? 'Reduzir' : 'Expandir'}>{expanded ? <Minimize2 size={17} /> : <Maximize2 size={17} />}</button>
         <button onClick={closeTutor} className="rounded-lg bg-[#eef3fb] p-2 text-[#31517e]" aria-label="Fechar"><X size={18} /></button>
@@ -374,7 +376,7 @@ export default function AIEducationTutor({ mobileDocked = false }: { mobileDocke
         {!messages.length && <div className="mx-auto max-w-sm py-3 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#eef3ff] text-[#315bea]"><Sparkles size={24} /></div>
           <h3 className="mt-3 text-lg font-extrabold text-[#13203d]">Tire a dúvida. Entenda o conteúdo.</h3>
-          <p className="mt-1 text-sm leading-relaxed text-[#60708a]">Pergunte por texto ou anexe uma questão. A IA usa a mesma conta conectada ao Curso.</p>
+          <p className="mt-1 text-sm leading-relaxed text-[#60708a]">Pergunte por texto ou anexe uma questão. A conta é opcional e serve para sincronizar seu progresso.</p>
           <div className="mt-4 grid gap-2">{STARTERS.map(starter => <button key={starter} disabled={busy || authLoading} onClick={() => void send(starter)} className="rounded-xl border border-[#cbd8ec] bg-[#f8faff] px-3 py-3 text-left text-xs font-bold text-[#29405f] shadow-sm disabled:opacity-50">{starter}</button>)}</div>
         </div>}
 
@@ -411,7 +413,7 @@ export default function AIEducationTutor({ mobileDocked = false }: { mobileDocke
           <textarea value={input} onChange={event => { setInput(event.target.value); if (error) { setError(''); setErrorKind(''); } }} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void send(); } }} rows={1} placeholder="Digite sua dúvida ou anexe uma questão…" className="max-h-28 min-h-10 flex-1 resize-none bg-transparent px-1 py-2 text-sm text-[#172641] outline-none placeholder:text-[#7b8ba3]"/>
           <button onClick={() => void send()} disabled={busy || authLoading || !input.trim()} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#315bea] text-white disabled:opacity-40" aria-label="Enviar"><Send size={18}/></button>
         </div>
-        <div className="mt-2 flex items-center justify-between gap-3 text-[10px] font-medium text-[#60708a]"><span className="inline-flex items-center gap-1"><ShieldCheck size={11}/>{signedIn ? 'Conta reconhecida · Perguntas ilimitadas' : authLoading ? 'Verificando a conta do Curso…' : 'Sessão do Curso não confirmada'}</span>{messages.length > 0 && <button onClick={clearConversation} className="shrink-0 font-bold text-[#31517e]">Limpar conversa</button>}</div>
+        <div className="mt-2 flex items-center justify-between gap-3 text-[10px] font-medium text-[#60708a]"><span className="inline-flex items-center gap-1"><ShieldCheck size={11}/>{signedIn ? 'Conta conectada · progresso sincronizado' : authLoading ? 'Verificando conta…' : 'Sem conta · IA disponível normalmente'}</span>{messages.length > 0 && <button onClick={clearConversation} className="shrink-0 font-bold text-[#31517e]">Limpar conversa</button>}</div>
       </div>
     </div>}
 
