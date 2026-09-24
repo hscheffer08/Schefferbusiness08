@@ -20,8 +20,13 @@ export default function PrivateCoursesHub() {
           <p className="mt-4 max-w-2xl text-lg leading-relaxed text-[#6f7b96]">Escolha o curso que você quer acessar.</p>
           <p className="mt-3 max-w-2xl text-sm font-semibold leading-relaxed text-[#596681]">
             Entre em contato para saber mais:{' '}
-            <a href="tel:+5531991621397" className="font-black text-[#3155e7] hover:underline">
-              (31) 99162-1397
+            <a
+              href="https://instagram.com/henrique.schefferr"
+              target="_blank"
+              rel="noreferrer"
+              className="font-black text-[#3155e7] hover:underline"
+            >
+              @henrique.schefferr
             </a>
           </p>
 
