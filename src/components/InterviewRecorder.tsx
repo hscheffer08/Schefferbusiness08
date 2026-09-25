@@ -125,6 +125,7 @@ export default function InterviewRecorder({ disabled, onChange, onRecording }: {
   const mounted = useRef(true);
   const objectUrl = useRef('');
   const fileInput = useRef<HTMLInputElement>(null);
+  const livePreview = useRef<HTMLVideoElement>(null);
   const callback = useRef({ onChange, onRecording });
   callback.current = { onChange, onRecording };
 
@@ -135,6 +136,7 @@ export default function InterviewRecorder({ disabled, onChange, onRecording }: {
       clearInterval(timer.current);
       if (recorder.current?.state === 'recording') recorder.current.stop();
       stream.current?.getTracks().forEach(track => track.stop());
+      if (livePreview.current) livePreview.current.srcObject = null;
       if (objectUrl.current) URL.revokeObjectURL(objectUrl.current);
       callback.current.onRecording(false);
     };
@@ -154,6 +156,7 @@ export default function InterviewRecorder({ disabled, onChange, onRecording }: {
   function stop() {
     if (recorder.current?.state === 'recording') recorder.current.stop();
     stream.current?.getTracks().forEach(track => track.stop());
+    if (livePreview.current) livePreview.current.srcObject = null;
     clearInterval(timer.current);
   }
 
@@ -213,6 +216,10 @@ export default function InterviewRecorder({ disabled, onChange, onRecording }: {
       }
 
       stream.current = media;
+      if (isVideo && livePreview.current) {
+        livePreview.current.srcObject = media;
+        void livePreview.current.play().catch(() => {});
+      }
       const candidates = isVideo
         ? ['video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4']
         : ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm', 'audio/ogg;codecs=opus'];
@@ -244,6 +251,7 @@ export default function InterviewRecorder({ disabled, onChange, onRecording }: {
       rec.onstop = async () => {
         clearInterval(timer.current);
         media.getTracks().forEach(track => track.stop());
+        if (livePreview.current) livePreview.current.srcObject = null;
         if (!mounted.current) return;
         setRecording(false);
         const duration = Math.min(limitSeconds, (Date.now() - startTime) / 1000);
@@ -316,6 +324,7 @@ export default function InterviewRecorder({ disabled, onChange, onRecording }: {
       <button type="button" disabled={disabled || recording || processing} onClick={() => { clear(); setMode('video'); }} className={modeClass(mode === 'video')}><Camera size={16} />Vídeo</button>
     </div>
 
+    {mode === 'video' && <video ref={livePreview} autoPlay muted playsInline className={recording ? 'mb-4 aspect-video w-full rounded-xl bg-black object-cover' : 'hidden'} aria-label="Prévia ao vivo da câmera" />}
     <div className="flex flex-wrap items-center gap-3">
       <button type="button" disabled={disabled || requesting || processing} onClick={recording ? stop : start} className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-[#246cff] px-4 font-bold disabled:opacity-50">
         {recording ? <Square size={18} /> : mode === 'video' ? <Camera size={18} /> : <Mic size={18} />}
@@ -341,7 +350,7 @@ export default function InterviewRecorder({ disabled, onChange, onRecording }: {
 
     <p className="mt-3 text-sm leading-relaxed text-[#c4d4ea]">
       {mode === 'video'
-        ? 'O vídeo é amostrado em até 7 frames ao longo da resposta. A IA cruza esses frames com a fala para analisar conteúdo, postura observável, gestos, direção aparente do olhar e enquadramento.'
+        ? 'Durante a gravação, você vê a prévia da câmera para ajustar o enquadramento. Depois, o vídeo é amostrado em até 7 frames ao longo da resposta, que a IA cruza com a fala para analisar conteúdo e comunicação visual observável.'
         : 'Ao enviar, a fala é transcrita e a IA cruza o conteúdo com ritmo, pausas, repetições, dicção e entonação.'}
     </p>
     {mode === 'video' && <p className="mt-2 text-xs text-[#8fa8ca]">Vídeo: até 90 segundos e 2,2 MB. {frameCount ? frameCount + ' frames prontos para análise.' : 'Os frames são extraídos automaticamente no seu navegador.'}</p>}
