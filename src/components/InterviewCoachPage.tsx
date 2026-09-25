@@ -499,7 +499,7 @@ function InterviewCoach() {
           <section>
             <div className="inline-flex items-center gap-2 rounded-full border border-[#31588e] bg-[#0b2856] px-3 py-1.5 text-xs font-black text-[#a9c7ef]"><Sparkles className="h-4 w-4" />SIMULAÇÃO ADAPTATIVA COM IA MULTIMODAL</div>
             <h1 className="mt-5 text-4xl font-black leading-[1.02] tracking-[-.05em] md:text-6xl">Treine como será a <span className="text-[#72a5ff]">entrevista.</span></h1>
-            <p className="mt-5 max-w-xl text-base leading-relaxed text-[#a9bddc] md:text-lg">Na Link 2027.1, o modo oficial simula aproximadamente 20 minutos, usa seu Portfolio, inclui uma parte em inglês e avalia os quatro critérios publicados pela instituição.</p>
+            <p className="mt-5 max-w-xl text-base leading-relaxed text-[#a9bddc] md:text-lg">Na Link 2027.1, o modo oficial simula aproximadamente 20 minutos, usa seu Portfolio como referência, inclui uma parte em inglês, responde sem material de apoio e avalia os quatro critérios publicados pela instituição.</p>
 
             <div className="mt-7 grid gap-3">
               {[
@@ -682,7 +682,7 @@ function InterviewCoach() {
             <ul className="mt-3 space-y-2 text-sm leading-relaxed text-[#9fb5d4]">
               {institution === 'link' ? <>
                 <li>• Parte obrigatória do treino em inglês.</li>
-                <li>• Perguntas ancoradas no Portfolio, PREP e Business Case quando fornecidos.</li>
+                <li>• Portfolio como referência; PREP e Business Case apenas simulam consistência quando fornecidos.</li><li>• Durante as respostas, os campos de preparação não ficam visíveis: o treino ocorre sem material de apoio.</li>
                 <li>• Follow-ups desafiadores para testar defesa de ideias.</li>
                 <li>• Modo oficial guiado por tempo, não por “10 perguntas fixas”.</li>
               </> : <li>• Perguntas adaptativas com feedback por resposta.</li>}
