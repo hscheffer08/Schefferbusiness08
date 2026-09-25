@@ -38,6 +38,7 @@ function messageText(args) {
 
 const context = {
   Buffer,
+  Output: { json: () => ({ type: 'json' }) },
   URL,
   AbortSignal,
   Date,
@@ -204,6 +205,10 @@ const lastAstraCall = [...calls].reverse().find(call => call.model === 'openai/g
 assert.ok(Array.isArray(lastAstraCall.messages[0].content));
 assert.equal(lastAstraCall.messages[0].content.filter(part => part.type === 'image').length, 3);
 assert.equal(lastAstraCall.providerOptions.openai.reasoningEffort, 'high');
+assert.equal(lastAstraCall.providerOptions.gateway.models, undefined);
+assert.ok(lastAstraCall.system.includes('Respeito, Coragem, Responsabilidade e Simplicidade'));
+assert.ok(lastAstraCall.system.includes('Postura, gestos, direção do olhar e enquadramento são coaching de comunicação, não critérios oficiais'));
+assert.ok(lastAstraCall.output);
 
 assert.equal((await request({ phase: 'answer', history, audio: { ...audio, duration: 181 } })).statusCode, 400);
 assert.equal((await request({ phase: 'answer', history, audio: { ...video, duration: 91 } })).statusCode, 400);
@@ -218,4 +223,14 @@ const timedFinal = await request({ phase: 'answer', interviewMode: 'official', h
 assert.equal(timedFinal.body.complete, true);
 assert.equal(timedFinal.body.report.officialCriteria.ingles.score, 78);
 
-console.log('PASS: Link 2027.1 rubric, timed official mode, English segment, Portfolio context, Astra high reasoning, audio/video sensor and multi-frame visual review.');
+const pageSource = readFileSync('src/components/InterviewCoachPage.tsx', 'utf8');
+const recorderSource = readFileSync('src/components/InterviewRecorder.tsx', 'utf8');
+assert.ok(pageSource.includes('if (showAuth) return'));
+assert.ok(!pageSource.includes('if (showAuth || !user || !session) return'));
+assert.ok(pageSource.includes('A Link publica os critérios e seus pesos, mas não uma escala oficial de 0 a 100'));
+assert.ok(pageSource.includes('não atribui índice ao critério oficial de Inglês'));
+assert.ok(recorderSource.includes('Prévia ao vivo da câmera'));
+assert.ok(!pageSource.includes('Feedback Astra'));
+assert.ok(!recorderSource.includes('O Astra cruza'));
+
+console.log('PASS: Link 2027.1 rubric, timed official mode, English segment, Portfolio context, Astra-only final reasoning, evidence-gated scoring, public reviewer landing, live video preview and multi-frame visual review.');

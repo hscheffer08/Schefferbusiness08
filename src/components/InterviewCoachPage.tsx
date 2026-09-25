@@ -57,7 +57,7 @@ type Turn = {
 };
 type CriterionReport = { score: number | null; evidence: string; nextStep: string };
 type Report = {
-  overallScore: number;
+  overallScore: number | null;
   scoreLabel?: string;
   verdict: string;
   officialCriteria?: Record<string, CriterionReport> | null;
@@ -143,16 +143,17 @@ function FeedbackPanel({ feedback, voice, institution }: { feedback: Feedback | 
   return <section className="space-y-5 rounded-[24px] border border-[#234576] bg-[#06152f] p-5">
     {feedback && <>
       <div>
-        <div className="text-xs font-black uppercase tracking-[.14em] text-[#72a5ff]">Feedback Astra</div>
+        <div className="text-xs font-black uppercase tracking-[.14em] text-[#72a5ff]">Feedback por IA</div>
         <p className="mt-2 text-base leading-relaxed text-[#d6e5f8]">{feedback.summary}</p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         {scoreLabels.map(([key, label]) => <div key={key} className="rounded-xl border border-[#234576] bg-[#031027] p-4">
           <div className="text-xs font-bold text-[#8da5c5]">{label}</div>
-          <div className="mt-1 text-2xl font-black">{scoreText(feedback.scores?.[key])}</div>
+          <div className="mt-1 text-2xl font-black">{scoreText(feedback.scores?.[key])}{typeof feedback.scores?.[key] === "number" ? <span className="ml-1 text-xs font-bold text-[#7891b4]">/100 treino</span> : null}</div>
         </div>)}
       </div>
+      {institution === 'link' && <p className="text-xs leading-relaxed text-[#7891b4]">Os números acima são índices de treino do Conectaê. A Link publica os critérios e seus pesos, mas não uma escala oficial de 0 a 100 por critério.</p>}
 
       {feedback.coachingScores && <div>
         <div className="mb-2 text-xs font-black uppercase tracking-[.12em] text-[#8da5c5]">Métricas secundárias de coaching</div>
@@ -186,7 +187,7 @@ function FeedbackPanel({ feedback, voice, institution }: { feedback: Feedback | 
       </div>}
 
       {feedback.visual && <div className="rounded-2xl border border-[#31588e] bg-[#071a38] p-5">
-        <div className="flex items-center gap-2 font-black"><Video className="h-5 w-5 text-[#72a5ff]" />Leitura visual Astra por frames</div>
+        <div className="flex items-center gap-2 font-black"><Video className="h-5 w-5 text-[#72a5ff]" />Leitura visual por múltiplos frames</div>
         <p className="mt-2 text-sm leading-relaxed text-[#b5c8e3]">{feedback.visual.summary}</p>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {[['Postura observável', feedback.visual.posture], ['Gestos', feedback.visual.gestures], ['Direção do olhar', feedback.visual.gaze], ['Enquadramento', feedback.visual.framing]].map(([label, value]) => <div key={label} className="rounded-xl bg-[#031027] p-4 text-sm"><strong className="block mb-2">{label}</strong>{value || 'Sem evidência suficiente.'}</div>)}
@@ -215,7 +216,7 @@ function FeedbackPanel({ feedback, voice, institution }: { feedback: Feedback | 
 
       {voice.mediaKind === 'video' && <div>
         <h3 className="font-black">Leitura temporal do vídeo</h3>
-        <p className="mt-1 text-sm text-[#9fb5d4]">{voice.framesAnalyzed || 0} frames independentes foram enviados ao Astra, além da leitura temporal do vídeo.</p>
+        <p className="mt-1 text-sm text-[#9fb5d4]">{voice.framesAnalyzed || 0} frames independentes foram analisados pela IA, além da leitura temporal do vídeo.</p>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           {[['Postura ao longo do vídeo', voice.posture], ['Gestos ao longo do vídeo', voice.gestures], ['Direção aparente do olhar', voice.gazeToCamera], ['Enquadramento', voice.framing]].map(([label, value]) => <p key={label} className="rounded-xl bg-[#0b2856] p-4 text-sm"><strong className="block mb-2">{label}</strong>{value || 'Não foi possível avaliar.'}</p>)}
         </div>
@@ -267,7 +268,7 @@ function InterviewCoach() {
   useEffect(() => {
     document.title = 'Treino de entrevistas Link e ESPM | Conectaê';
     const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-    if (description) description.content = 'Pratique a entrevista da Link 2027.1 com rubrica oficial, inglês, Portfolio, vídeo em múltiplos frames e feedback do Astra.';
+    if (description) description.content = 'Pratique a entrevista da Link 2027.1 com critérios oficiais, inglês, Portfolio, vídeo em múltiplos frames e feedback por IA.';
   }, []);
 
   useEffect(() => {
@@ -468,9 +469,9 @@ function InterviewCoach() {
 
   if (loading) return <div className="flex min-h-screen items-center justify-center gap-3 bg-[#f6f8ff] text-slate-700" role="status"><Loader2 className="h-5 w-5 animate-spin" />Verificando seu acesso…</div>;
 
-  if (showAuth || !user || !session) return <div className="min-h-screen bg-[#f6f8ff] py-10">
-    <p className="mx-auto mb-4 max-w-md px-5 text-center text-slate-700">Entre na sua conta para acessar as entrevistas.</p>
-    <Auth compact onBack={() => window.location.assign('/')} onSuccess={() => { setShowAuth(false); setError(''); }} onPrivacy={() => window.location.assign('/privacidade')} onTerms={() => window.location.assign('/termos')} />
+  if (showAuth) return <div className="min-h-screen bg-[#f6f8ff] py-10">
+    <p className="mx-auto mb-4 max-w-md px-5 text-center text-slate-700">Entre na sua conta para iniciar o treino. A apresentação e os critérios podem ser consultados sem login.</p>
+    <Auth compact onBack={() => setShowAuth(false)} onSuccess={() => { setShowAuth(false); setError(''); }} onPrivacy={() => window.location.assign('/privacidade')} onTerms={() => window.location.assign('/termos')} />
   </div>;
 
   const filteredActivities = activityFilter === 'Todas' ? interviewActivities : interviewActivities.filter(item => item.category === activityFilter);
@@ -486,7 +487,9 @@ function InterviewCoach() {
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 md:px-8">
         <button onClick={() => window.location.assign('/')} className="inline-flex items-center gap-2 text-sm font-bold text-[#9fb5d4] hover:text-white"><ArrowLeft className="h-4 w-4" />Início</button>
         <div className="text-center"><div className="text-lg font-black">Conecta<span className="text-[#72a5ff]">ê</span></div><div className="text-[10px] font-extrabold uppercase tracking-[.17em] text-[#7891b4]">Treino de entrevista</div></div>
-        <div className="hidden text-xs font-bold text-[#7891b4] sm:block">Astra · voz + vídeo + frames</div>
+        {user && session
+          ? <div className="hidden text-xs font-bold text-[#7891b4] sm:block">IA multimodal · voz + vídeo + frames</div>
+          : <button onClick={() => setShowAuth(true)} className="rounded-xl border border-[#31588e] px-3 py-2 text-xs font-black text-[#c5d9f4] hover:border-[#72a5ff]">Entrar para praticar</button>}
       </div>
     </header>
 
@@ -494,15 +497,15 @@ function InterviewCoach() {
       {!started ? <div className="space-y-12">
         <div className="mx-auto max-w-6xl grid gap-8 lg:grid-cols-[.85fr_1.15fr] lg:items-start">
           <section>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#31588e] bg-[#0b2856] px-3 py-1.5 text-xs font-black text-[#a9c7ef]"><Sparkles className="h-4 w-4" />SIMULAÇÃO ADAPTATIVA COM ASTRA</div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#31588e] bg-[#0b2856] px-3 py-1.5 text-xs font-black text-[#a9c7ef]"><Sparkles className="h-4 w-4" />SIMULAÇÃO ADAPTATIVA COM IA MULTIMODAL</div>
             <h1 className="mt-5 text-4xl font-black leading-[1.02] tracking-[-.05em] md:text-6xl">Treine como será a <span className="text-[#72a5ff]">entrevista.</span></h1>
-            <p className="mt-5 max-w-xl text-base leading-relaxed text-[#a9bddc] md:text-lg">Na Link 2027.1, o modo oficial simula aproximadamente 20 minutos, usa seu Portfolio, inclui uma parte em inglês e avalia os quatro critérios publicados pela instituição.</p>
+            <p className="mt-5 max-w-xl text-base leading-relaxed text-[#a9bddc] md:text-lg">Na Link 2027.1, o modo oficial simula aproximadamente 20 minutos, usa seu Portfolio como referência, inclui uma parte em inglês, responde sem material de apoio e avalia os quatro critérios publicados pela instituição.</p>
 
             <div className="mt-7 grid gap-3">
               {[
-                ['Rubrica oficial', 'Inglês · Coragem · Capacidade de Trabalho · Vontade de Estar Aqui'],
+                ['Critérios oficiais', 'Inglês · Coragem · Capacidade de Trabalho · Vontade de Estar Aqui'],
                 ['Vídeo em múltiplos frames', 'Até 7 recortes distribuídos pela resposta, cruzados com fala e conteúdo'],
-                ['Pressão adaptativa', 'O Astra contesta respostas, aprofunda o Portfolio e cobra evidência concreta'],
+                ['Aprofundamento adaptativo', 'A IA faz follow-ups desafiadores, aprofunda o Portfolio e cobra evidência concreta'],
               ].map(([title, text], index) => <div key={title} className="rounded-2xl border border-[#173765] bg-[#06152f] p-4"><div className="flex items-start gap-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#246cff]/15 text-sm font-black text-[#72a5ff]">{index + 1}</span><div><div className="font-black">{title}</div><div className="mt-1 text-sm leading-relaxed text-[#9fb5d4]">{text}</div></div></div></div>)}
             </div>
           </section>
@@ -528,7 +531,7 @@ function InterviewCoach() {
                 <div className="mt-3 grid gap-2">
                   {[
                     ['quick', 'Treino rápido', '5 perguntas · inclui inglês'],
-                    ['official', 'Simulação Link 2027.1', '~20 min · Portfolio · inglês · pressão adaptativa'],
+                    ['official', 'Simulação Link 2027.1', '~20 min · Portfolio · inglês · aprofundamento adaptativo'],
                     ['intensive', 'Treino intensivo', '15 perguntas · aprofundamento máximo'],
                   ].map(([value, title, description]) => <button key={value} type="button" onClick={() => setInterviewMode(value as InterviewMode)} className={'rounded-xl border p-3 text-left ' + (interviewMode === value ? 'border-[#72a5ff] bg-[#0b2856]' : 'border-[#173765]')}>
                     <span className="font-black">{title}</span><span className="ml-2 text-xs text-[#8da5c5]">{description}</span>
@@ -538,19 +541,19 @@ function InterviewCoach() {
 
               <div className="mt-5 rounded-2xl border border-[#234576] bg-[#041027] p-4">
                 <div className="flex items-center gap-2 font-black"><FileText className="h-4 w-4 text-[#72a5ff]" />Contexto da sua Jornada Link</div>
-                <p className="mt-2 text-xs leading-relaxed text-[#8da5c5]">Quanto mais fiel você preencher, mais o Astra consegue agir como um avaliador que conhece seu material. Nada é inventado quando um campo fica vazio.</p>
+                <p className="mt-2 text-xs leading-relaxed text-[#8da5c5]">O Link Portfolio é explicitamente citado no Manual 2027.1 como material de referência da entrevista. PREP e Business Case são campos opcionais aqui apenas para simular consistência com etapas anteriores. Nada é inventado quando um campo fica vazio.</p>
 
                 <label className="mt-4 block text-sm font-bold" htmlFor="portfolio">Link Portfolio</label>
                 <textarea id="portfolio" value={candidateContext.portfolio} onChange={event => setCandidateContext(value => ({ ...value, portfolio: event.target.value }))} rows={4} maxLength={7000} placeholder="Cole ou resuma experiências, projetos, esportes, competições, empreendedorismo, cursos, voluntariado, estágios e resultados." className="mt-2 w-full rounded-xl border border-[#234576] bg-[#020817] p-3 text-sm text-white outline-none focus:border-[#72a5ff]" />
 
                 <label className="mt-4 block text-sm font-bold" htmlFor="prep-video">Resumo do vídeo do PREP</label>
-                <textarea id="prep-video" value={candidateContext.prepVideo} onChange={event => setCandidateContext(value => ({ ...value, prepVideo: event.target.value }))} rows={3} maxLength={3500} placeholder="O que você apresentou sobre trajetória, motivação e objetivos?" className="mt-2 w-full rounded-xl border border-[#234576] bg-[#020817] p-3 text-sm text-white outline-none focus:border-[#72a5ff]" />
+                <textarea id="prep-video" value={candidateContext.prepVideo} onChange={event => setCandidateContext(value => ({ ...value, prepVideo: event.target.value }))} rows={3} maxLength={3500} placeholder="Opcional: resuma o que você apresentou sobre trajetória, motivação e objetivos para testar consistência." className="mt-2 w-full rounded-xl border border-[#234576] bg-[#020817] p-3 text-sm text-white outline-none focus:border-[#72a5ff]" />
 
                 <label className="mt-4 block text-sm font-bold" htmlFor="business-case">Resumo do Business Case / Link Sprint</label>
-                <textarea id="business-case" value={candidateContext.businessCase} onChange={event => setCandidateContext(value => ({ ...value, businessCase: event.target.value }))} rows={3} maxLength={5000} placeholder="Plano inicial, decisões, o que executou, como evoluiu e resultado." className="mt-2 w-full rounded-xl border border-[#234576] bg-[#020817] p-3 text-sm text-white outline-none focus:border-[#72a5ff]" />
+                <textarea id="business-case" value={candidateContext.businessCase} onChange={event => setCandidateContext(value => ({ ...value, businessCase: event.target.value }))} rows={3} maxLength={5000} placeholder="Opcional: plano inicial, decisões, execução, evolução e resultado para testar consistência." className="mt-2 w-full rounded-xl border border-[#234576] bg-[#020817] p-3 text-sm text-white outline-none focus:border-[#72a5ff]" />
 
                 <label className="mt-4 block text-sm font-bold" htmlFor="why-link">Suas anotações de “por que Link?”</label>
-                <textarea id="why-link" value={candidateContext.whyLink} onChange={event => setCandidateContext(value => ({ ...value, whyLink: event.target.value }))} rows={2} maxLength={2500} placeholder="Opcional. O Astra vai testar se os motivos são específicos ou genéricos." className="mt-2 w-full rounded-xl border border-[#234576] bg-[#020817] p-3 text-sm text-white outline-none focus:border-[#72a5ff]" />
+                <textarea id="why-link" value={candidateContext.whyLink} onChange={event => setCandidateContext(value => ({ ...value, whyLink: event.target.value }))} rows={2} maxLength={2500} placeholder="Opcional. A IA vai testar se os motivos são específicos da Link ou genéricos." className="mt-2 w-full rounded-xl border border-[#234576] bg-[#020817] p-3 text-sm text-white outline-none focus:border-[#72a5ff]" />
               </div>
             </> : <>
               <label className="mt-5 block text-sm font-bold text-[#c4d4ea]" htmlFor="interview-course">Curso pretendido</label>
@@ -583,10 +586,10 @@ function InterviewCoach() {
         <section className="overflow-hidden rounded-[30px] border border-[#31588e] bg-[#06152f] shadow-2xl shadow-black/30">
           <div className="grid gap-7 bg-gradient-to-br from-[#0b2856] to-[#071a38] p-6 md:grid-cols-[auto_1fr] md:p-9">
             <div className="flex h-32 w-32 flex-col items-center justify-center rounded-full border-4 border-[#72a5ff] bg-[#031027] text-center">
-              <span className="text-4xl font-black">{report.overallScore}</span>
+              <span className="text-4xl font-black">{scoreText(report.overallScore)}</span>
               <span className="mt-1 px-2 text-[10px] font-bold leading-tight text-[#8da5c5]">{report.scoreLabel || 'Índice de preparação'}</span>
             </div>
-            <div><div className="text-xs font-black uppercase tracking-[.16em] text-[#72a5ff]">Relatório final · {active.name}</div><h1 className="mt-2 text-3xl font-black md:text-5xl">Entrevista concluída</h1><p className="mt-3 max-w-2xl leading-relaxed text-[#b5c8e3]">{report.verdict}</p>{institution === 'link' && <p className="mt-3 text-xs text-[#7891b4]">Este índice é de preparação do Conectaê, não uma nota oficial ou previsão de aprovação.</p>}</div>
+            <div><div className="text-xs font-black uppercase tracking-[.16em] text-[#72a5ff]">{interviewMode === "activity" ? "Treino focalizado" : "Relatório final"} · {active.name}</div><h1 className="mt-2 text-3xl font-black md:text-5xl">{interviewMode === "activity" ? "Atividade concluída" : "Entrevista concluída"}</h1><p className="mt-3 max-w-2xl leading-relaxed text-[#b5c8e3]">{report.verdict}</p>{institution === 'link' && <p className="mt-3 text-xs text-[#7891b4]">Quando disponível, este índice é calculado com peso igual entre os quatro critérios oficiais. Se faltar evidência em algum deles, o sistema não calcula um total. Não é nota oficial nem previsão de aprovação.</p>}</div>
           </div>
 
           <div className="space-y-5 p-6 md:p-9">
@@ -610,8 +613,8 @@ function InterviewCoach() {
             </div>
 
             {!!report.pressureQuestions?.length && <div className="rounded-2xl border border-[#31588e] bg-[#071a38] p-5">
-              <h2 className="font-black">3 perguntas que expõem seus pontos fracos agora</h2>
-              <div className="mt-4 grid gap-3 md:grid-cols-3">{report.pressureQuestions.map((item, index) => <div key={item} className="rounded-xl bg-[#031027] p-4 text-sm"><span className="text-xs font-black text-[#72a5ff]">PRESSÃO {index + 1}</span><p className="mt-2 leading-relaxed">{item}</p></div>)}</div>
+              <h2 className="font-black">3 perguntas de aprofundamento para o próximo treino</h2>
+              <div className="mt-4 grid gap-3 md:grid-cols-3">{report.pressureQuestions.map((item, index) => <div key={item} className="rounded-xl bg-[#031027] p-4 text-sm"><span className="text-xs font-black text-[#72a5ff]">APROFUNDAMENTO {index + 1}</span><p className="mt-2 leading-relaxed">{item}</p></div>)}</div>
             </div>}
 
             <div className="rounded-2xl border border-[#234576] bg-[#041027] p-5">
@@ -637,7 +640,7 @@ function InterviewCoach() {
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-sm font-bold text-[#8da5c5]">
                   <span>{competency || 'Entrevista adaptativa'}</span>
                   {questionLanguage === 'en' && <span className="inline-flex items-center gap-1 rounded-full bg-[#123268] px-2 py-1 text-[10px] text-white"><Languages className="h-3 w-3" />RESPONDA EM INGLÊS</span>}
-                  {questionStyle === 'pressure' && <span className="rounded-full bg-amber-400/10 px-2 py-1 text-[10px] text-amber-100">FOLLOW-UP DE PRESSÃO</span>}
+                  {questionStyle === 'pressure' && <span className="rounded-full bg-amber-400/10 px-2 py-1 text-[10px] text-amber-100">FOLLOW-UP DESAFIADOR</span>}
                 </div>
               </div>
               <Bot className="h-8 w-8 shrink-0 text-[#72a5ff]" />
@@ -654,20 +657,20 @@ function InterviewCoach() {
             </div>
 
             <InterviewRecorder key={questionNumber + '-' + questionLanguage} disabled={busy} onChange={setAudio} onRecording={setRecording} />
-            <label htmlFor="interview-answer" className="mt-6 block text-sm font-black">Sua resposta por texto</label>
-            <p className="mt-1 text-xs text-[#7891b4]">{questionLanguage === 'en' ? 'Responda em inglês. Para avaliar fluência, ritmo e entonação, prefira áudio ou vídeo.' : 'Use uma situação real. Para análise de fala e postura, prefira áudio ou vídeo.'}</p>
+            <label htmlFor="interview-answer" className="mt-6 block text-sm font-black">Resposta por texto <span className="font-medium text-[#7891b4]">(alternativa)</span></label>
+            <p className="mt-1 text-xs text-[#7891b4]">{questionLanguage === 'en' ? 'Responda em inglês. Sem áudio ou vídeo, a IA pode comentar gramática e vocabulário, mas não atribui índice ao critério oficial de Inglês.' : interviewMode === 'official' ? 'A simulação oficial foi pensada para resposta falada. Use texto apenas como alternativa de acessibilidade ou contingência.' : 'Use uma situação real. Para análise de fala e postura, prefira áudio ou vídeo.'}</p>
             <textarea ref={textareaRef} id="interview-answer" disabled={busy || recording || !!audio} value={answer} onChange={event => setAnswer(event.target.value)} rows={8} maxLength={10000} placeholder={questionLanguage === 'en' ? 'Answer as you would in the real interview…' : 'Responda como falaria na entrevista…'} className="mt-2 w-full resize-y rounded-2xl border border-[#234576] bg-[#031027] p-4 text-base leading-relaxed text-white outline-none placeholder:text-[#607a9f] focus:border-[#72a5ff]" />
 
             {error && <p className="mt-4 rounded-xl border border-rose-400/25 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">{error}</p>}
             <button onClick={sendAnswer} disabled={busy || recording || (!audio && answer.trim().length < 20)} className="mt-4 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#246cff] px-5 font-black disabled:opacity-50">
-              {busy ? <><Loader2 className="h-5 w-5 animate-spin" />Astra analisando conteúdo, fala e frames…</> : <><Send className="h-5 w-5" />Enviar resposta</>}
+              {busy ? <><Loader2 className="h-5 w-5 animate-spin" />IA analisando conteúdo, fala e frames…</> : <><Send className="h-5 w-5" />Enviar resposta</>}
             </button>
           </div>
         </section>
 
         <aside className="space-y-4">
           <div className="rounded-[24px] border border-[#234576] bg-[#06152f] p-5">
-            <div className="text-xs font-black uppercase tracking-[.14em] text-[#72a5ff]">{institution === 'link' ? 'Rubrica principal' : 'Média da sessão'}</div>
+            <div className="text-xs font-black uppercase tracking-[.14em] text-[#72a5ff]">{institution === 'link' ? 'Critérios oficiais · índices de treino' : 'Média da sessão'}</div>
             <div className="mt-4 space-y-3">
               {scoreLabels.map(([key, label]) => <div key={key} className="flex items-center justify-between gap-3 rounded-xl bg-[#031027] px-4 py-3 text-sm"><span>{label}</span><strong>{scoreText(averageScores[key])}</strong></div>)}
             </div>
@@ -679,8 +682,8 @@ function InterviewCoach() {
             <ul className="mt-3 space-y-2 text-sm leading-relaxed text-[#9fb5d4]">
               {institution === 'link' ? <>
                 <li>• Parte obrigatória do treino em inglês.</li>
-                <li>• Perguntas ancoradas no Portfolio, PREP e Business Case quando fornecidos.</li>
-                <li>• Follow-ups de pressão para testar defesa de ideias.</li>
+                <li>• Portfolio como referência; PREP e Business Case apenas simulam consistência quando fornecidos.</li><li>• Durante as respostas, os campos de preparação não ficam visíveis: o treino ocorre sem material de apoio.</li>
+                <li>• Follow-ups desafiadores para testar defesa de ideias.</li>
                 <li>• Modo oficial guiado por tempo, não por “10 perguntas fixas”.</li>
               </> : <li>• Perguntas adaptativas com feedback por resposta.</li>}
             </ul>
