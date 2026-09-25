@@ -9,8 +9,8 @@ const origin = 'https://xn--conecta-pya.app';
 const pages = [
   {
     path: '/treino-entrevista',
-    title: 'Treino de entrevista para Insper e Link | Conectaê',
-    description: 'Pratique entrevistas de admissão para Insper e Link com 10 perguntas adaptativas, feedback por competência e plano de melhoria.',
+    title: 'Treino de entrevista Link 2027.1 e ESPM | Conectaê',
+    description: 'Simule a entrevista da Link 2027.1 com modo de aproximadamente 20 minutos, inglês, Portfolio, análise por voz e vídeo em múltiplos frames, além do treino específico da ESPM.',
   },
   {
     path: '/como-funciona',
