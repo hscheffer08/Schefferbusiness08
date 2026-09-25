@@ -136,7 +136,7 @@ const status = await request({}, '', 'GET');
 assert.equal(status.body.voice, true);
 assert.equal(status.body.videoFrames, true);
 assert.equal(status.body.linkOfficialMinutes, 20);
-assert.deepEqual(status.body.linkOfficialCriteria, ['ingles', 'coragem', 'capacidadeTrabalho', 'vontade']);
+assert.equal(JSON.stringify(status.body.linkOfficialCriteria), JSON.stringify(['ingles', 'coragem', 'capacidadeTrabalho', 'vontade']));
 
 assert.equal((await request({}, '')).statusCode, 401);
 assert.equal((await request({}, 'invalid')).statusCode, 401);
