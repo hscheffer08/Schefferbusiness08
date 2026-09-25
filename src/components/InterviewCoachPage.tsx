@@ -283,7 +283,7 @@ function InterviewCoach() {
       result[key] = values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : null;
     });
     return result;
-  }, [turns, institution]);
+  }, [turns, scoreLabels]);
 
   const progress = report
     ? 100
