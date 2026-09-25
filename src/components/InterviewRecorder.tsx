@@ -341,8 +341,8 @@ export default function InterviewRecorder({ disabled, onChange, onRecording }: {
 
     <p className="mt-3 text-sm leading-relaxed text-[#c4d4ea]">
       {mode === 'video'
-        ? 'O vídeo é amostrado em até 7 frames ao longo da resposta. O Astra cruza esses frames com a fala para analisar conteúdo, postura observável, gestos, direção aparente do olhar e enquadramento.'
-        : 'Ao enviar, a fala é transcrita e o Astra cruza o conteúdo com ritmo, pausas, repetições, dicção e entonação.'}
+        ? 'O vídeo é amostrado em até 7 frames ao longo da resposta. A IA cruza esses frames com a fala para analisar conteúdo, postura observável, gestos, direção aparente do olhar e enquadramento.'
+        : 'Ao enviar, a fala é transcrita e a IA cruza o conteúdo com ritmo, pausas, repetições, dicção e entonação.'}
     </p>
     {mode === 'video' && <p className="mt-2 text-xs text-[#8fa8ca]">Vídeo: até 90 segundos e 2,2 MB. {frameCount ? frameCount + ' frames prontos para análise.' : 'Os frames são extraídos automaticamente no seu navegador.'}</p>}
     <p className="mt-2 text-xs text-[#8fa8ca]">A gravação e os frames ficam nesta resposta durante o processamento e não são adicionados ao seu histórico do Conectaê.</p>
