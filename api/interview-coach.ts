@@ -474,11 +474,13 @@ export default async function handler(req: any, res: any) {
       } : null;
       const officialValues = linkCriteria ? Object.values(linkCriteria).map(item => item.score).filter((value): value is number => typeof value === 'number') : [];
       const coachingValues = Object.values(feedback.coachingScores).filter((value): value is number => typeof value === 'number');
-      const computedScore = officialValues.length
-        ? Math.round(officialValues.reduce((sum, value) => sum + value, 0) / officialValues.length)
-        : coachingValues.length
-          ? Math.round(coachingValues.reduce((sum, value) => sum + value, 0) / coachingValues.length)
-          : clampScore(report.overall_score);
+      const computedScore = institution === 'link'
+        ? interviewMode === 'activity'
+          ? (coachingValues.length ? Math.round(coachingValues.reduce((sum, value) => sum + value, 0) / coachingValues.length) : null)
+          : officialValues.length === 4
+            ? Math.round(officialValues.reduce((sum, value) => sum + value, 0) / 4)
+            : null
+        : clampScore(report.overall_score);
 
       return json(res, 200, {
         feedback,
@@ -488,7 +490,11 @@ export default async function handler(req: any, res: any) {
         report: {
           overallScore: computedScore,
           scoreLabel: institution === 'link'
-            ? (interviewMode === 'activity' ? 'Índice do exercício — não oficial' : 'Índice de preparação — média dos critérios observados, não oficial')
+            ? (interviewMode === 'activity'
+                ? 'Índice do exercício — não oficial'
+                : computedScore === null
+                  ? 'Índice final indisponível — faltou evidência em pelo menos um critério'
+                  : 'Índice de preparação — média igual dos 4 critérios, não oficial')
             : 'Índice de preparação',
           verdict: cleanAiText(report.verdict, 700),
           officialCriteria: linkCriteria,
