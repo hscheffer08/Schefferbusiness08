@@ -38,6 +38,7 @@ function messageText(args) {
 
 const context = {
   Buffer,
+  Output: { json: () => ({ type: 'json' }) },
   URL,
   AbortSignal,
   Date,
@@ -204,6 +205,10 @@ const lastAstraCall = [...calls].reverse().find(call => call.model === 'openai/g
 assert.ok(Array.isArray(lastAstraCall.messages[0].content));
 assert.equal(lastAstraCall.messages[0].content.filter(part => part.type === 'image').length, 3);
 assert.equal(lastAstraCall.providerOptions.openai.reasoningEffort, 'high');
+assert.equal(lastAstraCall.providerOptions.gateway.models, undefined);
+assert.ok(lastAstraCall.system.includes('Respeito, Coragem, Responsabilidade e Simplicidade'));
+assert.ok(lastAstraCall.system.includes('Postura, gestos, direção do olhar e enquadramento são coaching de comunicação, não critérios oficiais'));
+assert.ok(lastAstraCall.output);
 
 assert.equal((await request({ phase: 'answer', history, audio: { ...audio, duration: 181 } })).statusCode, 400);
 assert.equal((await request({ phase: 'answer', history, audio: { ...video, duration: 91 } })).statusCode, 400);
