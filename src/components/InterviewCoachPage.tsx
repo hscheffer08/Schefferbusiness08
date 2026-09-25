@@ -57,7 +57,7 @@ type Turn = {
 };
 type CriterionReport = { score: number | null; evidence: string; nextStep: string };
 type Report = {
-  overallScore: number;
+  overallScore: number | null;
   scoreLabel?: string;
   verdict: string;
   officialCriteria?: Record<string, CriterionReport> | null;
@@ -586,10 +586,10 @@ function InterviewCoach() {
         <section className="overflow-hidden rounded-[30px] border border-[#31588e] bg-[#06152f] shadow-2xl shadow-black/30">
           <div className="grid gap-7 bg-gradient-to-br from-[#0b2856] to-[#071a38] p-6 md:grid-cols-[auto_1fr] md:p-9">
             <div className="flex h-32 w-32 flex-col items-center justify-center rounded-full border-4 border-[#72a5ff] bg-[#031027] text-center">
-              <span className="text-4xl font-black">{report.overallScore}</span>
+              <span className="text-4xl font-black">{scoreText(report.overallScore)}</span>
               <span className="mt-1 px-2 text-[10px] font-bold leading-tight text-[#8da5c5]">{report.scoreLabel || 'Índice de preparação'}</span>
             </div>
-            <div><div className="text-xs font-black uppercase tracking-[.16em] text-[#72a5ff]">{interviewMode === "activity" ? "Treino focalizado" : "Relatório final"} · {active.name}</div><h1 className="mt-2 text-3xl font-black md:text-5xl">{interviewMode === "activity" ? "Atividade concluída" : "Entrevista concluída"}</h1><p className="mt-3 max-w-2xl leading-relaxed text-[#b5c8e3]">{report.verdict}</p>{institution === 'link' && <p className="mt-3 text-xs text-[#7891b4]">Este índice é uma métrica de treino do Conectaê, calculada a partir dos critérios observados. Não é nota oficial nem previsão de aprovação.</p>}</div>
+            <div><div className="text-xs font-black uppercase tracking-[.16em] text-[#72a5ff]">{interviewMode === "activity" ? "Treino focalizado" : "Relatório final"} · {active.name}</div><h1 className="mt-2 text-3xl font-black md:text-5xl">{interviewMode === "activity" ? "Atividade concluída" : "Entrevista concluída"}</h1><p className="mt-3 max-w-2xl leading-relaxed text-[#b5c8e3]">{report.verdict}</p>{institution === 'link' && <p className="mt-3 text-xs text-[#7891b4]">Quando disponível, este índice é calculado com peso igual entre os quatro critérios oficiais. Se faltar evidência em algum deles, o sistema não calcula um total. Não é nota oficial nem previsão de aprovação.</p>}</div>
           </div>
 
           <div className="space-y-5 p-6 md:p-9">
@@ -657,8 +657,8 @@ function InterviewCoach() {
             </div>
 
             <InterviewRecorder key={questionNumber + '-' + questionLanguage} disabled={busy} onChange={setAudio} onRecording={setRecording} />
-            <label htmlFor="interview-answer" className="mt-6 block text-sm font-black">Sua resposta por texto</label>
-            <p className="mt-1 text-xs text-[#7891b4]">{questionLanguage === 'en' ? 'Responda em inglês. Para avaliar fluência, ritmo e entonação, prefira áudio ou vídeo.' : 'Use uma situação real. Para análise de fala e postura, prefira áudio ou vídeo.'}</p>
+            <label htmlFor="interview-answer" className="mt-6 block text-sm font-black">Resposta por texto <span className="font-medium text-[#7891b4]">(alternativa)</span></label>
+            <p className="mt-1 text-xs text-[#7891b4]">{questionLanguage === 'en' ? 'Responda em inglês. Sem áudio ou vídeo, a IA pode comentar gramática e vocabulário, mas não atribui índice ao critério oficial de Inglês.' : interviewMode === 'official' ? 'A simulação oficial foi pensada para resposta falada. Use texto apenas como alternativa de acessibilidade ou contingência.' : 'Use uma situação real. Para análise de fala e postura, prefira áudio ou vídeo.'}</p>
             <textarea ref={textareaRef} id="interview-answer" disabled={busy || recording || !!audio} value={answer} onChange={event => setAnswer(event.target.value)} rows={8} maxLength={10000} placeholder={questionLanguage === 'en' ? 'Answer as you would in the real interview…' : 'Responda como falaria na entrevista…'} className="mt-2 w-full resize-y rounded-2xl border border-[#234576] bg-[#031027] p-4 text-base leading-relaxed text-white outline-none placeholder:text-[#607a9f] focus:border-[#72a5ff]" />
 
             {error && <p className="mt-4 rounded-xl border border-rose-400/25 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">{error}</p>}
