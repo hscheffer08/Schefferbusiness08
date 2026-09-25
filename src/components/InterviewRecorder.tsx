@@ -136,7 +136,6 @@ export default function InterviewRecorder({ disabled, onChange, onRecording }: {
       clearInterval(timer.current);
       if (recorder.current?.state === 'recording') recorder.current.stop();
       stream.current?.getTracks().forEach(track => track.stop());
-      if (livePreview.current) livePreview.current.srcObject = null;
       if (objectUrl.current) URL.revokeObjectURL(objectUrl.current);
       callback.current.onRecording(false);
     };
