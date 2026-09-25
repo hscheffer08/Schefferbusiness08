@@ -308,7 +308,6 @@ export default function InterviewRecorder({ disabled, onChange, onRecording }: {
     };
   }
 
-  const limitSeconds = mode === 'video' ? VIDEO_LIMIT_SECONDS : AUDIO_LIMIT_SECONDS;
   const modeClass = (selected: boolean) => 'inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm font-bold ' + (selected ? 'bg-[#246cff] text-white' : 'bg-[#041027] text-[#b9cbea]');
 
   return <div className="mt-4 rounded-2xl border border-[#31588e] bg-[#0b2856] p-4">
