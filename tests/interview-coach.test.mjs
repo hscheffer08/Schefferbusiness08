@@ -223,4 +223,14 @@ const timedFinal = await request({ phase: 'answer', interviewMode: 'official', h
 assert.equal(timedFinal.body.complete, true);
 assert.equal(timedFinal.body.report.officialCriteria.ingles.score, 78);
 
-console.log('PASS: Link 2027.1 rubric, timed official mode, English segment, Portfolio context, Astra high reasoning, audio/video sensor and multi-frame visual review.');
+const pageSource = readFileSync('src/components/InterviewCoachPage.tsx', 'utf8');
+const recorderSource = readFileSync('src/components/InterviewRecorder.tsx', 'utf8');
+assert.ok(pageSource.includes('if (showAuth) return'));
+assert.ok(!pageSource.includes('if (showAuth || !user || !session) return'));
+assert.ok(pageSource.includes('A Link publica os critérios e seus pesos, mas não uma escala oficial de 0 a 100'));
+assert.ok(pageSource.includes('não atribui índice ao critério oficial de Inglês'));
+assert.ok(recorderSource.includes('Prévia ao vivo da câmera'));
+assert.ok(!pageSource.includes('Feedback Astra'));
+assert.ok(!recorderSource.includes('O Astra cruza'));
+
+console.log('PASS: Link 2027.1 rubric, timed official mode, English segment, Portfolio context, Astra-only final reasoning, evidence-gated scoring, public reviewer landing, live video preview and multi-frame visual review.');
