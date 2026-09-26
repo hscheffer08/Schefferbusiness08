@@ -141,24 +141,19 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
 
   useEffect(()=>{let alive=true;(async()=>{
     if(!supabase){setLoading(false);return}
-    const[{data:a},{data:u},{data:q},{data:userData},{data:cutoffRows}]=await Promise.all([
+    const[{data:a},{data:u},{data:userData},{data:cutoffRows}]=await Promise.all([
       supabase.from('academic_areas').select('area_id,name,courses').order('name'),
       supabase.from('area_universities').select('area_university_id,area_id,university_name,course_label').order('university_name'),
-      supabase.from('exam_practice_questions').select('*').eq('active',true),
       supabase.auth.getUser(),
       supabase.from('admission_cutoff_references').select('institution,exam_id,course_label,variant,year,modality,target_kind,target_value,max_value,confidence,source_url,notes').order('year',{ascending:false}),
     ]);
     if(!alive)return;
     const cleanUniversities=((u??[]) as University[]).filter(x=>RETAINED.has(x.university_name)&&isSupportedInstitutionCourse(x.university_name,x.course_label));
     const cleanAreas=((a??[]) as AcademicArea[]).filter(ar=>cleanUniversities.some(x=>x.area_id===ar.area_id));
-    setAreas(cleanAreas);setUniversities(cleanUniversities);setQuestions(mergePracticeQuestions((q??[]) as Question[]) as Question[]);setCutoffs((cutoffRows??[]) as AdmissionCutoff[]);
+    setAreas(cleanAreas);setUniversities(cleanUniversities);setCutoffs((cutoffRows??[]) as AdmissionCutoff[]);
     const user=userData.user;
     if(user){
-      const[{data:pref},{data:at}]=await Promise.all([
-        supabase.from('student_exam_preferences').select('*').eq('user_id',user.id).order('updated_at',{ascending:false}).limit(1).maybeSingle(),
-        supabase.from('student_practice_attempts').select('exam_id,area,skill_name,correct,created_at').eq('user_id',user.id).order('created_at',{ascending:false}).limit(400),
-      ]);
-      setAttempts((at??[]) as Attempt[]);
+      const{data:pref}=await supabase.from('student_exam_preferences').select('*').eq('user_id',user.id).order('updated_at',{ascending:false}).limit(1).maybeSingle();
       const desiredArea=pref?.selected_area_id&&cleanAreas.some(x=>x.area_id===pref.selected_area_id)?pref.selected_area_id:cleanAreas[0]?.area_id??'';
       setSelectedArea(desiredArea);
       const allowed=cleanUniversities.filter(x=>x.area_id===desiredArea);
@@ -177,10 +172,6 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
       const localHours=Number(guest.weeklyHours||localStorage.getItem('conectae:weekly-hours')||9);
       if(Number.isFinite(localHours)){setWeeklyHours(localHours);setAppliedWeeklyHours(localHours)}
       if(guest.difficultyTopics&&typeof guest.difficultyTopics==='object')setDifficultyTopics(guest.difficultyTopics);
-      try{
-        const localAttempts=JSON.parse(localStorage.getItem(GUEST_ATTEMPTS_KEY)||'[]');
-        if(Array.isArray(localAttempts))setAttempts((localAttempts as Attempt[]).slice(0,400));
-      }catch{/* ignore malformed local history */}
     }
     setLoading(false);
   })();return()=>{alive=false}},[]);
@@ -194,11 +185,43 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   const metrics=model.metrics;
   const scoreStorageKey=useMemo(()=>`conectae:exam-values:${model.examId}:${university?.university_name??'sem-faculdade'}:${course}`,[model.examId,university?.university_name,course]);
 
+  useEffect(()=>{let alive=true;(async()=>{
+    if(!supabase){setQuestions(mergePracticeQuestions([]) as Question[]);return}
+    const[first,second]=await Promise.all([
+      supabase.from('exam_practice_questions').select('*').eq('active',true).eq('exam_id',model.examId).range(0,999),
+      supabase.from('exam_practice_questions').select('*').eq('active',true).eq('exam_id',model.examId).range(1000,1999),
+    ]);
+    if(!alive)return;
+    const remote=[...(first.data??[]),...(second.data??[])] as Question[];
+    setQuestions(mergePracticeQuestions(remote) as Question[]);
+  })();return()=>{alive=false}},[model.examId]);
+
   useEffect(()=>{(async()=>{
     const defaults=Object.fromEntries(metrics.map(m=>[m.key,m.defaultValue]));
     let stored:Record<string,number>={};try{stored=JSON.parse(localStorage.getItem(scoreStorageKey)||'{}')}catch{stored={}}
     let saved:Record<string,number>={};
-    if(supabase){const{data:userData}=await supabase.auth.getUser();if(userData.user){const{data:pref}=await supabase.from('student_exam_preferences').select('current_scores,weekly_hours,difficulty_topics').eq('user_id',userData.user.id).eq('exam_id',model.examId).maybeSingle();if(pref?.current_scores&&typeof pref.current_scores==='object')saved=pref.current_scores as Record<string,number>;if(pref?.weekly_hours){setWeeklyHours(Number(pref.weekly_hours));setAppliedWeeklyHours(Number(pref.weekly_hours))}if(pref?.difficulty_topics&&typeof pref.difficulty_topics==='object')setDifficultyTopics(pref.difficulty_topics as DifficultySelection);else setDifficultyTopics({});await reloadDiagnostics(userData.user.id,model.examId)}}
+    let signedIn=false;
+    if(supabase){
+      const{data:userData}=await supabase.auth.getUser();
+      if(userData.user){
+        signedIn=true;
+        const[{data:pref},{data:examAttempts}]=await Promise.all([
+          supabase.from('student_exam_preferences').select('current_scores,weekly_hours,difficulty_topics').eq('user_id',userData.user.id).eq('exam_id',model.examId).maybeSingle(),
+          supabase.from('student_practice_attempts').select('exam_id,area,skill_name,correct,created_at').eq('user_id',userData.user.id).eq('exam_id',model.examId).order('created_at',{ascending:false}).limit(400),
+        ]);
+        setAttempts((examAttempts??[]) as Attempt[]);
+        if(pref?.current_scores&&typeof pref.current_scores==='object')saved=pref.current_scores as Record<string,number>;
+        if(pref?.weekly_hours){setWeeklyHours(Number(pref.weekly_hours));setAppliedWeeklyHours(Number(pref.weekly_hours))}
+        if(pref?.difficulty_topics&&typeof pref.difficulty_topics==='object')setDifficultyTopics(pref.difficulty_topics as DifficultySelection);else setDifficultyTopics({});
+        await reloadDiagnostics(userData.user.id,model.examId);
+      }
+    }
+    if(!signedIn){
+      try{
+        const localAttempts=JSON.parse(localStorage.getItem(GUEST_ATTEMPTS_KEY)||'[]');
+        setAttempts(Array.isArray(localAttempts)?(localAttempts as Attempt[]).filter(row=>row.exam_id===model.examId).slice(0,400):[]);
+      }catch{setAttempts([])}
+    }
     const next={...defaults,...stored,...saved};setValues(next);setAppliedValues(next);setDirty(false);setQuestionArea('Todas');setActiveQuestion(null);setSelectedOption('');setPracticeResult(null);localStorage.setItem('conectae:active-exam',model.examId);
   })()},[scoreStorageKey,model.examId,metrics]);
 
