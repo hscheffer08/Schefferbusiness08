@@ -31,6 +31,38 @@ type BiologyMaterial = {
   size_bytes: number | null;
 };
 
+type QuickStudyPage = {
+  title: string;
+  image: string;
+  alt: string;
+};
+
+type QuickStudySet = {
+  id: string;
+  title: string;
+  description: string;
+  pages: QuickStudyPage[];
+};
+
+const quickStudySets: QuickStudySet[] = [
+  {
+    id: 'genetica',
+    title: 'Genética',
+    description: 'Uma revisão visual de DNA, expressão gênica, mutações, Mendel, probabilidade e padrões de dominância.',
+    pages: [
+      { title: 'DNA, gene, cromossomo e genoma', image: '/biology/quick-study/genetica/01-gene-dna-cromossomo-genoma.jpeg', alt: 'Resumo visual sobre DNA, gene, cromossomo e genoma.' },
+      { title: 'Genótipo x fenótipo', image: '/biology/quick-study/genetica/02-genotipo-fenotipo.jpeg', alt: 'Resumo visual comparando genótipo e fenótipo.' },
+      { title: 'Expressão gênica', image: '/biology/quick-study/genetica/03-expressao-genica.jpeg', alt: 'Resumo visual sobre genes ligados, desligados e regulação da expressão gênica.' },
+      { title: 'Mutações', image: '/biology/quick-study/genetica/04-mutacoes.jpeg', alt: 'Resumo visual sobre mutações gênicas e cromossômicas.' },
+      { title: '1ª Lei de Mendel', image: '/biology/quick-study/genetica/05-primeira-lei-mendel.jpeg', alt: 'Resumo visual sobre a primeira lei de Mendel e segregação dos alelos.' },
+      { title: 'Probabilidade na genética', image: '/biology/quick-study/genetica/06-probabilidade-genetica.jpeg', alt: 'Resumo visual sobre regra do e e regra do ou em probabilidade genética.' },
+      { title: 'Cruzamento-teste', image: '/biology/quick-study/genetica/07-cruzamento-teste.jpeg', alt: 'Resumo visual sobre cruzamento-teste para descobrir um genótipo.' },
+      { title: '2ª Lei de Mendel', image: '/biology/quick-study/genetica/08-segunda-lei-mendel.jpeg', alt: 'Resumo visual sobre a segunda lei de Mendel e segregação independente.' },
+      { title: 'Dominância incompleta', image: '/biology/quick-study/genetica/09-dominancia-incompleta.jpeg', alt: 'Resumo visual sobre dominância incompleta.' },
+    ],
+  },
+];
+
 const modules: Module[] = [
   {
     id: 'celula', title: '1. Biologia celular e metabolismo',
@@ -193,6 +225,8 @@ export default function BiologyCourse() {
   const [passwordError, setPasswordError] = useState('');
   const [query, setQuery] = useState('');
   const [selectedLesson, setSelectedLesson] = useState<string | null>(null);
+  const [selectedQuickStudy, setSelectedQuickStudy] = useState<string | null>(null);
+  const [quickStudyPage, setQuickStudyPage] = useState(0);
   const [materials, setMaterials] = useState<Record<string, BiologyMaterial[]>>({});
   const [materialsLoading, setMaterialsLoading] = useState(false);
   const [materialsError, setMaterialsError] = useState('');
@@ -220,6 +254,8 @@ export default function BiologyCourse() {
   }, [query]);
 
   const lessonCount = modules.reduce((n, m) => n + m.lessons.length, 0);
+  const currentQuickStudy = quickStudySets.find(set => set.id === selectedQuickStudy) || null;
+  const currentQuickStudyPage = currentQuickStudy ? (currentQuickStudy.pages[quickStudyPage] ?? currentQuickStudy.pages[0]) : null;
 
   const currentLesson = allLessons.find(lesson => lesson.key === selectedLesson);
   const currentQuestions = currentLesson ? (questionMap[currentLesson.key] || []).map(i => ({...questions[i], index:i})) : [];
@@ -378,13 +414,80 @@ export default function BiologyCourse() {
   return (
     <main className="min-h-screen bg-[#f6f8ff] px-4 py-7 font-['Plus_Jakarta_Sans'] text-[#111936] sm:px-8">
       <div className="mx-auto w-full max-w-6xl">
-        <button onClick={() => currentLesson ? setSelectedLesson(null) : window.location.assign('/cursos-particulares')} className="mb-7 inline-flex items-center gap-2 font-extrabold text-[#596681] hover:text-[#3155e7]"><ArrowLeft className="h-5 w-5" /> {currentLesson ? 'Todos os tópicos' : 'Voltar'}</button>
-        {!currentLesson ? <>
+        <button onClick={() => currentQuickStudy ? setSelectedQuickStudy(null) : currentLesson ? setSelectedLesson(null) : window.location.assign('/cursos-particulares')} className="mb-7 inline-flex items-center gap-2 font-extrabold text-[#596681] hover:text-[#3155e7]"><ArrowLeft className="h-5 w-5" /> {currentQuickStudy ? 'Estudo rápido' : currentLesson ? 'Todos os tópicos' : 'Voltar'}</button>
+        {currentQuickStudy && currentQuickStudyPage ? <>
+          <section className="overflow-hidden rounded-[30px] bg-gradient-to-br from-[#fff0f7] via-[#f6edff] to-[#eaf3ff] p-7 text-[#111936] shadow-sm ring-1 ring-[#ead9ef] sm:p-9">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-white/85 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-[#b2146b] ring-1 ring-[#f2c9df]">Estudo rápido</span>
+              <span className="text-xs font-extrabold text-[#69758f]">{currentQuickStudy.pages.length} páginas</span>
+            </div>
+            <h1 className="mt-3 text-4xl font-black tracking-[-0.045em] sm:text-6xl">{currentQuickStudy.title}</h1>
+            <p className="mt-4 max-w-3xl text-sm leading-relaxed text-[#596681] sm:text-base">{currentQuickStudy.description}</p>
+          </section>
+
+          <section className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="rounded-[28px] border border-[#e3deea] bg-white p-3 shadow-sm sm:p-5">
+              <div className="mx-auto max-w-[600px] overflow-hidden rounded-[22px] bg-[#f7f4f8]">
+                <img src={currentQuickStudyPage.image} alt={currentQuickStudyPage.alt} className="h-auto w-full object-contain" />
+              </div>
+              <div className="mx-auto mt-4 flex max-w-[600px] items-center justify-between gap-3">
+                <button type="button" onClick={() => setQuickStudyPage(page => Math.max(0, page - 1))} disabled={quickStudyPage === 0} className="rounded-xl border border-[#d7deee] bg-white px-4 py-2.5 text-sm font-black text-[#415574] disabled:cursor-not-allowed disabled:opacity-35">← Anterior</button>
+                <span className="text-center text-xs font-black text-[#596681]">{quickStudyPage + 1} / {currentQuickStudy.pages.length}</span>
+                <button type="button" onClick={() => setQuickStudyPage(page => Math.min(currentQuickStudy.pages.length - 1, page + 1))} disabled={quickStudyPage === currentQuickStudy.pages.length - 1} className="rounded-xl bg-[#3155e7] px-4 py-2.5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-35">Próxima →</button>
+              </div>
+            </div>
+
+            <aside className="space-y-4">
+              <section className="rounded-[24px] border border-[#d7deee] bg-white p-5">
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-[#b2146b]">Nesta revisão</p>
+                <h2 className="mt-2 text-xl font-black">{currentQuickStudyPage.title}</h2>
+                <p className="mt-2 text-sm leading-relaxed text-[#69758f]">Escolha qualquer página abaixo para pular direto ao ponto que você quer revisar.</p>
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  {currentQuickStudy.pages.map((page,index) => (
+                    <button type="button" key={page.title} onClick={() => setQuickStudyPage(index)} aria-label={`Abrir página ${index + 1}: ${page.title}`} title={page.title} className={`rounded-xl px-3 py-3 text-sm font-black transition ${quickStudyPage === index ? 'bg-[#3155e7] text-white shadow-sm' : 'bg-[#f5f7fc] text-[#596681] hover:bg-[#e9edff] hover:text-[#3155e7]'}`}>{String(index + 1).padStart(2,'0')}</button>
+                  ))}
+                </div>
+              </section>
+              <section className="rounded-[24px] border border-[#f0d2e2] bg-[#fff5fa] p-5">
+                <Sparkles className="h-5 w-5 text-[#b2146b]" />
+                <h2 className="mt-3 font-black">Revisão de poucos minutos</h2>
+                <p className="mt-2 text-sm leading-relaxed text-[#6e5870]">Passe pelas páginas em ordem antes das questões ou volte somente aos conceitos em que estiver com dúvida.</p>
+              </section>
+            </aside>
+          </section>
+        </> : !currentLesson ? <>
           <section className="overflow-hidden rounded-[32px] bg-gradient-to-br from-[#eef5ff] to-[#dceaff] p-7 text-[#0b1b4d] shadow-sm ring-1 ring-[#c9daf7] sm:p-10">
             <p className="text-sm font-black uppercase tracking-[0.18em] text-[#1262c9]">Curso particular • Biologia</p>
             <h1 className="mt-2 text-4xl font-black tracking-[-0.045em] sm:text-6xl">Escolha o tópico que quer estudar.</h1>
             <p className="mt-5 max-w-2xl text-base leading-relaxed text-[#415574] sm:text-lg">Cada assunto tem sua própria aula, material, revisão, dicas e questões específicas.</p>
             <div className="mt-7 grid max-w-xl grid-cols-3 gap-2 text-center"><div className="rounded-2xl bg-white/80 p-4 ring-1 ring-[#c9daf7]"><strong className="block text-2xl">{modules.length}</strong><span className="text-xs text-[#526684]">áreas</span></div><div className="rounded-2xl bg-white/80 p-4 ring-1 ring-[#c9daf7]"><strong className="block text-2xl">{lessonCount}</strong><span className="text-xs text-[#526684]">tópicos</span></div><div className="rounded-2xl bg-white/80 p-4 ring-1 ring-[#c9daf7]"><strong className="block text-2xl">ENEM</strong><span className="text-xs text-[#526684]">+ CMMG</span></div></div>
+          </section>
+          <section className="mt-7 rounded-[28px] border border-[#efd8e5] bg-gradient-to-br from-[#fff8fc] to-[#f7f2ff] p-5 shadow-sm sm:p-7">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#b2146b]">Estudo rápido</p>
+                <h2 className="mt-2 text-2xl font-black tracking-[-0.03em] sm:text-3xl">Revisões visuais para bater o olho e lembrar.</h2>
+                <p className="mt-2 text-sm leading-relaxed text-[#69758f]">Abra um tema e passe pelas páginas em poucos minutos.</p>
+              </div>
+              <Sparkles className="hidden h-8 w-8 shrink-0 text-[#b2146b] sm:block" />
+            </div>
+            <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {quickStudySets.map(set => (
+                <button type="button" key={set.id} onClick={() => { setSelectedQuickStudy(set.id); setQuickStudyPage(0); setSelectedLesson(null); }} className="group overflow-hidden rounded-[22px] border border-[#ead7e4] bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+                  <div className="aspect-[16/9] overflow-hidden bg-[#f7f0f6]">
+                    <img src={set.pages[0].image} alt="" className="h-full w-full object-cover object-[center_23%] transition duration-300 group-hover:scale-[1.03]" loading="lazy" />
+                  </div>
+                  <div className="p-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <h3 className="text-xl font-black">{set.title}</h3>
+                      <span className="rounded-full bg-[#fff0f7] px-2.5 py-1 text-[10px] font-black uppercase text-[#b2146b]">{set.pages.length} páginas</span>
+                    </div>
+                    <p className="mt-2 text-sm leading-relaxed text-[#69758f]">{set.description}</p>
+                    <div className="mt-4 border-t border-[#f0e9ef] pt-4 text-xs font-black text-[#3155e7]">Começar revisão →</div>
+                  </div>
+                </button>
+              ))}
+            </div>
           </section>
           <div className="mt-7 flex items-center gap-3 rounded-2xl border border-[#d7deee] bg-white px-4 py-3"><Search className="h-5 w-5 text-[#7a86a0]" /><input aria-label="Buscar tópico" value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar um tópico…" className="w-full bg-transparent text-sm font-semibold outline-none placeholder:text-[#596681]" /></div>
           <section className="mt-8 space-y-9">{filtered.length === 0 && <p role="status" className="rounded-xl bg-white p-5 text-[#415574]">Nenhum tópico encontrado. Tente outro termo.</p>}{filtered.map(module => <div key={module.id}><div className="mb-4"><p className="text-xs font-black uppercase tracking-[0.14em] text-[#3155e7]">{module.title}</p><p className="mt-1 text-sm text-[#69758f]">{module.description}</p></div><div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{module.lessons.map((lesson,index)=><button key={lesson.key} onClick={()=>{setSelectedLesson(lesson.key);setAnswers({});setSubmitted(false);}} className="group rounded-[24px] border border-[#d7deee] bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-[#9fb0ff] hover:shadow-lg"><div className="flex items-start justify-between gap-3"><div className="rounded-xl bg-[#e9edff] p-2 text-[#3155e7]"><FileText className="h-5 w-5"/></div><span className="text-xs font-black text-[#596681]">{String(index+1).padStart(2,'0')}</span></div><h2 className="mt-4 text-lg font-black">{lesson.title}</h2><p className="mt-2 text-sm leading-relaxed text-[#69758f]">{lesson.topics.slice(0,3).join(' • ')}</p><div className="mt-5 flex items-center justify-between border-t border-[#edf0f7] pt-4 text-xs font-black text-[#3155e7]"><span>Material + questões</span><span>Entrar →</span></div></button>)}</div></div>)}</section>
