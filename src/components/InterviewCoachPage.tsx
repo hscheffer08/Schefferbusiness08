@@ -187,7 +187,7 @@ function FeedbackPanel({ feedback, voice, institution }: { feedback: Feedback | 
       </div>}
 
       {feedback.visual && <div className="rounded-2xl border border-[#31588e] bg-[#071a38] p-5">
-        <div className="flex items-center gap-2 font-black"><Video className="h-5 w-5 text-[#72a5ff]" />Leitura visual por múltiplos frames</div>
+        <div className="flex items-center gap-2 font-black"><Video className="h-5 w-5 text-[#72a5ff]" />Análise visual da resposta</div>
         <p className="mt-2 text-sm leading-relaxed text-[#b5c8e3]">{feedback.visual.summary}</p>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {[['Postura observável', feedback.visual.posture], ['Gestos', feedback.visual.gestures], ['Direção do olhar', feedback.visual.gaze], ['Enquadramento', feedback.visual.framing]].map(([label, value]) => <div key={label} className="rounded-xl bg-[#031027] p-4 text-sm"><strong className="block mb-2">{label}</strong>{value || 'Sem evidência suficiente.'}</div>)}
@@ -216,7 +216,7 @@ function FeedbackPanel({ feedback, voice, institution }: { feedback: Feedback | 
 
       {voice.mediaKind === 'video' && <div>
         <h3 className="font-black">Leitura temporal do vídeo</h3>
-        <p className="mt-1 text-sm text-[#9fb5d4]">{voice.framesAnalyzed || 0} frames independentes foram analisados pela IA, além da leitura temporal do vídeo.</p>
+        <p className="mt-1 text-sm text-[#9fb5d4]">A IA analisou diferentes momentos do vídeo junto com a fala para identificar padrões observáveis de comunicação.</p>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           {[['Postura ao longo do vídeo', voice.posture], ['Gestos ao longo do vídeo', voice.gestures], ['Direção aparente do olhar', voice.gazeToCamera], ['Enquadramento', voice.framing]].map(([label, value]) => <p key={label} className="rounded-xl bg-[#0b2856] p-4 text-sm"><strong className="block mb-2">{label}</strong>{value || 'Não foi possível avaliar.'}</p>)}
         </div>
@@ -259,11 +259,16 @@ function InterviewCoach() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const startedAt = useRef<number | null>(null);
   const aiPausedMs = useRef(0);
+  const processingStartedAt = useRef<number | null>(null);
   const active = institutions[institution];
   const scoreLabels = institution === 'link' ? linkScoreLabels : espmScoreLabels;
   const totalQuestions = totalForMode(interviewMode, institution);
 
-  const currentElapsed = () => startedAt.current ? Math.max(0, Math.floor((Date.now() - startedAt.current - aiPausedMs.current) / 1000)) : 0;
+  const currentElapsed = () => {
+    if (!startedAt.current) return 0;
+    const activePauseMs = processingStartedAt.current ? Date.now() - processingStartedAt.current : 0;
+    return Math.max(0, Math.floor((Date.now() - startedAt.current - aiPausedMs.current - activePauseMs) / 1000));
+  };
 
   useEffect(() => {
     document.title = 'Treino de entrevistas Link e ESPM | Conectaê';
@@ -300,6 +305,15 @@ function InterviewCoach() {
     const currentSession = await ensureFreshSession();
     if (!currentSession?.access_token) throw requireLogin();
 
+    const historyLength = Array.isArray(payload.history) ? payload.history.length : 0;
+    const payloadElapsed = Math.max(0, Number(payload.elapsedSeconds) || 0);
+    const closingRequest = payload.phase === 'answer' && (
+      institution === 'link' && interviewMode === 'official'
+        ? historyLength >= 12 || (historyLength >= 6 && payloadElapsed >= 18 * 60)
+        : historyLength >= totalQuestions
+    );
+    const requestTimeoutMs = closingRequest ? 230_000 : payload.audio ? 210_000 : 120_000;
+
     const request = (token: string) => fetch('/api/interview-coach', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
@@ -309,7 +323,7 @@ function InterviewCoach() {
         interviewMode,
         candidateContext: institution === 'link' ? candidateContext : undefined,
       }),
-      signal: AbortSignal.timeout(payload.audio ? 210_000 : 120_000),
+      signal: AbortSignal.timeout(requestTimeoutMs),
     }).catch((requestError: unknown) => {
       if (requestError instanceof Error && (requestError.name === 'TimeoutError' || requestError.name === 'AbortError')) {
         throw new Error('A análise demorou mais que o esperado. Sua resposta foi preservada. Tente enviar novamente.');
@@ -324,8 +338,14 @@ function InterviewCoach() {
       response = await request(refreshed.access_token);
       if (response.status === 401) throw requireLogin();
     }
-    const data = await response.json() as ApiResult;
-    if (!response.ok) throw new Error(data.error || 'Não foi possível continuar agora.');
+    let data: ApiResult;
+    try {
+      data = await response.json() as ApiResult;
+    } catch {
+      if (response.status === 504) throw new Error('A análise demorou mais que o esperado. Sua resposta foi preservada. Tente enviar novamente.');
+      throw new Error(response.ok ? 'A resposta da entrevista ficou incompleta. Tente novamente.' : 'Não foi possível continuar agora.');
+    }
+    if (!response.ok) throw new Error(data.error || (response.status === 504 ? 'A análise demorou mais que o esperado. Sua resposta foi preservada. Tente enviar novamente.' : 'Não foi possível continuar agora.'));
     return data;
   }
 
@@ -344,6 +364,7 @@ function InterviewCoach() {
     setAnswer('');
     startedAt.current = null;
     aiPausedMs.current = 0;
+    processingStartedAt.current = null;
     setElapsed(0);
 
     try {
@@ -375,6 +396,7 @@ function InterviewCoach() {
     const history = [...turns, pendingTurn];
     const practiceElapsed = currentElapsed();
     const requestStarted = Date.now();
+    processingStartedAt.current = requestStarted;
 
     setBusy(true);
     setError('');
@@ -387,9 +409,6 @@ function InterviewCoach() {
         audio,
         elapsedSeconds: practiceElapsed,
       });
-      aiPausedMs.current += Date.now() - requestStarted;
-      setElapsed(currentElapsed());
-
       const completedTurn: Turn = {
         ...pendingTurn,
         answer: data.voice?.transcript || pendingTurn.answer,
@@ -416,10 +435,11 @@ function InterviewCoach() {
         requestAnimationFrame(() => textareaRef.current?.focus());
       }
     } catch (sendError) {
-      aiPausedMs.current += Date.now() - requestStarted;
-      setElapsed(currentElapsed());
       setError(sendError instanceof Error ? sendError.message : 'Não foi possível analisar a resposta.');
     } finally {
+      aiPausedMs.current += Date.now() - requestStarted;
+      processingStartedAt.current = null;
+      setElapsed(currentElapsed());
       setBusy(false);
     }
   }
@@ -441,6 +461,7 @@ function InterviewCoach() {
     setElapsed(0);
     startedAt.current = null;
     aiPausedMs.current = 0;
+    processingStartedAt.current = null;
   }
 
   function reset() {
@@ -488,7 +509,7 @@ function InterviewCoach() {
         <button onClick={() => window.location.assign('/')} className="inline-flex items-center gap-2 text-sm font-bold text-[#9fb5d4] hover:text-white"><ArrowLeft className="h-4 w-4" />Início</button>
         <div className="text-center"><div className="text-lg font-black">Conecta<span className="text-[#72a5ff]">ê</span></div><div className="text-[10px] font-extrabold uppercase tracking-[.17em] text-[#7891b4]">Treino de entrevista</div></div>
         {user && session
-          ? <div className="hidden text-xs font-bold text-[#7891b4] sm:block">IA multimodal · voz + vídeo + frames</div>
+          ? <div className="hidden text-xs font-bold text-[#7891b4] sm:block">Análise por IA · voz + vídeo</div>
           : <button onClick={() => setShowAuth(true)} className="rounded-xl border border-[#31588e] px-3 py-2 text-xs font-black text-[#c5d9f4] hover:border-[#72a5ff]">Entrar para praticar</button>}
       </div>
     </header>
@@ -497,14 +518,14 @@ function InterviewCoach() {
       {!started ? <div className="space-y-12">
         <div className="mx-auto max-w-6xl grid gap-8 lg:grid-cols-[.85fr_1.15fr] lg:items-start">
           <section>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#31588e] bg-[#0b2856] px-3 py-1.5 text-xs font-black text-[#a9c7ef]"><Sparkles className="h-4 w-4" />SIMULAÇÃO ADAPTATIVA COM IA MULTIMODAL</div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#31588e] bg-[#0b2856] px-3 py-1.5 text-xs font-black text-[#a9c7ef]"><Sparkles className="h-4 w-4" />SIMULAÇÃO ADAPTATIVA COM IA</div>
             <h1 className="mt-5 text-4xl font-black leading-[1.02] tracking-[-.05em] md:text-6xl">Treine como será a <span className="text-[#72a5ff]">entrevista.</span></h1>
             <p className="mt-5 max-w-xl text-base leading-relaxed text-[#a9bddc] md:text-lg">Na Link 2027.1, o modo oficial simula aproximadamente 20 minutos, usa seu Portfolio como referência, inclui uma parte em inglês, responde sem material de apoio e avalia os quatro critérios publicados pela instituição.</p>
 
             <div className="mt-7 grid gap-3">
               {[
                 ['Critérios oficiais', 'Inglês · Coragem · Capacidade de Trabalho · Vontade de Estar Aqui'],
-                ['Vídeo em múltiplos frames', 'Até 7 recortes distribuídos pela resposta, cruzados com fala e conteúdo'],
+                ['Análise de vídeo', 'Diferentes momentos da gravação são analisados junto com fala e conteúdo'],
                 ['Aprofundamento adaptativo', 'A IA faz follow-ups desafiadores, aprofunda o Portfolio e cobra evidência concreta'],
               ].map(([title, text], index) => <div key={title} className="rounded-2xl border border-[#173765] bg-[#06152f] p-4"><div className="flex items-start gap-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#246cff]/15 text-sm font-black text-[#72a5ff]">{index + 1}</span><div><div className="font-black">{title}</div><div className="mt-1 text-sm leading-relaxed text-[#9fb5d4]">{text}</div></div></div></div>)}
             </div>
@@ -663,7 +684,7 @@ function InterviewCoach() {
 
             {error && <p className="mt-4 rounded-xl border border-rose-400/25 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">{error}</p>}
             <button onClick={sendAnswer} disabled={busy || recording || (!audio && answer.trim().length < 20)} className="mt-4 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#246cff] px-5 font-black disabled:opacity-50">
-              {busy ? <><Loader2 className="h-5 w-5 animate-spin" />IA analisando conteúdo, fala e frames…</> : <><Send className="h-5 w-5" />Enviar resposta</>}
+              {busy ? <><Loader2 className="h-5 w-5 animate-spin" />Analisando sua resposta, fala e vídeo…</> : <><Send className="h-5 w-5" />Enviar resposta</>}
             </button>
           </div>
         </section>
