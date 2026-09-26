@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ArrowLeft, BookOpen, CalendarDays, CheckCircle2, ExternalLink, Home, Loader2, Minus, PlayCircle, Plus, Save, Sparkles, Target, Trophy, Video, X, XCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { getExamModel, isSupportedInstitutionCourse, type ExamMetric } from '@/lib/exam-models';
-import { buildRoadmap } from '@/lib/admissions-roadmap';
+import { getExamModel, isSupportedInstitutionCourse, type ExamId, type ExamMetric } from '@/lib/exam-models';
+import { buildRoadmap } from '@/lib/admissions-roadmap-balanced';
 import { isSupplementalQuestion, mergePracticeQuestions } from '@/lib/supplemental-practice-questions';
 import WeeklyPlanExperience from '@/components/WeeklyPlanExperience';
 import DifficultyProfile from '@/components/DifficultyProfile';
@@ -14,12 +14,13 @@ type AcademicArea={area_id:string;name:string;courses:string};
 type University={area_university_id:number;area_id:string;university_name:string;course_label:string};
 type Question={id:number;exam_id:string;area:string;skill_name:string;difficulty:number;prompt:string;option_a:string|null;option_b:string|null;option_c:string|null;option_d:string|null;option_e:string|null;correct_option:string|null;explanation:string|null};
 type Attempt={exam_id:string;area:string;skill_name:string|null;correct:boolean|null;created_at:string};
-type Priority={metric:ExamMetric;current:number;goal:number;missing:number;score:number;accuracy:number|null};
+type Priority={metric:ExamMetric;current:number;goal:number;missing:number;score:number;accuracy:number|null;sampleSize:number;sampleConfidence:number};
 type SkillDiagnostic={id:string;exam_id:string;area:string;skill_code:string|null;error_type:string|null;error_detail:string|null;diagnosis:{skill_name?:string}|null;created_at:string;evidence_path:string|null};
 type AdmissionCutoff={institution:string;exam_id:string;course_label:string;variant:string;year:number;modality:string;target_kind:string;target_value:number;max_value:number|null;confidence:string;source_url:string;notes:string|null};
 
 const RETAINED=new Set(['UFMG','USP','Faculdade Ciências Médicas de Minas Gerais','Insper','Link School of Business','Ibmec','Faculdade Israelita de Ciências da Saúde Albert Einstein','FGV EAESP']);
 const GUEST_PREF_KEY='conectae:planner-guest-preference';
+const GUEST_ATTEMPTS_KEY='conectae:planner-guest-attempts';
 const normalize=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 const clamp=(n:number,min:number,max:number)=>Math.max(min,Math.min(max,n));
 const fmtDate=(iso:string)=>new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'short',year:'numeric'}).format(new Date(`${iso}T12:00:00-03:00`));
@@ -40,7 +41,7 @@ function matchQuestionArea(area:string,key:string){
   return false;
 }
 
-function goalFor(metric:ExamMetric,examId:string,dataGoal?:number){
+function goalFor(metric:ExamMetric,examId:ExamId,dataGoal?:number){
   if(Number.isFinite(dataGoal))return clamp(Math.round(dataGoal!),0,metric.max);
   if(examId==='enem'){
     const fallback:Record<string,number>={Linguagens:36,Humanas:37,Natureza:35,'Matemática':37,'Redação':900};
@@ -66,8 +67,12 @@ function goalFor(metric:ExamMetric,examId:string,dataGoal?:number){
     if(metric.key==='Português'||metric.key==='Redação')return 36;
     return 72;
   }
-  const link:Record<string,number>={'Matemática':75,'Business Case':82,'Escrita':80,'Oral':80,'Portfólio':78,'Entrevista':80};
-  return link[metric.key]??78;
+  if(examId==='link'){
+    const target:Record<string,number>={'Matemática':75,'Business Case':82,'Escrita':80,'Oral':80,'Portfólio':78,'Entrevista':80};
+    return target[metric.key]??78;
+  }
+  const exhaustive:never=examId;
+  throw new Error(`Meta não configurada para ${exhaustive}`);
 }
 
 function enemGoalsFromCutoff(cutoff:number){
@@ -136,24 +141,19 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
 
   useEffect(()=>{let alive=true;(async()=>{
     if(!supabase){setLoading(false);return}
-    const[{data:a},{data:u},{data:q},{data:userData},{data:cutoffRows}]=await Promise.all([
+    const[{data:a},{data:u},{data:userData},{data:cutoffRows}]=await Promise.all([
       supabase.from('academic_areas').select('area_id,name,courses').order('name'),
       supabase.from('area_universities').select('area_university_id,area_id,university_name,course_label').order('university_name'),
-      supabase.from('exam_practice_questions').select('*').eq('active',true),
       supabase.auth.getUser(),
       supabase.from('admission_cutoff_references').select('institution,exam_id,course_label,variant,year,modality,target_kind,target_value,max_value,confidence,source_url,notes').order('year',{ascending:false}),
     ]);
     if(!alive)return;
     const cleanUniversities=((u??[]) as University[]).filter(x=>RETAINED.has(x.university_name)&&isSupportedInstitutionCourse(x.university_name,x.course_label));
     const cleanAreas=((a??[]) as AcademicArea[]).filter(ar=>cleanUniversities.some(x=>x.area_id===ar.area_id));
-    setAreas(cleanAreas);setUniversities(cleanUniversities);setQuestions(mergePracticeQuestions((q??[]) as Question[]) as Question[]);setCutoffs((cutoffRows??[]) as AdmissionCutoff[]);
+    setAreas(cleanAreas);setUniversities(cleanUniversities);setCutoffs((cutoffRows??[]) as AdmissionCutoff[]);
     const user=userData.user;
     if(user){
-      const[{data:pref},{data:at}]=await Promise.all([
-        supabase.from('student_exam_preferences').select('*').eq('user_id',user.id).order('updated_at',{ascending:false}).limit(1).maybeSingle(),
-        supabase.from('student_practice_attempts').select('exam_id,area,skill_name,correct,created_at').eq('user_id',user.id).order('created_at',{ascending:false}).limit(400),
-      ]);
-      setAttempts((at??[]) as Attempt[]);
+      const{data:pref}=await supabase.from('student_exam_preferences').select('*').eq('user_id',user.id).order('updated_at',{ascending:false}).limit(1).maybeSingle();
       const desiredArea=pref?.selected_area_id&&cleanAreas.some(x=>x.area_id===pref.selected_area_id)?pref.selected_area_id:cleanAreas[0]?.area_id??'';
       setSelectedArea(desiredArea);
       const allowed=cleanUniversities.filter(x=>x.area_id===desiredArea);
@@ -185,11 +185,43 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   const metrics=model.metrics;
   const scoreStorageKey=useMemo(()=>`conectae:exam-values:${model.examId}:${university?.university_name??'sem-faculdade'}:${course}`,[model.examId,university?.university_name,course]);
 
+  useEffect(()=>{let alive=true;(async()=>{
+    if(!supabase){setQuestions(mergePracticeQuestions([]) as Question[]);return}
+    const[first,second]=await Promise.all([
+      supabase.from('exam_practice_questions').select('*').eq('active',true).eq('exam_id',model.examId).range(0,999),
+      supabase.from('exam_practice_questions').select('*').eq('active',true).eq('exam_id',model.examId).range(1000,1999),
+    ]);
+    if(!alive)return;
+    const remote=[...(first.data??[]),...(second.data??[])] as Question[];
+    setQuestions(mergePracticeQuestions(remote) as Question[]);
+  })();return()=>{alive=false}},[model.examId]);
+
   useEffect(()=>{(async()=>{
     const defaults=Object.fromEntries(metrics.map(m=>[m.key,m.defaultValue]));
     let stored:Record<string,number>={};try{stored=JSON.parse(localStorage.getItem(scoreStorageKey)||'{}')}catch{stored={}}
     let saved:Record<string,number>={};
-    if(supabase){const{data:userData}=await supabase.auth.getUser();if(userData.user){const{data:pref}=await supabase.from('student_exam_preferences').select('current_scores,weekly_hours,difficulty_topics').eq('user_id',userData.user.id).eq('exam_id',model.examId).maybeSingle();if(pref?.current_scores&&typeof pref.current_scores==='object')saved=pref.current_scores as Record<string,number>;if(pref?.weekly_hours){setWeeklyHours(Number(pref.weekly_hours));setAppliedWeeklyHours(Number(pref.weekly_hours))}if(pref?.difficulty_topics&&typeof pref.difficulty_topics==='object')setDifficultyTopics(pref.difficulty_topics as DifficultySelection);else setDifficultyTopics({});await reloadDiagnostics(userData.user.id,model.examId)}}
+    let signedIn=false;
+    if(supabase){
+      const{data:userData}=await supabase.auth.getUser();
+      if(userData.user){
+        signedIn=true;
+        const[{data:pref},{data:examAttempts}]=await Promise.all([
+          supabase.from('student_exam_preferences').select('current_scores,weekly_hours,difficulty_topics').eq('user_id',userData.user.id).eq('exam_id',model.examId).maybeSingle(),
+          supabase.from('student_practice_attempts').select('exam_id,area,skill_name,correct,created_at').eq('user_id',userData.user.id).eq('exam_id',model.examId).order('created_at',{ascending:false}).limit(400),
+        ]);
+        setAttempts((examAttempts??[]) as Attempt[]);
+        if(pref?.current_scores&&typeof pref.current_scores==='object')saved=pref.current_scores as Record<string,number>;
+        if(pref?.weekly_hours){setWeeklyHours(Number(pref.weekly_hours));setAppliedWeeklyHours(Number(pref.weekly_hours))}
+        if(pref?.difficulty_topics&&typeof pref.difficulty_topics==='object')setDifficultyTopics(pref.difficulty_topics as DifficultySelection);else setDifficultyTopics({});
+        await reloadDiagnostics(userData.user.id,model.examId);
+      }
+    }
+    if(!signedIn){
+      try{
+        const localAttempts=JSON.parse(localStorage.getItem(GUEST_ATTEMPTS_KEY)||'[]');
+        setAttempts(Array.isArray(localAttempts)?(localAttempts as Attempt[]).filter(row=>row.exam_id===model.examId).slice(0,400):[]);
+      }catch{setAttempts([])}
+    }
     const next={...defaults,...stored,...saved};setValues(next);setAppliedValues(next);setDirty(false);setQuestionArea('Todas');setActiveQuestion(null);setSelectedOption('');setPracticeResult(null);localStorage.setItem('conectae:active-exam',model.examId);
   })()},[scoreStorageKey,model.examId,metrics]);
 
@@ -224,11 +256,20 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
     const relevant=attempts.filter(a=>a.exam_id===model.examId&&matchQuestionArea(a.area,metric.key)&&a.correct!==null).slice(0,40);
     const accuracy=relevant.length?relevant.filter(x=>x.correct).length/relevant.length:null;
     const missing=Math.max(0,goal-current);
-    const score=(missing/Math.max(1,metric.max))*(accuracy==null?1:accuracy<.6?1.25:accuracy>.85?.8:1);
-    return{metric,current,goal,missing,score,accuracy};
+    const sampleSize=relevant.length;
+    const sampleConfidence=Math.min(1,sampleSize/8);
+    const performanceMultiplier=accuracy==null?1:accuracy<.6?1+.25*sampleConfidence:accuracy>.85?1-.2*sampleConfidence:1;
+    const score=(missing/Math.max(1,metric.max))*performanceMultiplier;
+    return{metric,current,goal,missing,score,accuracy,sampleSize,sampleConfidence};
   }),[metrics,appliedValues,attempts,model.examId,dataGoals]);
   const priorities=useMemo(()=>[...diagnosis].sort((a,b)=>b.score-a.score),[diagnosis]);
-  const readiness=Math.round(diagnosis.reduce((s,p)=>s+Math.min(1,p.current/Math.max(1,p.goal)),0)/Math.max(1,diagnosis.length)*100);
+  const readiness=Math.round(diagnosis.reduce((sum,p)=>{
+    const declaredProgress=Math.min(1,p.current/Math.max(1,p.goal));
+    if(p.accuracy==null||p.sampleConfidence<=0)return sum+declaredProgress;
+    const measuredProgress=Math.min(1,p.accuracy/.8);
+    const measuredWeight=.35*p.sampleConfidence;
+    return sum+declaredProgress*(1-measuredWeight)+measuredProgress*measuredWeight;
+  },0)/Math.max(1,diagnosis.length)*100);
   const top=priorities[0];
   const relevantDiagnostics=useMemo(()=>diagnostics.filter(d=>d.exam_id===model.examId&&model.allowedQuestionAreas.some(a=>matchQuestionArea(d.area,a))).slice(0,8),[diagnostics,model]);
   const roadmap=useMemo(()=>buildRoadmap({model,course,priorities,weeklyHours:appliedWeeklyHours,questions:allowedQuestions,difficultyTopics,diagnostics:relevantDiagnostics.map(d=>({area:d.area,skill:d.diagnosis?.skill_name||d.skill_code||d.area}))}),[model,course,priorities,appliedWeeklyHours,allowedQuestions,difficultyTopics,relevantDiagnostics]);
@@ -239,7 +280,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   const startSimulation=(requested:number,_label:string)=>{const byArea=new Map<string,Question[]>();for(const q of allowedQuestions){const rows=byArea.get(q.area)??[];rows.push(q);byArea.set(q.area,rows)}const groups=[...byArea.values()].map(rows=>[...rows].sort(()=>Math.random()-.5));const queue:Question[]=[];while(queue.length<Math.min(requested,allowedQuestions.length)&&groups.some(g=>g.length)){for(const group of groups){const next=group.shift();if(next&&queue.length<requested)queue.push(next)}}setSimulationQueue(queue);setSimulationIndex(0);setSimulationScore(0);setSimulationResult(null);setActiveQuestion(queue[0]??null);setSelectedOption('');setPracticeResult(null);setQuestionStartedAt(Date.now());if(!queue.length)setMessage('Ainda não há questões suficientes para iniciar este simulado.')};
   const advanceQuestion=()=>{if(simulationQueue.length){const nextIndex=simulationIndex+1;if(nextIndex<simulationQueue.length){setSimulationIndex(nextIndex);setActiveQuestion(simulationQueue[nextIndex]);setSelectedOption('');setPracticeResult(null);setQuestionStartedAt(Date.now())}else{const label=model.examId==='link'?'SPRINT dirigido':'simulado';setSimulationResult({correct:simulationScore,total:simulationQueue.length,label});setSimulationQueue([]);setActiveQuestion(null)}}else openQuestion()};
   const openAreaQuestions=(focus:string)=>{const pool=allowedQuestions.filter(q=>matchQuestionArea(q.area,focus));const next=pool[0];if(next){setQuestionArea(next.area);setTab('questoes');openQuestion(next)}else setTab('questoes')};
-  const checkQuestion=async()=>{if(!activeQuestion||!selectedOption)return;const ok=selectedOption===activeQuestion.correct_option;setPracticeResult(ok);if(simulationQueue.length&&ok)setSimulationScore(s=>s+1);try{if(!supabase)return;const{data}=await supabase.auth.getUser();if(!data.user)return;if(isSupplementalQuestion(activeQuestion.id)){await supabase.from('student_skill_diagnostics').insert({user_id:data.user.id,exam_id:model.examId,skill_code:null,area:activeQuestion.area,question_text:activeQuestion.prompt,correct:ok,confidence:1,error_type:ok?null:'questao_autoral',diagnosis:{source:'conectae_autoral_v2',skill_name:activeQuestion.skill_name,selected_option:selectedOption,correct_option:activeQuestion.correct_option}})}else{await supabase.from('student_practice_attempts').insert({user_id:data.user.id,exam_id:model.examId,question_id:activeQuestion.id,area:activeQuestion.area,skill_name:activeQuestion.skill_name,selected_option:selectedOption,correct:ok,duration_seconds:questionStartedAt?Math.max(1,Math.round((Date.now()-questionStartedAt)/1000)):null})}setAttempts(v=>[{exam_id:model.examId,area:activeQuestion.area,skill_name:activeQuestion.skill_name,correct:ok,created_at:new Date().toISOString()},...v]);if(!ok)window.dispatchEvent(new CustomEvent('conectae:diagnostic-saved',{detail:{examId:model.examId,source:'practice_error'}}))}catch{setMessage('A resposta foi corrigida, mas não entrou no histórico.')}};
+  const checkQuestion=async()=>{if(!activeQuestion||!selectedOption)return;const ok=selectedOption===activeQuestion.correct_option;setPracticeResult(ok);if(simulationQueue.length&&ok)setSimulationScore(s=>s+1);const attempt:Attempt={exam_id:model.examId,area:activeQuestion.area,skill_name:activeQuestion.skill_name,correct:ok,created_at:new Date().toISOString()};setAttempts(v=>[attempt,...v].slice(0,400));const saveGuestAttempt=()=>{try{const current=JSON.parse(localStorage.getItem(GUEST_ATTEMPTS_KEY)||'[]');const rows=Array.isArray(current)?current:[];localStorage.setItem(GUEST_ATTEMPTS_KEY,JSON.stringify([attempt,...rows].slice(0,400)))}catch{/* local persistence is best effort */}};try{if(!supabase){saveGuestAttempt();return}const{data}=await supabase.auth.getUser();if(!data.user){saveGuestAttempt();return}if(isSupplementalQuestion(activeQuestion.id)){await supabase.from('student_skill_diagnostics').insert({user_id:data.user.id,exam_id:model.examId,skill_code:null,area:activeQuestion.area,question_text:activeQuestion.prompt,correct:ok,confidence:1,error_type:ok?null:'questao_autoral',diagnosis:{source:'conectae_autoral_v2',skill_name:activeQuestion.skill_name,selected_option:selectedOption,correct_option:activeQuestion.correct_option}})}else{await supabase.from('student_practice_attempts').insert({user_id:data.user.id,exam_id:model.examId,question_id:activeQuestion.id,area:activeQuestion.area,skill_name:activeQuestion.skill_name,selected_option:selectedOption,correct:ok,duration_seconds:questionStartedAt?Math.max(1,Math.round((Date.now()-questionStartedAt)/1000)):null})}if(!ok)window.dispatchEvent(new CustomEvent('conectae:diagnostic-saved',{detail:{examId:model.examId,source:'practice_error'}}))}catch{setMessage('A resposta foi corrigida e entrou no plano atual, mas não foi possível sincronizar o histórico.')}};
   const tabs:[Tab,string,ReactNode][]=[['hoje','Hoje',<Home size={18}/>],['plano','Plano',<CalendarDays size={18}/>],['questoes','Questões',<BookOpen size={18}/>],['prova','Prova',<Trophy size={18}/>]];
   const miniSimulationSize=model.examId==='fgv'?15:model.examId==='insper'?30:model.examId==='ibmec'||model.examId==='einstein'?25:20;
   const fullSimulationSize=model.examId==='fgv'?25:model.examId==='insper'?60:model.examId==='ibmec'||model.examId==='einstein'?50:30;

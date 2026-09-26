@@ -1,4 +1,5 @@
 import { getExamSkillCatalog, topicKey, type DifficultySelection } from './exam-skill-catalog.ts';
+import type { ExamId } from './exam-models.ts';
 import {
   buildRoadmap as buildBaseRoadmap,
   getMilestones,
@@ -52,20 +53,22 @@ function matchArea(area: string, key: string) {
   return false;
 }
 
-function eligibleForMix(examId: string, week: BaseRoadmapWeek, priority: RoadmapPriority) {
+function eligibleForMix(examId: ExamId, week: BaseRoadmapWeek, priority: RoadmapPriority) {
   const key = norm(keyOf(priority));
   if (examId === 'enem') {
     return week.start >= '2026-11-09' ? ['natureza', 'matematica'].includes(key) : ['linguagens', 'humanas', 'natureza', 'matematica', 'redacao'].includes(key);
   }
   if (examId === 'fuvest') return week.phase.includes('2ª') ? key !== '1ª fase' && key !== '1a fase' : key === '1ª fase' || key === '1a fase';
   if (examId === 'einstein') return week.phase.includes('2ª') ? key === 'mme' : key !== 'mme';
-  if (examId === 'ibmec') return week.phase.toLowerCase().includes('dinâmica') ? key === 'dinamica' : key !== 'dinamica';
+  if (examId === 'ibmec') return true;
   if (examId === 'link') {
     if (week.phase.includes('PREP')) return ['portfolio', 'oral'].includes(key);
     if (week.phase.includes('Sprint')) return ['matematica', 'business case', 'escrita', 'oral'].includes(key);
     return ['entrevista', 'oral'].includes(key);
   }
-  return true;
+  if (examId === 'fgv' || examId === 'insper' || examId === 'cmmg') return true;
+  const exhaustive:never=examId;
+  throw new Error(`Mistura semanal não configurada para ${exhaustive}`);
 }
 
 function scoreSignals(args: BuildArgs, p: RoadmapPriority, catalog: ReturnType<typeof getExamSkillCatalog>): ScoredPriority {

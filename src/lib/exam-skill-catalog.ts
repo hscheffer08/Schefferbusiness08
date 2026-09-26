@@ -49,6 +49,22 @@ const INSPER:SkillSubject[]=[
  {subject:'Redação dissertativo-argumentativa',area:'Redação',topics:['Recorte do tema e tese explícita','Projeto de texto e progressão argumentativa','Argumentos, evidências e repertório produtivo','Coerência global e coesão entre partes','Norma-padrão, registro e precisão linguística','Revisão pelos quatro critérios oficiais do Insper']},
 ];
 
+const FGV_COMMON:SkillSubject[]=[
+ {subject:'Matemática objetiva',area:'Matemática objetiva',topics:['Aritmética, razão, proporção e porcentagem','Álgebra, equações e sistemas','Funções e leitura de gráficos','Geometria plana e espacial','Probabilidade, combinatória e estatística','Raciocínio quantitativo e resolução sob tempo']},
+ {subject:'Língua Portuguesa',area:'Língua Portuguesa',topics:['Interpretação e inferência','Coesão, coerência e progressão textual','Gramática aplicada ao texto','Semântica e efeitos de sentido','Argumentação e gêneros textuais','Revisão de precisão linguística']},
+ {subject:'Inglês',area:'Inglês',topics:['Leitura e compreensão global','Vocabulário em contexto','Inferência e intenção comunicativa','Relações lógico-discursivas no texto']},
+ {subject:'Ciências Humanas',area:'Ciências Humanas',topics:['Atualidades e leitura de conjuntura','História do Brasil','História geral moderna e contemporânea','Geografia do Brasil','Geopolítica e relações internacionais','Economia, sociedade, ambiente e território']},
+ {subject:'Redação',area:'Redação',topics:['Compreensão do tema e recorte','Tese e projeto de texto','Argumentação baseada em evidências','Coesão e progressão','Norma-padrão e revisão final']},
+];
+const FGV_ADMIN:SkillSubject[]=[
+ ...FGV_COMMON,
+ {subject:'Matemática discursiva',area:'Matemática discursiva',topics:['Interpretação precisa do comando','Modelagem matemática','Resolução passo a passo com justificativa','Funções, álgebra e relações quantitativas','Geometria, probabilidade e estatística em respostas abertas','Revisão de cálculo, unidades e conclusão']},
+];
+const FGV_PUBLIC_ADMIN:SkillSubject[]=[
+ ...FGV_COMMON,
+ {subject:'Ciências Humanas discursiva',area:'Ciências Humanas discursiva',topics:['Interpretação de fontes e comandos','Construção de resposta argumentativa','História e Geografia aplicadas a problemas públicos','Atualidades, Estado e políticas públicas','Uso de evidências, causalidade e comparação','Síntese e conclusão objetiva']},
+];
+
 const CMMG_MED:SkillSubject[]=[
  {subject:'Língua Portuguesa',area:'Língua Portuguesa',topics:['Interpretação de textos','Semântica e efeitos de sentido','Morfossintaxe','Concordância, regência e crase','Coesão e coerência']},
  {subject:'Literatura',area:'Literatura',topics:['Obra literária obrigatória do processo vigente','Interpretação literária','Gêneros e recursos estilísticos','Contexto histórico-literário']},
@@ -101,7 +117,10 @@ export function getExamSkillCatalog(examId:ExamId, course?:string):ExamSkillCata
  if(examId==='ibmec')return{examId,label:'Vestibular Ibmec 2027.1',sourceLabel:'Ibmec — formas de ingresso e provas recentes',sourceUrl:'https://www.ibmec.br/estude-no-ibmec/formas-de-ingresso/vestibular',subjects:IBMEC};
  if(examId==='einstein')return{examId,label:'Vestibular Unificado Einstein 2027',sourceLabel:'Einstein / Fundação Vunesp — Vestibular Unificado 2027',sourceUrl:'https://www.vunesp.com.br/FEAE2602',subjects:course==='Medicina'?[...EINSTEIN_BASE,EINSTEIN_MME]:EINSTEIN_BASE};
  if(examId==='cmmg'){const effpo=['Enfermagem','Fisioterapia','Fonoaudiologia','Odontologia','Psicologia'].includes(course||'');return{examId,label:'Vestibular FCM-MG 2027.1',sourceLabel:'FCM-MG — Manual do Candidato e conteúdo programático',sourceUrl:'https://vestibular.cmmg.edu.br/',subjects:effpo?CMMG_EFFPO:CMMG_MED};}
- return{examId,label:'Jornada Link',sourceLabel:'Link School of Business — Jornada de admissão',sourceUrl:'https://lsb.edu.br/pt-br/adm',subjects:LINK};
+ if(examId==='fgv')return{examId,label:`Vestibular FGV EAESP 2027.1 — ${course||'Graduação'}`,sourceLabel:'FGV — Edital Unificado do Processo Seletivo 2027.1',sourceUrl:'https://vestibular.fgv.br/formas-de-ingresso/vestibular-fgv',subjects:course==='Administração Pública'?FGV_PUBLIC_ADMIN:FGV_ADMIN};
+ if(examId==='link')return{examId,label:'Jornada Link',sourceLabel:'Link School of Business — Jornada de admissão',sourceUrl:'https://lsb.edu.br/pt-br/adm',subjects:LINK};
+ const exhaustive:never=examId;
+ throw new Error(`Catálogo de estudos não configurado para ${exhaustive}`);
 }
 
 export const topicKey=(subject:string,topic:string)=>`${subject}::${topic}`;

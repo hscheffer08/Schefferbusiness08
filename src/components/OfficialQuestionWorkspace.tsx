@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, ChevronDown, ExternalLink, Loader2, Search, X, XCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
-type ExamId='enem'|'cmmg'|'fuvest'|'insper'|'link'|'ibmec'|'einstein';
+type ExamId='enem'|'cmmg'|'fuvest'|'fgv'|'insper'|'link'|'ibmec'|'einstein';
 type Mode='official'|'adapted'|'authorial';
 type Question={
   id:number; exam_id:ExamId; area:string; skill_name:string; difficulty:number; prompt:string;
@@ -12,7 +12,7 @@ type Question={
 };
 
 const EXAMS:{id:ExamId;label:string;indexed:number}[]=[
-  {id:'enem',label:'ENEM',indexed:1260},{id:'cmmg',label:'CMMG',indexed:600},{id:'fuvest',label:'FUVEST',indexed:270},{id:'insper',label:'Insper',indexed:0},{id:'ibmec',label:'Ibmec',indexed:0},{id:'einstein',label:'Einstein',indexed:0},{id:'link',label:'Link',indexed:0},
+  {id:'enem',label:'ENEM',indexed:1260},{id:'cmmg',label:'CMMG',indexed:600},{id:'fuvest',label:'FUVEST',indexed:270},{id:'fgv',label:'FGV',indexed:0},{id:'insper',label:'Insper',indexed:0},{id:'ibmec',label:'Ibmec',indexed:0},{id:'einstein',label:'Einstein',indexed:0},{id:'link',label:'Link',indexed:0},
 ];
 
 const modeFor=(exam:ExamId,rows:Question[]):Mode=>rows.some(q=>q.exam_id===exam&&q.source_kind==='official')?'official':rows.some(q=>q.exam_id===exam&&q.source_kind==='official_adapted')?'adapted':'authorial';
@@ -25,7 +25,7 @@ export default function OfficialQuestionWorkspace(){
   const[area,setArea]=useState('Todas'); const[skill,setSkill]=useState('Todos'); const[year,setYear]=useState('Todos'); const[search,setSearch]=useState('');
   const[active,setActive]=useState<Question|null>(null); const[selected,setSelected]=useState(''); const[result,setResult]=useState<boolean|null>(null);
 
-  useEffect(()=>{let alive=true;(async()=>{if(!supabase){setLoading(false);return}const{data}=await supabase.from('exam_practice_questions').select('id,exam_id,area,skill_name,difficulty,prompt,option_a,option_b,option_c,option_d,option_e,correct_option,explanation,source_kind,source_exam_year,source_question_number,source_exam_label,source_exam_url,source_answer_url').eq('active',true).range(0,1999);if(alive){const rows=(data??[]) as Question[];setQuestions(rows);setMode(modeFor(exam,rows));setLoading(false)}})();return()=>{alive=false}},[]);
+  useEffect(()=>{let alive=true;(async()=>{if(!supabase){setLoading(false);return}setLoading(true);const query='id,exam_id,area,skill_name,difficulty,prompt,option_a,option_b,option_c,option_d,option_e,correct_option,explanation,source_kind,source_exam_year,source_question_number,source_exam_label,source_exam_url,source_answer_url';const[first,second]=await Promise.all([supabase.from('exam_practice_questions').select(query).eq('active',true).eq('exam_id',exam).range(0,999),supabase.from('exam_practice_questions').select(query).eq('active',true).eq('exam_id',exam).range(1000,1999)]);if(alive){const rows=[...(first.data??[]),...(second.data??[])] as Question[];setQuestions(rows);setMode(modeFor(exam,rows));setLoading(false)}})();return()=>{alive=false}},[exam]);
   useEffect(()=>{localStorage.setItem('conectae:active-exam',exam);setArea('Todas');setSkill('Todos');setYear('Todos');setSearch('');setMode(modeFor(exam,questions))},[exam,questions]);
   useEffect(()=>{setSkill('Todos');setYear('Todos')},[area]);
   useEffect(()=>{const open=Boolean(active);window.dispatchEvent(new CustomEvent('conectae:question-modal',{detail:{open}}));document.body.style.overflow=open?'hidden':'';return()=>{document.body.style.overflow='';window.dispatchEvent(new CustomEvent('conectae:question-modal',{detail:{open:false}}))}},[active]);
