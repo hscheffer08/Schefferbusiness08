@@ -22,6 +22,7 @@ const checks=[
   ['roadmap boosts priorities from manual difficulties',roadmap.includes('manual.reduce((a,b)=>a+b.level')],
   ['roadmap uses photo diagnostics for priority',roadmap.includes('diagnosticFor')&&roadmap.includes('scans.length')],
   ['roadmap keeps the saved weekly hours as total budget',roadmap.includes('totalMinutes=Math.round(weeklyHours*60)')],
+  ['live planner uses balanced adaptive roadmap',planner.includes("from '@/lib/admissions-roadmap-balanced'")],
   ['catalog covers ENEM',catalog.includes("examId==='enem'")],
   ['catalog covers FUVEST',catalog.includes("examId==='fuvest'")],
   ['catalog covers Insper',catalog.includes("examId==='insper'")],
