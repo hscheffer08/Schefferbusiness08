@@ -139,29 +139,32 @@ const FUVEST_SECOND_PHASE: Record<string, string[]> = {
   'Terapia Ocupacional': ['Biologia', 'Geografia', 'História'],
 };
 
+export const SITE_PLANNER_COURSES = [
+  'Administração','Agronomia','Análise e Desenvolvimento de Sistemas','Arquitetura e Urbanismo','Biomedicina',
+  'Ciência da Computação','Ciências Biológicas','Ciências Contábeis','Ciências Econômicas','Cinema e Audiovisual',
+  'Design','Direito','Educação Física','Enfermagem','Engenharia Ambiental','Engenharia Biomédica','Engenharia Civil',
+  'Engenharia de Alimentos','Engenharia de Computação','Engenharia de Produção','Engenharia de Software','Engenharia Elétrica',
+  'Engenharia Mecânica','Engenharia Química','Farmácia','Física','Fisioterapia','Fonoaudiologia','Gastronomia','Geografia',
+  'Gestão de Recursos Humanos','História','Jornalismo','Letras','Logística','Marketing','Matemática','Medicina',
+  'Medicina Veterinária','Moda','Nutrição','Odontologia','Pedagogia','Psicologia','Publicidade e Propaganda','Química',
+  'Relações Internacionais','Relações Públicas','Serviço Social','Sistemas de Informação','Terapia Ocupacional',
+] as const;
+const SITE_PLANNER_COURSE_SET = new Set<string>(SITE_PLANNER_COURSES);
+
 const CMMG_EFFPO_COURSES = ['Enfermagem', 'Fisioterapia', 'Fonoaudiologia', 'Odontologia', 'Psicologia'];
 const IBMEC_VERIFIED_COURSES = new Set(['Administração','Análise e Desenvolvimento de Sistemas','Arquitetura e Urbanismo','Ciências Contábeis','Ciências Econômicas','Publicidade e Propaganda','Direito','Engenharia Civil','Engenharia de Computação','Engenharia de Produção','Engenharia de Software','Relações Internacionais']);
 const EINSTEIN_VERIFIED_COURSES = new Set(['Administração','Enfermagem','Engenharia Biomédica','Fisioterapia','Medicina','Nutrição','Odontologia','Psicologia']);
 const FGV_VERIFIED_COURSES = new Set(['Administração','Administração Pública']);
 const INSPER_VERIFIED_COURSES = new Set(['Administração','Ciências Econômicas','Direito','Ciência da Computação','Engenharia de Computação','Engenharia de Produção','Engenharia Mecânica','Engenharia Mecatrônica']);
 
-const UFMG_VERIFIED_COURSES = new Set([
-  'Administração', 'Agronomia', 'Arquitetura e Urbanismo', 'Biomedicina', 'Ciência da Computação',
-  'Ciências Biológicas', 'Ciências Contábeis', 'Ciências Econômicas', 'Design', 'Direito',
-  'Educação Física', 'Enfermagem', 'Engenharia Ambiental', 'Engenharia Civil', 'Engenharia de Alimentos',
-  'Engenharia de Computação', 'Engenharia de Produção', 'Engenharia Elétrica', 'Engenharia Mecânica',
-  'Engenharia Química', 'Farmácia', 'Física', 'Fisioterapia', 'Fonoaudiologia', 'Geografia', 'História',
-  'Jornalismo', 'Letras', 'Matemática', 'Medicina', 'Medicina Veterinária', 'Nutrição', 'Odontologia',
-  'Pedagogia', 'Psicologia', 'Publicidade e Propaganda', 'Química', 'Relações Públicas',
-  'Sistemas de Informação', 'Terapia Ocupacional',
-]);
+const UFMG_VERIFIED_COURSES = SITE_PLANNER_COURSE_SET;
 
 export type SupportedPlannerInstitution = { university:string; courses:string[] };
 
 export function getSupportedPlannerCourseMatrix():SupportedPlannerInstitution[] {
   return [
-    {university:'UFMG',courses:[...UFMG_VERIFIED_COURSES]},
-    {university:'USP',courses:Object.keys(FUVEST_SECOND_PHASE)},
+    {university:'UFMG',courses:[...SITE_PLANNER_COURSES]},
+    {university:'USP',courses:[...SITE_PLANNER_COURSES]},
     {university:'Faculdade Ciências Médicas de Minas Gerais',courses:['Medicina',...CMMG_EFFPO_COURSES]},
     {university:'Faculdade Israelita de Ciências da Saúde Albert Einstein',courses:[...EINSTEIN_VERIFIED_COURSES]},
     {university:'Ibmec',courses:[...IBMEC_VERIFIED_COURSES]},
@@ -171,7 +174,7 @@ export function getSupportedPlannerCourseMatrix():SupportedPlannerInstitution[] 
   ];
 }
 
-export const supportedFuvestCourse = (course: string) => Boolean(FUVEST_SECOND_PHASE[course]);
+export const supportedFuvestCourse = (course: string) => SITE_PLANNER_COURSE_SET.has(course);
 
 export function getExamId(university: string): ExamId {
   const name = university.toLowerCase();
@@ -272,14 +275,23 @@ export function getExamModel(university: string, course: string): ExamModel {
 
   if (examId === 'fuvest') {
     const specific = FUVEST_SECOND_PHASE[course] ?? [];
-    const specificMetrics: ExamMetric[] = specific.map((subject) => ({
-      key: `2ª fase — ${subject}`,
-      label: `${subject} — 2ª fase`,
-      max: 100,
-      defaultValue: 60,
-      unit: 'desempenho',
-      phase: '2ª fase',
-    }));
+    const specificMetrics: ExamMetric[] = specific.length
+      ? specific.map((subject) => ({
+          key: `2ª fase — ${subject}`,
+          label: `${subject} — 2ª fase`,
+          max: 100,
+          defaultValue: 60,
+          unit: 'desempenho',
+          phase: '2ª fase',
+        }))
+      : [{
+          key: '2ª fase — Específicas da carreira',
+          label: 'Disciplinas específicas da carreira — 2ª fase',
+          max: 100,
+          defaultValue: 60,
+          unit: 'desempenho' as const,
+          phase: '2ª fase',
+        }];
     return {
       examId,
       title: `FUVEST 2027 — ${course}`,
@@ -290,7 +302,7 @@ export function getExamModel(university: string, course: string): ExamModel {
         { key: 'Redação', label: 'Redação — 2ª fase', max: 50, defaultValue: 31, unit: 'pontos', phase: '2ª fase' },
         ...specificMetrics,
       ],
-      allowedQuestionAreas: ['1ª fase', 'Português', 'Redação', ...specific],
+      allowedQuestionAreas: ['1ª fase', 'Português', 'Redação', ...(specific.length?specific:['Específicas da carreira'])],
       officialSource: 'https://www.fuvest.br/vestibular-da-usp/',
     };
   }
