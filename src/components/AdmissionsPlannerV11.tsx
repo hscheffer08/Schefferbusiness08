@@ -19,6 +19,7 @@ type SkillDiagnostic={id:string;exam_id:string;area:string;skill_code:string|nul
 type AdmissionCutoff={institution:string;exam_id:string;course_label:string;variant:string;year:number;modality:string;target_kind:string;target_value:number;max_value:number|null;confidence:string;source_url:string;notes:string|null};
 
 const RETAINED=new Set(['UFMG','USP','Faculdade Ciências Médicas de Minas Gerais','Insper','Link School of Business','Ibmec','Faculdade Israelita de Ciências da Saúde Albert Einstein','FGV EAESP']);
+const GENERIC_ENEM_UNIVERSITY='ENEM — plano geral';
 const GUEST_PREF_KEY='conectae:planner-guest-preference';
 const GUEST_ATTEMPTS_KEY='conectae:planner-guest-attempts';
 const normalize=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -148,21 +149,30 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
       supabase.from('admission_cutoff_references').select('institution,exam_id,course_label,variant,year,modality,target_kind,target_value,max_value,confidence,source_url,notes').order('year',{ascending:false}),
     ]);
     if(!alive)return;
-    const cleanUniversities=((u??[]) as University[]).filter(x=>RETAINED.has(x.university_name)&&isSupportedInstitutionCourse(x.university_name,x.course_label));
-    const cleanAreas=((a??[]) as AcademicArea[]).filter(ar=>cleanUniversities.some(x=>x.area_id===ar.area_id));
+    const verifiedUniversities=((u??[]) as University[]).filter(x=>RETAINED.has(x.university_name)&&isSupportedInstitutionCourse(x.university_name,x.course_label));
+    const cleanAreas=(a??[]) as AcademicArea[];
+    const genericUniversities:University[]=cleanAreas.map((ar,index)=>({
+      area_university_id:-100000-index,
+      area_id:ar.area_id,
+      university_name:GENERIC_ENEM_UNIVERSITY,
+      course_label:ar.courses||ar.name,
+    }));
+    const cleanUniversities=[...verifiedUniversities,...genericUniversities];
     setAreas(cleanAreas);setUniversities(cleanUniversities);setCutoffs((cutoffRows??[]) as AdmissionCutoff[]);
+    let guest:{selectedArea?:string;selectedUniversity?:string;weeklyHours?:number;difficultyTopics?:DifficultySelection}={};
+    try{guest=JSON.parse(localStorage.getItem(GUEST_PREF_KEY)||'{}')}catch{guest={}}
     const user=userData.user;
     if(user){
       const{data:pref}=await supabase.from('student_exam_preferences').select('*').eq('user_id',user.id).order('updated_at',{ascending:false}).limit(1).maybeSingle();
       const desiredArea=pref?.selected_area_id&&cleanAreas.some(x=>x.area_id===pref.selected_area_id)?pref.selected_area_id:cleanAreas[0]?.area_id??'';
       setSelectedArea(desiredArea);
       const allowed=cleanUniversities.filter(x=>x.area_id===desiredArea);
-      const desiredUniversity=pref?.selected_university_id&&allowed.some(x=>x.area_university_id===pref.selected_university_id)?String(pref.selected_university_id):String(allowed[0]?.area_university_id??'');
+      const savedLocal=guest.selectedArea===desiredArea&&guest.selectedUniversity&&allowed.some(x=>String(x.area_university_id)===String(guest.selectedUniversity))?String(guest.selectedUniversity):'';
+      const desiredUniversity=pref?.selected_university_id&&allowed.some(x=>x.area_university_id===pref.selected_university_id)?String(pref.selected_university_id):savedLocal||String(allowed[0]?.area_university_id??'');
       setSelectedUniversity(desiredUniversity);
-      const wh=Number(pref?.weekly_hours??9);setWeeklyHours(wh);setAppliedWeeklyHours(wh);
+      const wh=Number(pref?.weekly_hours??guest.weeklyHours??9);setWeeklyHours(wh);setAppliedWeeklyHours(wh);
+      if(guest.difficultyTopics&&typeof guest.difficultyTopics==='object')setDifficultyTopics(guest.difficultyTopics);
     }else{
-      let guest:{selectedArea?:string;selectedUniversity?:string;weeklyHours?:number;difficultyTopics?:DifficultySelection}={};
-      try{guest=JSON.parse(localStorage.getItem(GUEST_PREF_KEY)||'{}')}catch{guest={}}
       const first=cleanAreas[0]?.area_id??'';
       const desiredArea=guest.selectedArea&&cleanAreas.some(x=>x.area_id===guest.selectedArea)?guest.selectedArea:first;
       setSelectedArea(desiredArea);
@@ -181,7 +191,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   const university=filteredUniversities.find(u=>String(u.area_university_id)===selectedUniversity)??null;
   const area=areas.find(a=>a.area_id===selectedArea)??null;
   const course=university?.course_label||area?.courses||area?.name||'Curso';
-  const model=useMemo(()=>getExamModel(university?.university_name??'UFMG',course),[university?.university_name,course]);
+  const model=useMemo(()=>getExamModel(university?.university_name??GENERIC_ENEM_UNIVERSITY,course),[university?.university_name,course]);
   const metrics=model.metrics;
   const scoreStorageKey=useMemo(()=>`conectae:exam-values:${model.examId}:${university?.university_name??'sem-faculdade'}:${course}`,[model.examId,university?.university_name,course]);
 
@@ -275,7 +285,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   const roadmap=useMemo(()=>buildRoadmap({model,course,priorities,weeklyHours:appliedWeeklyHours,questions:allowedQuestions,difficultyTopics,diagnostics:relevantDiagnostics.map(d=>({area:d.area,skill:d.diagnosis?.skill_name||d.skill_code||d.area}))}),[model,course,priorities,appliedWeeklyHours,allowedQuestions,difficultyTopics,relevantDiagnostics]);
 
   const updateScore=(m:ExamMetric,n:number)=>{setValues(v=>({...v,[m.key]:clamp(Math.round(Number.isFinite(n)?n:0),0,m.max)}));setDirty(true)};
-  const save=async()=>{setSaving(true);setMessage('');try{localStorage.setItem(scoreStorageKey,JSON.stringify(values));localStorage.setItem('conectae:weekly-hours',String(weeklyHours));localStorage.setItem(GUEST_PREF_KEY,JSON.stringify({selectedArea,selectedUniversity,weeklyHours,difficultyTopics}));setAppliedValues({...values});setAppliedWeeklyHours(weeklyHours);setDirty(false);if(!supabase){setMessage(`Plano recalculado e salvo neste dispositivo com ${weeklyHours}h por semana. Crie uma conta para sincronizar seu progresso.`);setTab('plano');return}const{data}=await supabase.auth.getUser();if(!data.user){setMessage(`Plano recalculado e salvo neste dispositivo com ${weeklyHours}h por semana. Crie uma conta para sincronizar seu progresso.`);setTab('plano');return}const{error}=await supabase.from('student_exam_preferences').upsert({user_id:data.user.id,exam_id:model.examId,weekly_hours:weeklyHours,current_scores:values,selected_area_id:selectedArea,selected_university_id:selectedUniversity?Number(selectedUniversity):null,course_label:course,difficulty_topics:difficultyTopics,updated_at:new Date().toISOString()},{onConflict:'user_id,exam_id'});if(error)throw error;setMessage(`Plano recalculado com ${weeklyHours}h por semana (${weeklyHours*60} min) e sincronizado na sua conta.`);setTab('plano')}catch{setMessage('O plano ficou salvo neste dispositivo, mas não foi possível sincronizar com a conta agora.')}finally{setSaving(false)}};
+  const save=async()=>{setSaving(true);setMessage('');try{localStorage.setItem(scoreStorageKey,JSON.stringify(values));localStorage.setItem('conectae:weekly-hours',String(weeklyHours));localStorage.setItem(GUEST_PREF_KEY,JSON.stringify({selectedArea,selectedUniversity,weeklyHours,difficultyTopics}));setAppliedValues({...values});setAppliedWeeklyHours(weeklyHours);setDirty(false);if(!supabase){setMessage(`Plano recalculado e salvo neste dispositivo com ${weeklyHours}h por semana. Crie uma conta para sincronizar seu progresso.`);setTab('plano');return}const{data}=await supabase.auth.getUser();if(!data.user){setMessage(`Plano recalculado e salvo neste dispositivo com ${weeklyHours}h por semana. Crie uma conta para sincronizar seu progresso.`);setTab('plano');return}const{error}=await supabase.from('student_exam_preferences').upsert({user_id:data.user.id,exam_id:model.examId,weekly_hours:weeklyHours,current_scores:values,selected_area_id:selectedArea,selected_university_id:university&&university.area_university_id>0?university.area_university_id:null,course_label:course,difficulty_topics:difficultyTopics,updated_at:new Date().toISOString()},{onConflict:'user_id,exam_id'});if(error)throw error;setMessage(`Plano recalculado com ${weeklyHours}h por semana (${weeklyHours*60} min) e sincronizado na sua conta.`);setTab('plano')}catch{setMessage('O plano ficou salvo neste dispositivo, mas não foi possível sincronizar com a conta agora.')}finally{setSaving(false)}};
   const openQuestion=(q?:Question)=>{const next=q??filteredQuestions[Math.floor(Math.random()*Math.max(1,filteredQuestions.length))]??allowedQuestions[0];setSimulationQueue([]);setSimulationResult(null);setActiveQuestion(next??null);setSelectedOption('');setPracticeResult(null);setQuestionStartedAt(Date.now())};
   const startSimulation=(requested:number,_label:string)=>{const byArea=new Map<string,Question[]>();for(const q of allowedQuestions){const rows=byArea.get(q.area)??[];rows.push(q);byArea.set(q.area,rows)}const groups=[...byArea.values()].map(rows=>[...rows].sort(()=>Math.random()-.5));const queue:Question[]=[];while(queue.length<Math.min(requested,allowedQuestions.length)&&groups.some(g=>g.length)){for(const group of groups){const next=group.shift();if(next&&queue.length<requested)queue.push(next)}}setSimulationQueue(queue);setSimulationIndex(0);setSimulationScore(0);setSimulationResult(null);setActiveQuestion(queue[0]??null);setSelectedOption('');setPracticeResult(null);setQuestionStartedAt(Date.now());if(!queue.length)setMessage('Ainda não há questões suficientes para iniciar este simulado.')};
   const advanceQuestion=()=>{if(simulationQueue.length){const nextIndex=simulationIndex+1;if(nextIndex<simulationQueue.length){setSimulationIndex(nextIndex);setActiveQuestion(simulationQueue[nextIndex]);setSelectedOption('');setPracticeResult(null);setQuestionStartedAt(Date.now())}else{const label=model.examId==='link'?'SPRINT dirigido':'simulado';setSimulationResult({correct:simulationScore,total:simulationQueue.length,label});setSimulationQueue([]);setActiveQuestion(null)}}else openQuestion()};

@@ -1,5 +1,5 @@
 import { buildRoadmap, getMilestones } from '../src/lib/admissions-roadmap-balanced.ts';
-import { getExamModel, getSupportedPlannerCourseMatrix, isSupportedInstitutionCourse } from '../src/lib/exam-models.ts';
+import { getExamModel, getSupportedPlannerCourseMatrix, isSupportedInstitutionCourse, SITE_PLANNER_COURSES } from '../src/lib/exam-models.ts';
 import { getExamSkillCatalog, topicKey } from '../src/lib/exam-skill-catalog.ts';
 
 const assert=(name,ok,detail='')=>{
@@ -61,6 +61,16 @@ assert('diagnostic influence is visible in focus reasoning',photo.weeks.some(w=>
 
 const coverageDate=new Date('2026-09-26T12:00:00-03:00');
 const matrix=getSupportedPlannerCourseMatrix();
+const matrixCourses=new Set(matrix.flatMap(entry=>entry.courses));
+assert('planner taxonomy contains every current course',SITE_PLANNER_COURSES.length===51,`got ${SITE_PLANNER_COURSES.length}`);
+assert('every current course appears in the supported planner matrix',SITE_PLANNER_COURSES.every(course=>matrixCourses.has(course)),SITE_PLANNER_COURSES.filter(course=>!matrixCourses.has(course)).join(', '));
+const genericEntry=matrix.find(entry=>entry.university==='ENEM — plano geral');
+assert('generic ENEM route covers all 51 current courses',Boolean(genericEntry)&&SITE_PLANNER_COURSES.every(course=>genericEntry.courses.includes(course)));
+assert('generic ENEM route is explicitly supported for every course',SITE_PLANNER_COURSES.every(course=>isSupportedInstitutionCourse('ENEM — plano geral',course)));
+for(const course of SITE_PLANNER_COURSES){
+  const genericModel=getExamModel('ENEM — plano geral',course);
+  assert(`generic ENEM · ${course} stays institution-neutral`,genericModel.examId==='enem'&&genericModel.title.includes('plano geral')&&!genericModel.title.includes('UFMG'),genericModel.title);
+}
 let coveredCourses=0;
 for(const entry of matrix){
   for(const course of entry.courses){
@@ -118,7 +128,7 @@ for(const entry of matrix){
     }
   }
 }
-assert('coverage matrix validates every supported planner course',coveredCourses>50,`covered ${coveredCourses}`);
+assert('coverage matrix validates every supported planner course',coveredCourses>=SITE_PLANNER_COURSES.length,`covered ${coveredCourses}`);
 
 if(process.exitCode)process.exit(process.exitCode);
 console.log(`Adaptive integration validation passed for ${coveredCourses} supported courses.`);

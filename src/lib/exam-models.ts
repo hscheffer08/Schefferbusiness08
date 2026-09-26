@@ -139,6 +139,18 @@ const FUVEST_SECOND_PHASE: Record<string, string[]> = {
   'Terapia Ocupacional': ['Biologia', 'Geografia', 'História'],
 };
 
+export const SITE_PLANNER_COURSES = [
+  'Administração','Agronomia','Análise e Desenvolvimento de Sistemas','Arquitetura e Urbanismo','Biomedicina',
+  'Ciência da Computação','Ciências Biológicas','Ciências Contábeis','Ciências Econômicas','Cinema e Audiovisual',
+  'Design','Direito','Educação Física','Enfermagem','Engenharia Ambiental','Engenharia Biomédica','Engenharia Civil',
+  'Engenharia de Alimentos','Engenharia de Computação','Engenharia de Produção','Engenharia de Software','Engenharia Elétrica',
+  'Engenharia Mecânica','Engenharia Química','Farmácia','Física','Fisioterapia','Fonoaudiologia','Gastronomia','Geografia',
+  'Gestão de Recursos Humanos','História','Jornalismo','Letras','Logística','Marketing','Matemática','Medicina',
+  'Medicina Veterinária','Moda','Nutrição','Odontologia','Pedagogia','Psicologia','Publicidade e Propaganda','Química',
+  'Relações Internacionais','Relações Públicas','Serviço Social','Sistemas de Informação','Terapia Ocupacional',
+] as const;
+const SITE_PLANNER_COURSE_SET = new Set<string>(SITE_PLANNER_COURSES);
+
 const CMMG_EFFPO_COURSES = ['Enfermagem', 'Fisioterapia', 'Fonoaudiologia', 'Odontologia', 'Psicologia'];
 const IBMEC_VERIFIED_COURSES = new Set(['Administração','Análise e Desenvolvimento de Sistemas','Arquitetura e Urbanismo','Ciências Contábeis','Ciências Econômicas','Publicidade e Propaganda','Direito','Engenharia Civil','Engenharia de Computação','Engenharia de Produção','Engenharia de Software','Relações Internacionais']);
 const EINSTEIN_VERIFIED_COURSES = new Set(['Administração','Enfermagem','Engenharia Biomédica','Fisioterapia','Medicina','Nutrição','Odontologia','Psicologia']);
@@ -160,6 +172,7 @@ export type SupportedPlannerInstitution = { university:string; courses:string[] 
 
 export function getSupportedPlannerCourseMatrix():SupportedPlannerInstitution[] {
   return [
+    {university:'ENEM — plano geral',courses:[...SITE_PLANNER_COURSES]},
     {university:'UFMG',courses:[...UFMG_VERIFIED_COURSES]},
     {university:'USP',courses:Object.keys(FUVEST_SECOND_PHASE)},
     {university:'Faculdade Ciências Médicas de Minas Gerais',courses:['Medicina',...CMMG_EFFPO_COURSES]},
@@ -272,14 +285,23 @@ export function getExamModel(university: string, course: string): ExamModel {
 
   if (examId === 'fuvest') {
     const specific = FUVEST_SECOND_PHASE[course] ?? [];
-    const specificMetrics: ExamMetric[] = specific.map((subject) => ({
-      key: `2ª fase — ${subject}`,
-      label: `${subject} — 2ª fase`,
-      max: 100,
-      defaultValue: 60,
-      unit: 'desempenho',
-      phase: '2ª fase',
-    }));
+    const specificMetrics: ExamMetric[] = specific.length
+      ? specific.map((subject) => ({
+          key: `2ª fase — ${subject}`,
+          label: `${subject} — 2ª fase`,
+          max: 100,
+          defaultValue: 60,
+          unit: 'desempenho',
+          phase: '2ª fase',
+        }))
+      : [{
+          key: '2ª fase — Específicas da carreira',
+          label: 'Disciplinas específicas da carreira — 2ª fase',
+          max: 100,
+          defaultValue: 60,
+          unit: 'desempenho' as const,
+          phase: '2ª fase',
+        }];
     return {
       examId,
       title: `FUVEST 2027 — ${course}`,
@@ -290,22 +312,26 @@ export function getExamModel(university: string, course: string): ExamModel {
         { key: 'Redação', label: 'Redação — 2ª fase', max: 50, defaultValue: 31, unit: 'pontos', phase: '2ª fase' },
         ...specificMetrics,
       ],
-      allowedQuestionAreas: ['1ª fase', 'Português', 'Redação', ...specific],
+      allowedQuestionAreas: ['1ª fase', 'Português', 'Redação', ...(specific.length?specific:['Específicas da carreira'])],
       officialSource: 'https://www.fuvest.br/vestibular-da-usp/',
     };
   }
 
+  const ufmg = university === 'UFMG';
   return {
     examId,
-    title: `ENEM / SiSU — ${course} na UFMG`,
-    structure: 'ENEM em dois dias: 45 questões de Linguagens, 45 de Ciências Humanas, 45 de Ciências da Natureza, 45 de Matemática e uma Redação de 0 a 1000 pontos. A UFMG usa o ENEM no SiSU; pesos e notas mínimas podem variar por curso.',
+    title: ufmg ? `ENEM / SiSU — ${course} na UFMG` : `ENEM 2026 — plano geral para ${course}`,
+    structure: ufmg
+      ? 'ENEM em dois dias: 45 questões de Linguagens, 45 de Ciências Humanas, 45 de Ciências da Natureza, 45 de Matemática e uma Redação de 0 a 1000 pontos. A UFMG usa o ENEM no SiSU; pesos e notas mínimas podem variar por curso.'
+      : 'Plano geral baseado no ENEM: 45 questões de Linguagens, 45 de Ciências Humanas, 45 de Ciências da Natureza, 45 de Matemática e uma Redação de 0 a 1000 pontos. Use esta opção quando ainda não houver uma rota institucional verificada para o curso.',
     metrics: ENEM_METRICS,
     allowedQuestionAreas: ['Linguagens', 'Humanas', 'Natureza', 'Matemática', 'Redação'],
-    officialSource: 'https://www.ufmg.br/sisu/',
+    officialSource: ufmg ? 'https://www.ufmg.br/sisu/' : 'https://www.gov.br/inep/pt-br/areas-de-atuacao/avaliacao-e-exames-educacionais/enem',
   };
 }
 
 export function isSupportedInstitutionCourse(university: string, course: string) {
+  if (university === 'ENEM — plano geral') return SITE_PLANNER_COURSE_SET.has(course);
   if (university === 'UFMG') return UFMG_VERIFIED_COURSES.has(course);
   if (university === 'USP') return supportedFuvestCourse(course);
   if (university === 'Faculdade Ciências Médicas de Minas Gerais') return course === 'Medicina' || CMMG_EFFPO_COURSES.includes(course);
