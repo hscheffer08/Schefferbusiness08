@@ -10,6 +10,7 @@ let source = readFileSync('api/interview-coach.ts', 'utf8')
 const calls = [];
 let authServiceError = null;
 let authConfig = null;
+let astraFailure = null;
 
 const linkScores = { ingles: null, coragem: 82, capacidadeTrabalho: 76, vontade: 84 };
 const feedback = {
@@ -78,6 +79,8 @@ const context = {
         response: { modelId: args.model },
       };
     }
+
+    if (astraFailure) throw astraFailure;
 
     const text = messageText(args);
     const final = text.includes('consolide toda a entrevista');
@@ -171,6 +174,22 @@ assert.equal(typed.body.report.pressureQuestions.length, 3);
 assert.equal(typed.body.voice, null);
 assert.equal(typed.body.feedback.scores.coragem, 82);
 
+const quickHistory = Array.from({ length: 5 }, (_, i) => ({
+  question: 'Pergunta rápida ' + (i + 1),
+  answer: 'Resposta suficientemente longa e concreta número ' + (i + 1) + '.',
+  language: i === 2 ? 'en' : 'pt',
+}));
+const quickFinal = await request({ phase: 'answer', interviewMode: 'quick', totalQuestions: 5, history: quickHistory, elapsedSeconds: 180 });
+assert.equal(quickFinal.statusCode, 200);
+assert.equal(quickFinal.body.complete, true);
+assert.equal(quickFinal.body.report.sevenDayPlan.length, 7);
+
+astraFailure = new Error('Invalid error response format: Gateway request failed: The operation was aborted due to timeout');
+const timeoutResult = await request({ phase: 'answer', interviewMode: 'quick', totalQuestions: 5, history });
+assert.equal(timeoutResult.statusCode, 504);
+assert.ok(timeoutResult.body.error.includes('demorou mais que o esperado'));
+astraFailure = null;
+
 const twoTurns = [
   history[0],
   { question: 'Aprofunde seu portfólio', answer: 'Eu trabalhei semanalmente e entreguei o protótipo no prazo.', language: 'pt' },
@@ -229,8 +248,11 @@ assert.ok(pageSource.includes('if (showAuth) return'));
 assert.ok(!pageSource.includes('if (showAuth || !user || !session) return'));
 assert.ok(pageSource.includes('A Link publica os critérios e seus pesos, mas não uma escala oficial de 0 a 100'));
 assert.ok(pageSource.includes('não atribui índice ao critério oficial de Inglês'));
+assert.ok(pageSource.includes('const activePauseMs = processingStartedAt.current'));
+assert.ok(pageSource.includes('const requestTimeoutMs = closingRequest ? 230_000'));
+assert.ok(pageSource.includes('Analisando sua resposta, fala e vídeo'));
 assert.ok(recorderSource.includes('Prévia ao vivo da câmera'));
 assert.ok(!pageSource.includes('Feedback Astra'));
 assert.ok(!recorderSource.includes('O Astra cruza'));
 
-console.log('PASS: Link 2027.1 rubric, timed official mode, English segment, Portfolio context, Astra-only final reasoning, evidence-gated scoring, public reviewer landing, live video preview and multi-frame visual review.');
+console.log('PASS: Link 2027.1 rubric, five-question closing, timeout handling, paused practice clock, concise candidate-facing feedback, timed official mode, English segment, Portfolio context, Astra-only final reasoning, evidence-gated scoring, public reviewer landing, live video preview and multi-frame visual review.');
