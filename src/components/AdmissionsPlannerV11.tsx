@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ArrowLeft, BookOpen, CalendarDays, CheckCircle2, ExternalLink, Home, Loader2, Minus, PlayCircle, Plus, Save, Sparkles, Target, Trophy, Video, X, XCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getExamModel, isSupportedInstitutionCourse, type ExamId, type ExamMetric } from '@/lib/exam-models';
-import { buildRoadmap } from '@/lib/admissions-roadmap';
+import { buildRoadmap } from '@/lib/admissions-roadmap-balanced';
 import { isSupplementalQuestion, mergePracticeQuestions } from '@/lib/supplemental-practice-questions';
 import WeeklyPlanExperience from '@/components/WeeklyPlanExperience';
 import DifficultyProfile from '@/components/DifficultyProfile';
