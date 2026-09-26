@@ -14,7 +14,7 @@ type AcademicArea={area_id:string;name:string;courses:string};
 type University={area_university_id:number;area_id:string;university_name:string;course_label:string};
 type Question={id:number;exam_id:string;area:string;skill_name:string;difficulty:number;prompt:string;option_a:string|null;option_b:string|null;option_c:string|null;option_d:string|null;option_e:string|null;correct_option:string|null;explanation:string|null};
 type Attempt={exam_id:string;area:string;skill_name:string|null;correct:boolean|null;created_at:string};
-type Priority={metric:ExamMetric;current:number;goal:number;missing:number;score:number;accuracy:number|null};
+type Priority={metric:ExamMetric;current:number;goal:number;missing:number;score:number;accuracy:number|null;sampleSize:number;sampleConfidence:number};
 type SkillDiagnostic={id:string;exam_id:string;area:string;skill_code:string|null;error_type:string|null;error_detail:string|null;diagnosis:{skill_name?:string}|null;created_at:string;evidence_path:string|null};
 type AdmissionCutoff={institution:string;exam_id:string;course_label:string;variant:string;year:number;modality:string;target_kind:string;target_value:number;max_value:number|null;confidence:string;source_url:string;notes:string|null};
 
@@ -256,13 +256,20 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
     const relevant=attempts.filter(a=>a.exam_id===model.examId&&matchQuestionArea(a.area,metric.key)&&a.correct!==null).slice(0,40);
     const accuracy=relevant.length?relevant.filter(x=>x.correct).length/relevant.length:null;
     const missing=Math.max(0,goal-current);
-    const sampleConfidence=Math.min(1,relevant.length/8);
+    const sampleSize=relevant.length;
+    const sampleConfidence=Math.min(1,sampleSize/8);
     const performanceMultiplier=accuracy==null?1:accuracy<.6?1+.25*sampleConfidence:accuracy>.85?1-.2*sampleConfidence:1;
     const score=(missing/Math.max(1,metric.max))*performanceMultiplier;
-    return{metric,current,goal,missing,score,accuracy};
+    return{metric,current,goal,missing,score,accuracy,sampleSize,sampleConfidence};
   }),[metrics,appliedValues,attempts,model.examId,dataGoals]);
   const priorities=useMemo(()=>[...diagnosis].sort((a,b)=>b.score-a.score),[diagnosis]);
-  const readiness=Math.round(diagnosis.reduce((s,p)=>s+Math.min(1,p.current/Math.max(1,p.goal)),0)/Math.max(1,diagnosis.length)*100);
+  const readiness=Math.round(diagnosis.reduce((sum,p)=>{
+    const declaredProgress=Math.min(1,p.current/Math.max(1,p.goal));
+    if(p.accuracy==null||p.sampleConfidence<=0)return sum+declaredProgress;
+    const measuredProgress=Math.min(1,p.accuracy/.8);
+    const measuredWeight=.35*p.sampleConfidence;
+    return sum+declaredProgress*(1-measuredWeight)+measuredProgress*measuredWeight;
+  },0)/Math.max(1,diagnosis.length)*100);
   const top=priorities[0];
   const relevantDiagnostics=useMemo(()=>diagnostics.filter(d=>d.exam_id===model.examId&&model.allowedQuestionAreas.some(a=>matchQuestionArea(d.area,a))).slice(0,8),[diagnostics,model]);
   const roadmap=useMemo(()=>buildRoadmap({model,course,priorities,weeklyHours:appliedWeeklyHours,questions:allowedQuestions,difficultyTopics,diagnostics:relevantDiagnostics.map(d=>({area:d.area,skill:d.diagnosis?.skill_name||d.skill_code||d.area}))}),[model,course,priorities,appliedWeeklyHours,allowedQuestions,difficultyTopics,relevantDiagnostics]);
