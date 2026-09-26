@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ArrowLeft, BookOpen, CalendarDays, CheckCircle2, ExternalLink, Home, Loader2, Minus, PlayCircle, Plus, Save, Sparkles, Target, Trophy, Video, X, XCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { getExamModel, isSupportedInstitutionCourse, type ExamMetric } from '@/lib/exam-models';
+import { getExamModel, isSupportedInstitutionCourse, type ExamId, type ExamMetric } from '@/lib/exam-models';
 import { buildRoadmap } from '@/lib/admissions-roadmap';
 import { isSupplementalQuestion, mergePracticeQuestions } from '@/lib/supplemental-practice-questions';
 import WeeklyPlanExperience from '@/components/WeeklyPlanExperience';
@@ -20,6 +20,7 @@ type AdmissionCutoff={institution:string;exam_id:string;course_label:string;vari
 
 const RETAINED=new Set(['UFMG','USP','Faculdade Ciências Médicas de Minas Gerais','Insper','Link School of Business','Ibmec','Faculdade Israelita de Ciências da Saúde Albert Einstein','FGV EAESP']);
 const GUEST_PREF_KEY='conectae:planner-guest-preference';
+const GUEST_ATTEMPTS_KEY='conectae:planner-guest-attempts';
 const normalize=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 const clamp=(n:number,min:number,max:number)=>Math.max(min,Math.min(max,n));
 const fmtDate=(iso:string)=>new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'short',year:'numeric'}).format(new Date(`${iso}T12:00:00-03:00`));
@@ -40,7 +41,7 @@ function matchQuestionArea(area:string,key:string){
   return false;
 }
 
-function goalFor(metric:ExamMetric,examId:string,dataGoal?:number){
+function goalFor(metric:ExamMetric,examId:ExamId,dataGoal?:number){
   if(Number.isFinite(dataGoal))return clamp(Math.round(dataGoal!),0,metric.max);
   if(examId==='enem'){
     const fallback:Record<string,number>={Linguagens:36,Humanas:37,Natureza:35,'Matemática':37,'Redação':900};
@@ -66,8 +67,12 @@ function goalFor(metric:ExamMetric,examId:string,dataGoal?:number){
     if(metric.key==='Português'||metric.key==='Redação')return 36;
     return 72;
   }
-  const link:Record<string,number>={'Matemática':75,'Business Case':82,'Escrita':80,'Oral':80,'Portfólio':78,'Entrevista':80};
-  return link[metric.key]??78;
+  if(examId==='link'){
+    const target:Record<string,number>={'Matemática':75,'Business Case':82,'Escrita':80,'Oral':80,'Portfólio':78,'Entrevista':80};
+    return target[metric.key]??78;
+  }
+  const exhaustive:never=examId;
+  throw new Error(`Meta não configurada para ${exhaustive}`);
 }
 
 function enemGoalsFromCutoff(cutoff:number){
@@ -172,6 +177,10 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
       const localHours=Number(guest.weeklyHours||localStorage.getItem('conectae:weekly-hours')||9);
       if(Number.isFinite(localHours)){setWeeklyHours(localHours);setAppliedWeeklyHours(localHours)}
       if(guest.difficultyTopics&&typeof guest.difficultyTopics==='object')setDifficultyTopics(guest.difficultyTopics);
+      try{
+        const localAttempts=JSON.parse(localStorage.getItem(GUEST_ATTEMPTS_KEY)||'[]');
+        if(Array.isArray(localAttempts))setAttempts((localAttempts as Attempt[]).slice(0,400));
+      }catch{/* ignore malformed local history */}
     }
     setLoading(false);
   })();return()=>{alive=false}},[]);
@@ -224,7 +233,9 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
     const relevant=attempts.filter(a=>a.exam_id===model.examId&&matchQuestionArea(a.area,metric.key)&&a.correct!==null).slice(0,40);
     const accuracy=relevant.length?relevant.filter(x=>x.correct).length/relevant.length:null;
     const missing=Math.max(0,goal-current);
-    const score=(missing/Math.max(1,metric.max))*(accuracy==null?1:accuracy<.6?1.25:accuracy>.85?.8:1);
+    const sampleConfidence=Math.min(1,relevant.length/8);
+    const performanceMultiplier=accuracy==null?1:accuracy<.6?1+.25*sampleConfidence:accuracy>.85?1-.2*sampleConfidence:1;
+    const score=(missing/Math.max(1,metric.max))*performanceMultiplier;
     return{metric,current,goal,missing,score,accuracy};
   }),[metrics,appliedValues,attempts,model.examId,dataGoals]);
   const priorities=useMemo(()=>[...diagnosis].sort((a,b)=>b.score-a.score),[diagnosis]);
@@ -239,7 +250,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   const startSimulation=(requested:number,_label:string)=>{const byArea=new Map<string,Question[]>();for(const q of allowedQuestions){const rows=byArea.get(q.area)??[];rows.push(q);byArea.set(q.area,rows)}const groups=[...byArea.values()].map(rows=>[...rows].sort(()=>Math.random()-.5));const queue:Question[]=[];while(queue.length<Math.min(requested,allowedQuestions.length)&&groups.some(g=>g.length)){for(const group of groups){const next=group.shift();if(next&&queue.length<requested)queue.push(next)}}setSimulationQueue(queue);setSimulationIndex(0);setSimulationScore(0);setSimulationResult(null);setActiveQuestion(queue[0]??null);setSelectedOption('');setPracticeResult(null);setQuestionStartedAt(Date.now());if(!queue.length)setMessage('Ainda não há questões suficientes para iniciar este simulado.')};
   const advanceQuestion=()=>{if(simulationQueue.length){const nextIndex=simulationIndex+1;if(nextIndex<simulationQueue.length){setSimulationIndex(nextIndex);setActiveQuestion(simulationQueue[nextIndex]);setSelectedOption('');setPracticeResult(null);setQuestionStartedAt(Date.now())}else{const label=model.examId==='link'?'SPRINT dirigido':'simulado';setSimulationResult({correct:simulationScore,total:simulationQueue.length,label});setSimulationQueue([]);setActiveQuestion(null)}}else openQuestion()};
   const openAreaQuestions=(focus:string)=>{const pool=allowedQuestions.filter(q=>matchQuestionArea(q.area,focus));const next=pool[0];if(next){setQuestionArea(next.area);setTab('questoes');openQuestion(next)}else setTab('questoes')};
-  const checkQuestion=async()=>{if(!activeQuestion||!selectedOption)return;const ok=selectedOption===activeQuestion.correct_option;setPracticeResult(ok);if(simulationQueue.length&&ok)setSimulationScore(s=>s+1);try{if(!supabase)return;const{data}=await supabase.auth.getUser();if(!data.user)return;if(isSupplementalQuestion(activeQuestion.id)){await supabase.from('student_skill_diagnostics').insert({user_id:data.user.id,exam_id:model.examId,skill_code:null,area:activeQuestion.area,question_text:activeQuestion.prompt,correct:ok,confidence:1,error_type:ok?null:'questao_autoral',diagnosis:{source:'conectae_autoral_v2',skill_name:activeQuestion.skill_name,selected_option:selectedOption,correct_option:activeQuestion.correct_option}})}else{await supabase.from('student_practice_attempts').insert({user_id:data.user.id,exam_id:model.examId,question_id:activeQuestion.id,area:activeQuestion.area,skill_name:activeQuestion.skill_name,selected_option:selectedOption,correct:ok,duration_seconds:questionStartedAt?Math.max(1,Math.round((Date.now()-questionStartedAt)/1000)):null})}setAttempts(v=>[{exam_id:model.examId,area:activeQuestion.area,skill_name:activeQuestion.skill_name,correct:ok,created_at:new Date().toISOString()},...v]);if(!ok)window.dispatchEvent(new CustomEvent('conectae:diagnostic-saved',{detail:{examId:model.examId,source:'practice_error'}}))}catch{setMessage('A resposta foi corrigida, mas não entrou no histórico.')}};
+  const checkQuestion=async()=>{if(!activeQuestion||!selectedOption)return;const ok=selectedOption===activeQuestion.correct_option;setPracticeResult(ok);if(simulationQueue.length&&ok)setSimulationScore(s=>s+1);const attempt:Attempt={exam_id:model.examId,area:activeQuestion.area,skill_name:activeQuestion.skill_name,correct:ok,created_at:new Date().toISOString()};setAttempts(v=>[attempt,...v].slice(0,400));const saveGuestAttempt=()=>{try{const current=JSON.parse(localStorage.getItem(GUEST_ATTEMPTS_KEY)||'[]');const rows=Array.isArray(current)?current:[];localStorage.setItem(GUEST_ATTEMPTS_KEY,JSON.stringify([attempt,...rows].slice(0,400)))}catch{/* local persistence is best effort */}};try{if(!supabase){saveGuestAttempt();return}const{data}=await supabase.auth.getUser();if(!data.user){saveGuestAttempt();return}if(isSupplementalQuestion(activeQuestion.id)){await supabase.from('student_skill_diagnostics').insert({user_id:data.user.id,exam_id:model.examId,skill_code:null,area:activeQuestion.area,question_text:activeQuestion.prompt,correct:ok,confidence:1,error_type:ok?null:'questao_autoral',diagnosis:{source:'conectae_autoral_v2',skill_name:activeQuestion.skill_name,selected_option:selectedOption,correct_option:activeQuestion.correct_option}})}else{await supabase.from('student_practice_attempts').insert({user_id:data.user.id,exam_id:model.examId,question_id:activeQuestion.id,area:activeQuestion.area,skill_name:activeQuestion.skill_name,selected_option:selectedOption,correct:ok,duration_seconds:questionStartedAt?Math.max(1,Math.round((Date.now()-questionStartedAt)/1000)):null})}if(!ok)window.dispatchEvent(new CustomEvent('conectae:diagnostic-saved',{detail:{examId:model.examId,source:'practice_error'}}))}catch{setMessage('A resposta foi corrigida e entrou no plano atual, mas não foi possível sincronizar o histórico.')}};
   const tabs:[Tab,string,ReactNode][]=[['hoje','Hoje',<Home size={18}/>],['plano','Plano',<CalendarDays size={18}/>],['questoes','Questões',<BookOpen size={18}/>],['prova','Prova',<Trophy size={18}/>]];
   const miniSimulationSize=model.examId==='fgv'?15:model.examId==='insper'?30:model.examId==='ibmec'||model.examId==='einstein'?25:20;
   const fullSimulationSize=model.examId==='fgv'?25:model.examId==='insper'?60:model.examId==='ibmec'||model.examId==='einstein'?50:30;
