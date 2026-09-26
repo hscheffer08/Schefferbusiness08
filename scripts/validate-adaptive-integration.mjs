@@ -65,7 +65,7 @@ const matrixCourses=new Set(matrix.flatMap(entry=>entry.courses));
 assert('planner taxonomy contains every current course',SITE_PLANNER_COURSES.length===51,`got ${SITE_PLANNER_COURSES.length}`);
 assert('every current course appears in the supported planner matrix',SITE_PLANNER_COURSES.every(course=>matrixCourses.has(course)),SITE_PLANNER_COURSES.filter(course=>!matrixCourses.has(course)).join(', '));
 const genericEntry=matrix.find(entry=>entry.university==='ENEM — plano geral');
-assert('generic ENEM route covers all 51 current courses',Boolean(genericEntry)&&SITE_PLANNER_COURSES.every(course=>genericEntry!.courses.includes(course)));
+assert('generic ENEM route covers all 51 current courses',Boolean(genericEntry)&&SITE_PLANNER_COURSES.every(course=>genericEntry.courses.includes(course)));
 assert('generic ENEM route is explicitly supported for every course',SITE_PLANNER_COURSES.every(course=>isSupportedInstitutionCourse('ENEM — plano geral',course)));
 for(const course of SITE_PLANNER_COURSES){
   const genericModel=getExamModel('ENEM — plano geral',course);
