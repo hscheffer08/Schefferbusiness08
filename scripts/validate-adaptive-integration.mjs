@@ -104,6 +104,11 @@ for(const entry of matrix){
       assert(`${entry.university} · ${course} never falls back to Link milestones`,milestones.every(m=>!m.label.includes('Link')&&!m.label.includes('PREP')));
       assert(`${entry.university} · ${course} never falls back to Link mock`,coverageRoadmap.weeks.every(w=>!w.mockExam.includes('Link')&&!w.mockExam.includes('PREP')));
     }
+    if(coverageModel.examId==='ibmec'){
+      assert(`Ibmec ${course} has no post-exam December milestone`,milestones.every(m=>m.date<='2026-11-28'),milestones.map(m=>`${m.date}:${m.label}`).join(' | '));
+      assert(`Ibmec ${course} keeps dynamics inside the preparation cycle`,milestones.some(m=>m.label.includes('dinâmica/competências'))&&coverageRoadmap.weeks.every(w=>w.mockExam.includes('dinâmica/competências')),coverageRoadmap.weeks.map(w=>w.mockExam).join(' | '));
+      assert(`Ibmec ${course} keeps both written and dynamics priorities eligible`,coverageRoadmap.weeks.some(w=>w.focusMix.some(f=>f.key==='Dinâmica'))&&coverageRoadmap.weeks.some(w=>w.focusMix.some(f=>f.key!=='Dinâmica')),coverageRoadmap.weeks.map(w=>w.focusMix.map(f=>f.key).join('/')).join(' | '));
+    }
     if(coverageModel.examId==='fgv'){
       assert(`FGV ${course} ends on the official 18/10/2026 written exam`,coverageRoadmap.finalDate==='2026-10-18',coverageRoadmap.finalDate);
       assert(`FGV ${course} uses FGV phases`,coverageRoadmap.weeks.every(w=>w.phase.includes('FGV EAESP')),coverageRoadmap.weeks.map(w=>w.phase).join(','));
