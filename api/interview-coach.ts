@@ -54,6 +54,14 @@ function parseJson(raw: string) {
   return JSON.parse(start >= 0 && end > start ? clean.slice(start, end + 1) : clean);
 }
 
+function isTimeoutLikeError(error: any) {
+  const name = String(error?.name || '');
+  const message = String(error?.message || error || '');
+  return name === 'TimeoutError' ||
+    name === 'AbortError' ||
+    /timed?\s*out|timeout|aborted due to timeout|operation was aborted/i.test(message);
+}
+
 function config() {
   const raw = cleanEnv(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || FALLBACK_SUPABASE_URL);
   const candidate = cleanEnv(
@@ -378,8 +386,9 @@ export default async function handler(req: any, res: any) {
       'Para a Link, os critérios oficiais devem ser SOMENTE os quatro publicados e têm o mesmo peso. Score 0–100 é apenas um índice interno de treino do Conectaê, nunca uma escala oficial da Link. Só pontue um critério na resposta atual quando houver evidência direta suficiente; caso contrário use null. As métricas clareza, especificidade, estrutura e concisão são coaching secundário. ' +
       'Vontade de estar aqui deve exigir motivos específicos da Link; respostas que serviriam para qualquer faculdade devem receber feedback explícito sobre genericidade. Capacidade de trabalho deve buscar evidências concretas de esforço, disciplina, consistência e entrega, não confundir com liderança. Coragem deve observar posicionamento, defesa de ideias e reação a objeções. ' +
       'Para cada feedback inclua detailed com evidência literal ou ausência identificada, impacto, correção concreta, exemplo fiel sem inventar experiência e exercício mensurável. Diferencie fatos, hipóteses e lacunas. ' +
+      'No texto mostrado ao candidato, use linguagem simples e natural. Não mencione score, null, JSON, frames, gateway, modelo, token, latência, timeout ou nomes técnicos do pipeline. No relatório final, cada informação deve aparecer uma vez: não repita a conclusão nas listas, não copie a mesma evidência em seções diferentes e faça pontos fortes, prioridades e dica final acrescentarem algo novo. ' +
       'Com áudio, use as observações de fala e limitações do sensor. Com vídeo, a decisão final sobre comunicação visual é sua e deve combinar os frames com as observações temporais do sensor. Postura, gestos, direção do olhar e enquadramento são coaching de comunicação, não critérios oficiais da Link; nunca reduza um critério oficial apenas por linguagem corporal ou aparência. Antes de encerrar uma simulação completa, procure evidência para os quatro critérios e, quando faltar evidência, direcione a próxima pergunta ao critério ainda não coberto. ' + visualInstruction +
-      ' O relatório final deve citar os números das perguntas nas evidências dos critérios oficiais, criar um plano de 7 dias com duração e critério de sucesso e três perguntas de aprofundamento para os pontos que ainda precisam de treino. Não use Markdown dentro dos valores textuais. Retorne somente JSON válido.';
+      ' O relatório final deve citar os números das perguntas nas evidências dos critérios oficiais, ter uma conclusão de no máximo 2 frases, no máximo 3 pontos fortes, no máximo 3 prioridades, criar um plano de 7 dias com duração e critério de sucesso e três perguntas de aprofundamento para os pontos que ainda precisam de treino. Não use Markdown dentro dos valores textuais. Retorne somente JSON válido.';
 
     const linkScoresShape = '{"ingles":null,"coragem":null,"capacidadeTrabalho":null,"vontade":null}';
     const espmScoresShape = '{"clareza":0,"especificidade":0,"autenticidade":0,"reflexao":0,"aderencia":0}';
@@ -412,9 +421,9 @@ export default async function handler(req: any, res: any) {
       model: MODEL,
       system,
       messages: [{ role: 'user', content: userContent }],
-      maxOutputTokens: isFinal ? 10000 : 7500,
+      maxOutputTokens: isFinal ? 7500 : 6500,
       maxRetries: 0,
-      abortSignal: AbortSignal.timeout(frames.length ? 100_000 : 75_000),
+      abortSignal: AbortSignal.timeout(isFinal ? (frames.length ? 120_000 : 125_000) : (frames.length ? 100_000 : 85_000)),
       output: Output.json({ name: 'interview_coach_result' }),
       providerOptions: {
         openai: { reasoningEffort: 'high' },
@@ -498,8 +507,8 @@ export default async function handler(req: any, res: any) {
             : 'Índice de preparação',
           verdict: cleanAiText(report.verdict, 700),
           officialCriteria: linkCriteria,
-          strongestPoints: list(report.strongest_points, 4),
-          priorityImprovements: list(report.priority_improvements, 4),
+          strongestPoints: list(report.strongest_points, 3),
+          priorityImprovements: list(report.priority_improvements, 3),
           pressureQuestions: list(report.pressure_questions, 3),
           sevenDayPlan: list(report.seven_day_plan, 7),
           finalTip: cleanAiText(report.final_tip, 700),
@@ -525,7 +534,7 @@ export default async function handler(req: any, res: any) {
     });
   } catch (error: any) {
     console.error('interview-coach failed', error?.message || error);
-    if (error?.name === 'TimeoutError' || error?.name === 'AbortError') return json(res, 504, {
+    if (isTimeoutLikeError(error)) return json(res, 504, {
       error: 'A análise demorou mais que o esperado. Sua resposta foi preservada. Tente enviar novamente.',
     });
     return json(res, 500, { error: 'A entrevista ficou indisponível. Tente novamente em instantes.' });
