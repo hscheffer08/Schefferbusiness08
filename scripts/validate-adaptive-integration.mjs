@@ -1,5 +1,5 @@
-import { buildRoadmap } from '../src/lib/admissions-roadmap-balanced.ts';
-import { getExamModel } from '../src/lib/exam-models.ts';
+import { buildRoadmap, getMilestones } from '../src/lib/admissions-roadmap-balanced.ts';
+import { getExamModel, getSupportedPlannerCourseMatrix, isSupportedInstitutionCourse } from '../src/lib/exam-models.ts';
 import { getExamSkillCatalog, topicKey } from '../src/lib/exam-skill-catalog.ts';
 
 const assert=(name,ok,detail='')=>{
@@ -59,5 +59,61 @@ const photo=buildRoadmap({model,course:'Medicina',priorities,weeklyHours:9,quest
 assert('photo/manual diagnostic reaches the weekly roadmap',photo.weeks.some(w=>w.focusMix.some(f=>f.topic==='Trigonometria')||w.topic==='Trigonometria'));
 assert('diagnostic influence is visible in focus reasoning',photo.weeks.some(w=>w.focusMix.some(f=>f.reason.includes('diagnóstico'))));
 
+const coverageDate=new Date('2026-09-26T12:00:00-03:00');
+const matrix=getSupportedPlannerCourseMatrix();
+let coveredCourses=0;
+for(const entry of matrix){
+  for(const course of entry.courses){
+    coveredCourses+=1;
+    assert(`${entry.university} · ${course} is declared supported`,isSupportedInstitutionCourse(entry.university,course));
+    const coverageModel=getExamModel(entry.university,course);
+    const coverageCatalog=getExamSkillCatalog(coverageModel.examId,course);
+    const coveragePriorities=coverageModel.metrics.map((metric,index)=>({
+      metric,
+      current:metric.defaultValue,
+      goal:Math.min(metric.max,metric.defaultValue+Math.max(1,Math.round(metric.max*.12))),
+      missing:Math.max(1,Math.round(metric.max*.12)),
+      score:.35-index*.01,
+      accuracy:.68,
+    }));
+    const coverageQuestions=coverageModel.allowedQuestionAreas.flatMap((area,areaIndex)=>
+      Array.from({length:4},(_,qIndex)=>({
+        id:100000+coveredCourses*1000+areaIndex*10+qIndex,
+        exam_id:coverageModel.examId,
+        area,
+        skill_name:`${area} · habilidade ${qIndex+1}`,
+        prompt:`Questão de cobertura ${area} ${qIndex+1}`,
+        difficulty:3,
+      }))
+    );
+    const milestones=getMilestones(coverageModel.examId,course);
+    const coverageRoadmap=buildRoadmap({
+      model:coverageModel,
+      course,
+      priorities:coveragePriorities,
+      weeklyHours:9,
+      questions:coverageQuestions,
+      today:coverageDate,
+    });
+    assert(`${entry.university} · ${course} has a non-empty study catalog`,coverageCatalog.subjects.length>0);
+    assert(`${entry.university} · ${course} has explicit milestones`,milestones.length>0);
+    assert(`${entry.university} · ${course} builds at least one future week`,coverageRoadmap.weeks.length>0,`final=${coverageRoadmap.finalDate}`);
+    assert(`${entry.university} · ${course} preserves 9h weekly budget`,coverageRoadmap.weeks.every(w=>w.totalPlannedMinutes===540&&w.sessionPlan.reduce((sum,row)=>sum+row.minutes,0)===540));
+    if(coverageModel.examId!=='link'){
+      assert(`${entry.university} · ${course} never falls back to Link catalog`,!coverageCatalog.label.includes('Jornada Link'),coverageCatalog.label);
+      assert(`${entry.university} · ${course} never falls back to Link milestones`,milestones.every(m=>!m.label.includes('Link')&&!m.label.includes('PREP')));
+      assert(`${entry.university} · ${course} never falls back to Link mock`,coverageRoadmap.weeks.every(w=>!w.mockExam.includes('Link')&&!w.mockExam.includes('PREP')));
+    }
+    if(coverageModel.examId==='fgv'){
+      assert(`FGV ${course} ends on the official 18/10/2026 written exam`,coverageRoadmap.finalDate==='2026-10-18',coverageRoadmap.finalDate);
+      assert(`FGV ${course} uses FGV phases`,coverageRoadmap.weeks.every(w=>w.phase.includes('FGV EAESP')),coverageRoadmap.weeks.map(w=>w.phase).join(','));
+      assert(`FGV ${course} uses FGV mock blocks`,coverageRoadmap.weeks.every(w=>w.mockExam.includes('FGV EAESP')),coverageRoadmap.weeks.map(w=>w.mockExam).join(' | '));
+      const expectedDiscursive=course==='Administração Pública'?'Ciências Humanas discursiva':'Matemática discursiva';
+      assert(`FGV ${course} has the correct course-specific discursive catalog`,coverageCatalog.subjects.some(subject=>subject.area===expectedDiscursive),coverageCatalog.subjects.map(subject=>subject.area).join(','));
+    }
+  }
+}
+assert('coverage matrix validates every supported planner course',coveredCourses>50,`covered ${coveredCourses}`);
+
 if(process.exitCode)process.exit(process.exitCode);
-console.log('Adaptive integration validation passed.');
+console.log(`Adaptive integration validation passed for ${coveredCourses} supported courses.`);
