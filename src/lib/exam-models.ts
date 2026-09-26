@@ -157,14 +157,24 @@ const EINSTEIN_VERIFIED_COURSES = new Set(['Administração','Enfermagem','Engen
 const FGV_VERIFIED_COURSES = new Set(['Administração','Administração Pública']);
 const INSPER_VERIFIED_COURSES = new Set(['Administração','Ciências Econômicas','Direito','Ciência da Computação','Engenharia de Computação','Engenharia de Produção','Engenharia Mecânica','Engenharia Mecatrônica']);
 
-const UFMG_VERIFIED_COURSES = SITE_PLANNER_COURSE_SET;
+const UFMG_VERIFIED_COURSES = new Set([
+  'Administração', 'Agronomia', 'Arquitetura e Urbanismo', 'Biomedicina', 'Ciência da Computação',
+  'Ciências Biológicas', 'Ciências Contábeis', 'Ciências Econômicas', 'Design', 'Direito',
+  'Educação Física', 'Enfermagem', 'Engenharia Ambiental', 'Engenharia Civil', 'Engenharia de Alimentos',
+  'Engenharia de Computação', 'Engenharia de Produção', 'Engenharia Elétrica', 'Engenharia Mecânica',
+  'Engenharia Química', 'Farmácia', 'Física', 'Fisioterapia', 'Fonoaudiologia', 'Geografia', 'História',
+  'Jornalismo', 'Letras', 'Matemática', 'Medicina', 'Medicina Veterinária', 'Nutrição', 'Odontologia',
+  'Pedagogia', 'Psicologia', 'Publicidade e Propaganda', 'Química', 'Relações Públicas',
+  'Sistemas de Informação', 'Terapia Ocupacional',
+]);
 
 export type SupportedPlannerInstitution = { university:string; courses:string[] };
 
 export function getSupportedPlannerCourseMatrix():SupportedPlannerInstitution[] {
   return [
-    {university:'UFMG',courses:[...SITE_PLANNER_COURSES]},
-    {university:'USP',courses:[...SITE_PLANNER_COURSES]},
+    {university:'ENEM — plano geral',courses:[...SITE_PLANNER_COURSES]},
+    {university:'UFMG',courses:[...UFMG_VERIFIED_COURSES]},
+    {university:'USP',courses:Object.keys(FUVEST_SECOND_PHASE)},
     {university:'Faculdade Ciências Médicas de Minas Gerais',courses:['Medicina',...CMMG_EFFPO_COURSES]},
     {university:'Faculdade Israelita de Ciências da Saúde Albert Einstein',courses:[...EINSTEIN_VERIFIED_COURSES]},
     {university:'Ibmec',courses:[...IBMEC_VERIFIED_COURSES]},
@@ -174,7 +184,7 @@ export function getSupportedPlannerCourseMatrix():SupportedPlannerInstitution[] 
   ];
 }
 
-export const supportedFuvestCourse = (course: string) => SITE_PLANNER_COURSE_SET.has(course);
+export const supportedFuvestCourse = (course: string) => Boolean(FUVEST_SECOND_PHASE[course]);
 
 export function getExamId(university: string): ExamId {
   const name = university.toLowerCase();
@@ -307,17 +317,21 @@ export function getExamModel(university: string, course: string): ExamModel {
     };
   }
 
+  const ufmg = university === 'UFMG';
   return {
     examId,
-    title: `ENEM / SiSU — ${course} na UFMG`,
-    structure: 'ENEM em dois dias: 45 questões de Linguagens, 45 de Ciências Humanas, 45 de Ciências da Natureza, 45 de Matemática e uma Redação de 0 a 1000 pontos. A UFMG usa o ENEM no SiSU; pesos e notas mínimas podem variar por curso.',
+    title: ufmg ? `ENEM / SiSU — ${course} na UFMG` : `ENEM 2026 — plano geral para ${course}`,
+    structure: ufmg
+      ? 'ENEM em dois dias: 45 questões de Linguagens, 45 de Ciências Humanas, 45 de Ciências da Natureza, 45 de Matemática e uma Redação de 0 a 1000 pontos. A UFMG usa o ENEM no SiSU; pesos e notas mínimas podem variar por curso.'
+      : 'Plano geral baseado no ENEM: 45 questões de Linguagens, 45 de Ciências Humanas, 45 de Ciências da Natureza, 45 de Matemática e uma Redação de 0 a 1000 pontos. Use esta opção quando ainda não houver uma rota institucional verificada para o curso.',
     metrics: ENEM_METRICS,
     allowedQuestionAreas: ['Linguagens', 'Humanas', 'Natureza', 'Matemática', 'Redação'],
-    officialSource: 'https://www.ufmg.br/sisu/',
+    officialSource: ufmg ? 'https://www.ufmg.br/sisu/' : 'https://www.gov.br/inep/pt-br/areas-de-atuacao/avaliacao-e-exames-educacionais/enem',
   };
 }
 
 export function isSupportedInstitutionCourse(university: string, course: string) {
+  if (university === 'ENEM — plano geral') return SITE_PLANNER_COURSE_SET.has(course);
   if (university === 'UFMG') return UFMG_VERIFIED_COURSES.has(course);
   if (university === 'USP') return supportedFuvestCourse(course);
   if (university === 'Faculdade Ciências Médicas de Minas Gerais') return course === 'Medicina' || CMMG_EFFPO_COURSES.includes(course);
