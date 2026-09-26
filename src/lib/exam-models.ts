@@ -143,6 +143,7 @@ const CMMG_EFFPO_COURSES = ['Enfermagem', 'Fisioterapia', 'Fonoaudiologia', 'Odo
 const IBMEC_VERIFIED_COURSES = new Set(['Administração','Análise e Desenvolvimento de Sistemas','Arquitetura e Urbanismo','Ciências Contábeis','Ciências Econômicas','Publicidade e Propaganda','Direito','Engenharia Civil','Engenharia de Computação','Engenharia de Produção','Engenharia de Software','Relações Internacionais']);
 const EINSTEIN_VERIFIED_COURSES = new Set(['Administração','Enfermagem','Engenharia Biomédica','Fisioterapia','Medicina','Nutrição','Odontologia','Psicologia']);
 const FGV_VERIFIED_COURSES = new Set(['Administração','Administração Pública']);
+const INSPER_VERIFIED_COURSES = new Set(['Administração','Ciências Econômicas','Direito','Ciência da Computação','Engenharia de Computação','Engenharia de Produção','Engenharia Mecânica','Engenharia Mecatrônica']);
 
 const UFMG_VERIFIED_COURSES = new Set([
   'Administração', 'Agronomia', 'Arquitetura e Urbanismo', 'Biomedicina', 'Ciência da Computação',
@@ -154,6 +155,21 @@ const UFMG_VERIFIED_COURSES = new Set([
   'Pedagogia', 'Psicologia', 'Publicidade e Propaganda', 'Química', 'Relações Públicas',
   'Sistemas de Informação', 'Terapia Ocupacional',
 ]);
+
+export type SupportedPlannerInstitution = { university:string; courses:string[] };
+
+export function getSupportedPlannerCourseMatrix():SupportedPlannerInstitution[] {
+  return [
+    {university:'UFMG',courses:[...UFMG_VERIFIED_COURSES]},
+    {university:'USP',courses:Object.keys(FUVEST_SECOND_PHASE)},
+    {university:'Faculdade Ciências Médicas de Minas Gerais',courses:['Medicina',...CMMG_EFFPO_COURSES]},
+    {university:'Faculdade Israelita de Ciências da Saúde Albert Einstein',courses:[...EINSTEIN_VERIFIED_COURSES]},
+    {university:'Ibmec',courses:[...IBMEC_VERIFIED_COURSES]},
+    {university:'Link School of Business',courses:['Administração']},
+    {university:'Insper',courses:[...INSPER_VERIFIED_COURSES]},
+    {university:'FGV EAESP',courses:[...FGV_VERIFIED_COURSES]},
+  ];
+}
 
 export const supportedFuvestCourse = (course: string) => Boolean(FUVEST_SECOND_PHASE[course]);
 
@@ -296,7 +312,7 @@ export function isSupportedInstitutionCourse(university: string, course: string)
   if (university === 'Faculdade Israelita de Ciências da Saúde Albert Einstein') return EINSTEIN_VERIFIED_COURSES.has(course);
   if (university === 'Ibmec') return IBMEC_VERIFIED_COURSES.has(course);
   if (university === 'Link School of Business') return course === 'Administração';
-  if (university === 'Insper') return ['Administração', 'Ciências Econômicas', 'Direito', 'Ciência da Computação', 'Engenharia de Computação', 'Engenharia de Produção', 'Engenharia Mecânica', 'Engenharia Mecatrônica'].includes(course);
+  if (university === 'Insper') return INSPER_VERIFIED_COURSES.has(course);
   if (getExamId(university) === 'fgv') return FGV_VERIFIED_COURSES.has(course);
   return false;
 }
