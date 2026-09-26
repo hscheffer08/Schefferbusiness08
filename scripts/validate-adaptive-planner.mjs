@@ -67,7 +67,7 @@ const checks=[
   ['tiny question samples have confidence-weighted influence',planner.includes('sampleConfidence=Math.min(1,relevant.length/8)')&&planner.includes('performanceMultiplier')],
   ['weekly plan renders every planned week',planner.includes('roadmap.weeks.map')&&planner.includes('<WeeklyPlanExperience')],
   ['weekly week card includes study, video, questions and checkpoint',['O que estudar nesta semana','Aula da semana','Questões com propósito','Checkpoint'].every(x=>progress.includes(x))],
-  ['AI recognizes all exam fingerprints',tutor.includes('EXAM_FINGERPRINTS')&&['enem:','fuvest:','cmmg:','insper:','link:'].every(x=>tutor.includes(x))],
+  ['AI recognizes all exam fingerprints',tutor.includes('EXAM_FINGERPRINTS')&&['enem:','fuvest:','cmmg:','fgv:','insper:','link:','ibmec:','einstein:'].every(x=>tutor.includes(x))],
   ['AI falls back to the exam taxonomy',tutor.includes('taxonomyRefs')&&tutor.includes('const pool')],
   ['AI uses seen-question history',tutor.includes('student_seen_questions')&&tutor.includes('seen.has')],
   ['AI uses provenance metadata',tutor.includes('source_exam_year')&&tutor.includes('source_question_number')&&tutor.includes('provenanceAware')],
