@@ -60,7 +60,7 @@ function eligibleForMix(examId: ExamId, week: BaseRoadmapWeek, priority: Roadmap
   }
   if (examId === 'fuvest') return week.phase.includes('2ª') ? key !== '1ª fase' && key !== '1a fase' : key === '1ª fase' || key === '1a fase';
   if (examId === 'einstein') return week.phase.includes('2ª') ? key === 'mme' : key !== 'mme';
-  if (examId === 'ibmec') return week.phase.toLowerCase().includes('dinâmica') ? key === 'dinamica' : key !== 'dinamica';
+  if (examId === 'ibmec') return true;
   if (examId === 'link') {
     if (week.phase.includes('PREP')) return ['portfolio', 'oral'].includes(key);
     if (week.phase.includes('Sprint')) return ['matematica', 'business case', 'escrita', 'oral'].includes(key);
