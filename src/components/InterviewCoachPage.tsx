@@ -517,9 +517,9 @@ function InterviewCoach() {
     </header>
 
     <main className="relative z-10 mx-auto max-w-7xl px-5 py-8 md:px-8 md:py-12">
-      {!started && <div className="mb-7 flex flex-wrap gap-3" aria-label="Escolha o treino">
-        <button type="button" aria-pressed={workspace === 'interview'} onClick={() => setWorkspace('interview')} className="min-h-12 rounded-xl border px-5 font-bold">Treino de entrevista</button>
-        <button type="button" aria-pressed={workspace === 'portfolio'} onClick={() => { setInstitution('link'); setWorkspace('portfolio'); }} className="min-h-12 rounded-xl border px-5 font-bold">Avaliar portfólio Link</button>
+      {!started && <div className="mb-7 inline-flex max-w-full flex-wrap gap-2 rounded-2xl border border-[#173765] bg-[#06152f] p-2" aria-label="Escolha o treino">
+        <button type="button" aria-pressed={workspace === 'interview'} onClick={() => setWorkspace('interview')} className={'min-h-12 rounded-xl border px-5 font-bold transition ' + (workspace === 'interview' ? 'border-[#72a5ff] bg-[#0b2856] text-white shadow-lg shadow-[#246cff]/10' : 'border-transparent text-[#9fb5d4] hover:border-[#31588e] hover:text-white')}>Treino de entrevista</button>
+        <button type="button" aria-pressed={workspace === 'portfolio'} onClick={() => { setInstitution('link'); setWorkspace('portfolio'); }} className={'min-h-12 rounded-xl border px-5 font-bold transition ' + (workspace === 'portfolio' ? 'border-[#72a5ff] bg-[#0b2856] text-white shadow-lg shadow-[#246cff]/10' : 'border-transparent text-[#9fb5d4] hover:border-[#31588e] hover:text-white')}>Avaliar portfólio Link</button>
       </div>}
       {!started && <div hidden={workspace !== 'portfolio'}><PortfolioEvaluator onUseInInterview={portfolio => { setCandidateContext(value => ({ ...value, portfolio })); setInstitution('link'); setWorkspace('interview'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} /></div>}
       <div hidden={!started && workspace !== 'interview'}>
