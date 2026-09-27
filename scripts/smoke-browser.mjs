@@ -93,7 +93,7 @@ try {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   if (overflow > 1) throw new Error(`overflow horizontal de ${overflow}px`);
 
-  const controls = await page.locator('#activity-0-title, #activity-0-category, #activity-0-actions, #portfolio-context, #portfolio-file').evaluateAll((nodes) =>
+  const controls = await page.locator('#activity-0-title, #activity-0-category, #activity-0-actions, #portfolio-context').evaluateAll((nodes) =>
     nodes.map((node) => {
       const rect = node.getBoundingClientRect();
       return { id: node.id, left: rect.left, right: rect.right, width: rect.width };
@@ -101,6 +101,12 @@ try {
   );
   const outOfViewport = controls.find((control) => control.left < -1 || control.right > 391 || control.width < 120);
   if (outOfViewport) throw new Error(`controle fora da viewport: ${outOfViewport.id}`);
+
+  const optionalContext = page.getByText('Adicionar etapa escolar, motivação e documentos', { exact: true });
+  await optionalContext.click();
+  const fileInput = page.locator('#portfolio-file');
+  const fileBox = await fileInput.boundingBox();
+  if (!fileBox || fileBox.width < 120) throw new Error('upload opcional não abriu corretamente');
 
   const addButton = page.getByRole('button', { name: 'Adicionar experiência' });
   const box = await addButton.boundingBox();
