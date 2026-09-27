@@ -274,7 +274,17 @@ const documented = await request({ phase: 'portfolio', institution: 'link', port
 assert.equal(documented.body.report.readiness, 75);
 portfolioOutput.criteria[0].excerpt = 'Inventado: ganhou prêmio internacional';
 assert.equal((await request({ phase: 'portfolio', institution: 'link', portfolio })).body.report.criteria[0].level, null);
+portfolioOutput.summary = 'documentText e documentName não foram enviados.';
+portfolioOutput.criteria[0].reasoning = 'academic é opcional; role já aparece nas ações.';
+portfolioOutput.criteria[0].excerpt = portfolio.activities[0].actions;
+const readable = await request({ phase: 'portfolio', institution: 'link', portfolio });
+assert.equal(readable.statusCode, 200);
+assert.equal(readable.body.report.summary, 'conteúdo dos comprovantes e nome do arquivo não foram enviados.');
+assert.equal(readable.body.report.criteria[0].reasoning, 'informações escolares é opcional; papel na experiência já aparece nas ações.');
+assert.equal(readable.body.report.criteria[0].excerpt, portfolio.activities[0].actions);
+assert.equal(readable.body.report.criteria[3].level, null);
+assert.equal(readable.body.report.readiness, null);
 portfolioOutput.activities = [];
 assert.equal((await request({ phase: 'portfolio', institution: 'link', portfolio })).statusCode, 502);
-assert.equal((await request({}, '', 'GET')).body.portfolioEvaluator, 'link-2027.1-v1');
+assert.equal((await request({}, '', 'GET')).body.portfolioEvaluator, 'link-2027.1-v2');
 console.log('PASS: Portfolio authentication, input validation, document gating, literal evidence, server-calculated score and incomplete-response rejection.');
