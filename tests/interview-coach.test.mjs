@@ -8,6 +8,7 @@ let source = readFileSync('api/interview-coach.ts', 'utf8')
   .replace('export default async function handler', 'async function handler');
 
 const calls = [];
+let portfolioOutput;
 let authServiceError = null;
 let authConfig = null;
 let astraFailure = null;
@@ -81,6 +82,7 @@ const context = {
     }
 
     if (astraFailure) throw astraFailure;
+    if (args.prompt?.startsWith('Analise os dados abaixo')) return { output: portfolioOutput };
 
     const text = messageText(args);
     const final = text.includes('consolide toda a entrevista');
@@ -120,6 +122,7 @@ const context = {
 };
 
 vm.createContext(context);
+vm.runInContext(transpileModule(readFileSync('src/lib/link-portfolio.ts', 'utf8').replace(/export /g, ''), { compilerOptions: { module: ModuleKind.None, target: 9 } }).outputText, context);
 vm.runInContext(transpileModule(source + '\nglobalThis.handler = handler;', {
   compilerOptions: { module: ModuleKind.None, target: 9 },
 }).outputText, context);
@@ -256,3 +259,22 @@ assert.ok(!pageSource.includes('Feedback Astra'));
 assert.ok(!recorderSource.includes('O Astra cruza'));
 
 console.log('PASS: Link 2027.1 rubric, five-question closing, timeout handling, paused practice clock, concise candidate-facing feedback, timed official mode, English segment, Portfolio context, Astra-only final reasoning, evidence-gated scoring, public reviewer landing, live video preview and multi-frame visual review.');
+
+const portfolio = { activities: [{ title: 'Feira de trocas', category: 'Voluntariado', period: '3 meses', role: 'Organizador', actions: 'Organizei uma feira de trocas e coordenei quatro voluntários.', challenge: 'Negociar espaço', results: '30 participantes declarados', learning: 'Melhorei a organização', evidence: 'Lista de participantes' }], context: '2 horas por semana', academic: '', documentText: '', motivation: '' };
+portfolioOutput = { summary: 'Boa ação, comprovação parcial.', criteria: ['Completude', 'Clareza', 'Pertinência', 'Consistência documental'].map(name => ({ name, level: 3, excerpt: portfolio.activities[0].actions, reasoning: 'Ação descrita.', nextStep: 'Anexe registros datados.' })), activities: [{ index: 0, difficulty: 'Intermediária: coordenação local.', contribution: 'Organização declarada.', impact: 'Público autodeclarado.', evidenceGap: 'Registro de presença.', question: 'Como obteve o espaço?' }], strengths: ['Entrega própria'], gaps: ['Falta evidência'], questions: ['Quem pode confirmar?'], suggestions: [{ title: 'Documentar feira', why: 'Comprovar entrega', steps: 'Organize registros existentes', evidence: 'Relatório', effort: '1 hora' }] };
+assert.equal((await request({ phase: 'portfolio', institution: 'link', portfolio }, '')).statusCode, 401);
+assert.equal((await request({ phase: 'portfolio', institution: 'espm', portfolio })).statusCode, 400);
+assert.equal((await request({ phase: 'portfolio', institution: 'link', portfolio: { activities: [] } })).statusCode, 400);
+const evaluation = await request({ phase: 'portfolio', institution: 'link', portfolio });
+assert.equal(evaluation.statusCode, 200);
+assert.equal(evaluation.body.report.criteria[3].level, null);
+assert.equal(evaluation.body.report.readiness, null);
+assert.equal(evaluation.body.report.activities[0].title, 'Feira de trocas');
+const documented = await request({ phase: 'portfolio', institution: 'link', portfolio: { ...portfolio, documentText: portfolio.activities[0].actions } });
+assert.equal(documented.body.report.readiness, 75);
+portfolioOutput.criteria[0].excerpt = 'Inventado: ganhou prêmio internacional';
+assert.equal((await request({ phase: 'portfolio', institution: 'link', portfolio })).body.report.criteria[0].level, null);
+portfolioOutput.activities = [];
+assert.equal((await request({ phase: 'portfolio', institution: 'link', portfolio })).statusCode, 502);
+assert.equal((await request({}, '', 'GET')).body.portfolioEvaluator, 'link-2027.1-v1');
+console.log('PASS: Portfolio authentication, input validation, document gating, literal evidence, server-calculated score and incomplete-response rejection.');
