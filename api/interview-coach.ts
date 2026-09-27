@@ -1,4 +1,4 @@
-import { cleanPortfolio, normalizePortfolioReport, PORTFOLIO_SYSTEM, PORTFOLIO_VERSION } from '../src/lib/link-portfolio.ts';
+import { cleanPortfolio, normalizePortfolioReport, PORTFOLIO_SYSTEM, PORTFOLIO_VERSION } from '../src/lib/link-portfolio.js';
 import { generateText, Output } from 'ai';
 import { createClient } from '@supabase/supabase-js';
 
