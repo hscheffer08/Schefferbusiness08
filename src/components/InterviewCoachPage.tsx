@@ -4,6 +4,7 @@ import InterviewRecorder, { type InterviewAudio } from '@/components/InterviewRe
 import './interview-coach.css';
 import { interviewActivities } from '@/lib/interview-activities';
 import Auth from '@/components/Auth';
+import PortfolioEvaluator from '@/components/PortfolioEvaluator';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { ensureFreshSession } from '@/lib/supabase';
 
@@ -235,6 +236,7 @@ function FeedbackPanel({ feedback, voice, institution }: { feedback: Feedback | 
 function InterviewCoach() {
   const { user, session, loading } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
+  const [workspace, setWorkspace] = useState<'interview' | 'portfolio'>('interview');
   const [institution, setInstitution] = useState<Institution>('link');
   const [course, setCourse] = useState('Administração');
   const [interviewMode, setInterviewMode] = useState<InterviewMode>('official');
@@ -515,6 +517,12 @@ function InterviewCoach() {
     </header>
 
     <main className="relative z-10 mx-auto max-w-7xl px-5 py-8 md:px-8 md:py-12">
+      {!started && <div className="mb-7 flex flex-wrap gap-3" aria-label="Escolha o treino">
+        <button type="button" aria-pressed={workspace === 'interview'} onClick={() => setWorkspace('interview')} className="min-h-12 rounded-xl border px-5 font-bold">Treino de entrevista</button>
+        <button type="button" aria-pressed={workspace === 'portfolio'} onClick={() => { setInstitution('link'); setWorkspace('portfolio'); }} className="min-h-12 rounded-xl border px-5 font-bold">Avaliar portfólio Link</button>
+      </div>}
+      {!started && <div hidden={workspace !== 'portfolio'}><PortfolioEvaluator onUseInInterview={portfolio => { setCandidateContext(value => ({ ...value, portfolio })); setInstitution('link'); setWorkspace('interview'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} /></div>}
+      <div hidden={!started && workspace !== 'interview'}>
       {!started ? <div className="space-y-12">
         <div className="mx-auto max-w-6xl grid gap-8 lg:grid-cols-[.85fr_1.15fr] lg:items-start">
           <section>
@@ -713,6 +721,7 @@ function InterviewCoach() {
 
         <div className="lg:col-span-2"><FeedbackPanel feedback={feedback} voice={voice} institution={institution} /></div>
       </div>}
+      </div>
     </main>
   </div>;
 }
