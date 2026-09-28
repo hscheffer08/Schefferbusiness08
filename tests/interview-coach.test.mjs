@@ -85,7 +85,7 @@ const context = {
     if (args.prompt?.startsWith('Analise os dados abaixo')) return { output: portfolioOutput };
 
     const text = messageText(args);
-    const final = text.includes('consolide toda a entrevista');
+    const final = text.toLowerCase().includes('consolide toda a entrevista');
     return {
       text: JSON.stringify({
         question: 'Tell me about a difficult decision you made.',
@@ -172,25 +172,44 @@ assert.equal(calls.length, callsBeforeStart);
 const history = [{ question: 'Conte uma experiência', answer: 'Organizei uma equipe e aprendi a dividir responsabilidades.', language: 'pt' }];
 const typed = await request({ phase: 'answer', totalQuestions: 1, interviewMode: 'activity', history });
 assert.equal(typed.body.complete, true);
-assert.equal(typed.body.report.sevenDayPlan.length, 7);
-assert.equal(typed.body.report.pressureQuestions.length, 3);
+assert.equal(typed.body.reportPending, true);
+assert.equal(typed.body.report, undefined);
 assert.equal(typed.body.voice, null);
 assert.equal(typed.body.feedback.scores.coragem, 82);
+const typedHistory = [{ ...history[0], feedback: typed.body.feedback.summary, scores: typed.body.feedback.scores, coachingScores: typed.body.feedback.coachingScores }];
+const typedReport = await request({ phase: 'report', totalQuestions: 1, interviewMode: 'activity', history: typedHistory });
+assert.equal(typedReport.statusCode, 200);
+assert.equal(typedReport.body.report.sevenDayPlan.length, 7);
+assert.equal(typedReport.body.report.pressureQuestions.length, 3);
 
 const quickHistory = Array.from({ length: 5 }, (_, i) => ({
   question: 'Pergunta rápida ' + (i + 1),
   answer: 'Resposta suficientemente longa e concreta número ' + (i + 1) + '.',
   language: i === 2 ? 'en' : 'pt',
 }));
+const callsBeforeQuickFinal = calls.length;
 const quickFinal = await request({ phase: 'answer', interviewMode: 'quick', totalQuestions: 5, history: quickHistory, elapsedSeconds: 180 });
 assert.equal(quickFinal.statusCode, 200);
 assert.equal(quickFinal.body.complete, true);
-assert.equal(quickFinal.body.report.sevenDayPlan.length, 7);
+assert.equal(quickFinal.body.reportPending, true);
+assert.equal(quickFinal.body.report, undefined);
+assert.ok(!messageText(calls[callsBeforeQuickFinal]).toLowerCase().includes('consolide toda a entrevista'));
+const quickReportHistory = quickHistory.map((item, index) => index === quickHistory.length - 1
+  ? { ...item, feedback: quickFinal.body.feedback.summary, scores: quickFinal.body.feedback.scores, coachingScores: quickFinal.body.feedback.coachingScores }
+  : item);
+const quickReport = await request({ phase: 'report', interviewMode: 'quick', totalQuestions: 5, history: quickReportHistory, elapsedSeconds: 180 });
+assert.equal(quickReport.statusCode, 200);
+assert.equal(quickReport.body.report.sevenDayPlan.length, 7);
+assert.ok(messageText(calls[calls.length - 1]).toLowerCase().includes('consolide toda a entrevista'));
 
 astraFailure = new Error('Invalid error response format: Gateway request failed: The operation was aborted due to timeout');
 const timeoutResult = await request({ phase: 'answer', interviewMode: 'quick', totalQuestions: 5, history });
 assert.equal(timeoutResult.statusCode, 504);
 assert.ok(timeoutResult.body.error.includes('demorou mais que o esperado'));
+const reportTimeout = await request({ phase: 'report', interviewMode: 'activity', totalQuestions: 1, history: typedHistory });
+assert.equal(reportTimeout.statusCode, 504);
+assert.ok(reportTimeout.body.error.includes('relatório'));
+assert.ok(reportTimeout.body.error.includes('avaliação já está preservada'));
 astraFailure = null;
 
 const twoTurns = [
@@ -243,7 +262,12 @@ const officialHistory = Array.from({ length: 6 }, (_, i) => ({
 }));
 const timedFinal = await request({ phase: 'answer', interviewMode: 'official', history: officialHistory, elapsedSeconds: 1085 });
 assert.equal(timedFinal.body.complete, true);
-assert.equal(timedFinal.body.report.officialCriteria.ingles.score, 78);
+assert.equal(timedFinal.body.reportPending, true);
+const timedReportHistory = officialHistory.map((item, index) => index === officialHistory.length - 1
+  ? { ...item, feedback: timedFinal.body.feedback.summary, scores: timedFinal.body.feedback.scores, coachingScores: timedFinal.body.feedback.coachingScores }
+  : item);
+const timedReport = await request({ phase: 'report', interviewMode: 'official', history: timedReportHistory, elapsedSeconds: 1085 });
+assert.equal(timedReport.body.report.officialCriteria.ingles.score, 78);
 
 const pageSource = readFileSync('src/components/InterviewCoachPage.tsx', 'utf8');
 const recorderSource = readFileSync('src/components/InterviewRecorder.tsx', 'utf8');
@@ -252,7 +276,11 @@ assert.ok(!pageSource.includes('if (showAuth || !user || !session) return'));
 assert.ok(pageSource.includes('A Link publica os critérios e seus pesos, mas não uma escala oficial de 0 a 100'));
 assert.ok(pageSource.includes('não atribui índice ao critério oficial de Inglês'));
 assert.ok(pageSource.includes('const activePauseMs = processingStartedAt.current'));
-assert.ok(pageSource.includes('const requestTimeoutMs = closingRequest ? 230_000'));
+assert.ok(pageSource.includes("const reportRequest = payload.phase === 'report'"));
+assert.ok(pageSource.includes('const requestTimeoutMs = reportRequest ? 225_000'));
+assert.ok(pageSource.includes("phase: 'report'"));
+assert.ok(pageSource.includes('window.sessionStorage.setItem'));
+assert.ok(pageSource.includes('Tentar relatório novamente'));
 assert.ok(pageSource.includes('Analisando sua resposta, fala e vídeo'));
 assert.ok(recorderSource.includes('Prévia ao vivo da câmera'));
 assert.ok(!pageSource.includes('Feedback Astra'));
