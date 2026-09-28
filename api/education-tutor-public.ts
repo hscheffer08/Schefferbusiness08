@@ -35,7 +35,12 @@ export default async function handler(req: any, res: any) {
     const body = req.body || {};
     const rawMessages = Array.isArray(body.messages) ? body.messages : [];
     const context = body.context && typeof body.context === 'object' ? body.context : {};
-    const imageDataUrl = typeof body.imageDataUrl === 'string' ? body.imageDataUrl : '';
+    const rawImages = Array.isArray(body.imageDataUrls)
+      ? body.imageDataUrls
+      : typeof body.imageDataUrl === 'string'
+        ? [body.imageDataUrl]
+        : [];
+    const imageDataUrls = rawImages.map((value: unknown) => cleanText(value, 4_800_000)).filter(Boolean).slice(0, 6);
 
     const messages: Msg[] = rawMessages
       .slice(-8)
@@ -46,11 +51,12 @@ export default async function handler(req: any, res: any) {
       .filter((message: Msg) => message.content.length > 0);
 
     if (!messages.length) return json(res, 400, { error: 'Escreva sua dúvida.' });
-    if (imageDataUrl && !/^data:image\/(jpeg|png|webp);base64,/i.test(imageDataUrl)) {
+    if (rawImages.length > 6) return json(res, 400, { error: 'Envie no máximo 6 imagens por mensagem.' });
+    if (imageDataUrls.some((value: string) => !/^data:image\/(jpeg|png|webp);base64,/i.test(value))) {
       return json(res, 400, { error: 'Formato de imagem inválido.' });
     }
-    if (imageDataUrl.length > 4_800_000) {
-      return json(res, 413, { error: 'A foto ficou grande demais. Recorte apenas a questão.' });
+    if (imageDataUrls.reduce((sum: number, value: string) => sum + value.length, 0) > 4_200_000) {
+      return json(res, 413, { error: 'As imagens juntas ficaram grandes demais. Recorte as fotos e tente novamente.' });
     }
 
     const exam = cleanText(context.exam || 'enem', 40).toUpperCase();
@@ -69,12 +75,12 @@ Não invente fonte, banca, ano, número de questão ou gabarito oficial.`;
 
     const modelMessages: any[] = messages.map((message, index) => {
       const isLast = index === messages.length - 1;
-      if (isLast && message.role === 'user' && imageDataUrl) {
+      if (isLast && message.role === 'user' && imageDataUrls.length) {
         return {
           role: 'user',
           content: [
             { type: 'text', text: message.content },
-            { type: 'image', image: imageDataUrl },
+            ...imageDataUrls.map((image: string) => ({ type: 'image', image })),
           ],
         };
       }
