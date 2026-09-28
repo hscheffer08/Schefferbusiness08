@@ -15,6 +15,9 @@ const INTERNAL_RESPONSE_DIRECTIVE = `INSTRUÇÃO INTERNA DE QUALIDADE — NÃO R
 Antes de responder, desconfie da primeira conclusão. Releia o comando, confira dados, sinais, unidades, condicionais, palavras como EXCETO/incorreta/respectivamente e teste a conclusão contra o enunciado. Se faltar informação indispensável, diga exatamente o que falta em vez de chutar.
 Não exponha cadeia interna, auditoria ou bastidores. Entregue resposta objetiva e didática.`;
 
+const MAX_IMAGES = 6;
+const MAX_IMAGE_PAYLOAD_CHARS = 4_200_000;
+
 type Message = {
   role: 'user' | 'assistant';
   content: string;
@@ -84,7 +87,7 @@ function normalizeHistory(value: unknown): Message[] {
 
 async function imageToDataUrl(file: File) {
   const bitmap = await createImageBitmap(file);
-  const max = 1800;
+  const max = 1400;
   const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement('canvas');
   canvas.width = Math.max(1, Math.round(bitmap.width * scale));
@@ -95,7 +98,7 @@ async function imageToDataUrl(file: File) {
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   bitmap.close?.();
-  return canvas.toDataURL('image/jpeg', 0.9);
+  return canvas.toDataURL('image/jpeg', 0.82);
 }
 
 async function tutorRequest(payload: unknown, initialToken: string) {
@@ -140,7 +143,7 @@ export default function AIEducationTutor({ mobileDocked = false }: { mobileDocke
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
   const [errorKind, setErrorKind] = useState<'auth' | 'limit' | 'generic' | ''>('');
-  const [image, setImage] = useState('');
+  const [images, setImages] = useState<string[]>([]);
   const [context, setContext] = useState<TutorContext>({});
   const [messages, setMessages] = useState<Message[]>([]);
   const [studentContext, setStudentContext] = useState<any>({ exam: localStorage.getItem('conectae:active-exam') || 'enem' });
@@ -199,26 +202,51 @@ export default function AIEducationTutor({ mobileDocked = false }: { mobileDocke
     return () => { cancelled = true; };
   }, [open, user]);
 
-  const chooseImage = async (file: File | null) => {
-    if (!file) return;
+  const chooseImages = async (files: FileList | null) => {
+    const selected = Array.from(files || []);
+    if (!selected.length) return;
     setError('');
     setErrorKind('');
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      setError('Use uma imagem JPG, PNG ou WebP.');
+
+    const remaining = MAX_IMAGES - images.length;
+    if (remaining <= 0) {
+      setError(`Você pode enviar até ${MAX_IMAGES} fotos por mensagem.`);
       setErrorKind('generic');
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      setError('A imagem precisa ter até 10 MB.');
+
+    const batch = selected.slice(0, remaining);
+    const invalidType = batch.find(file => !['image/jpeg', 'image/png', 'image/webp'].includes(file.type));
+    if (invalidType) {
+      setError('Use apenas imagens JPG, PNG ou WebP.');
       setErrorKind('generic');
       return;
     }
+    const oversized = batch.find(file => file.size > 10 * 1024 * 1024);
+    if (oversized) {
+      setError('Cada imagem precisa ter até 10 MB.');
+      setErrorKind('generic');
+      return;
+    }
+
     try {
-      setImage(await imageToDataUrl(file));
+      const prepared = await Promise.all(batch.map(imageToDataUrl));
+      const next = [...images, ...prepared];
+      const totalChars = next.reduce((sum, item) => sum + item.length, 0);
+      if (totalChars > MAX_IMAGE_PAYLOAD_CHARS) {
+        setError('As fotos juntas ficaram grandes demais. Remova uma delas ou envie imagens mais recortadas.');
+        setErrorKind('generic');
+        return;
+      }
+      setImages(next);
       setOpen(true);
-      if (!input.trim()) setInput('Analise esta questão, identifique o que ela cobra e me ensine a resolver.');
+      if (!input.trim()) setInput('Analise estas imagens em conjunto, identifique o que a questão cobra e me ensine a resolver.');
+      if (selected.length > remaining) {
+        setError(`Foram anexadas ${remaining} fotos. O limite é de ${MAX_IMAGES} por mensagem.`);
+        setErrorKind('generic');
+      }
     } catch (err: any) {
-      setError(err?.message || 'Não consegui preparar a imagem.');
+      setError(err?.message || 'Não consegui preparar as imagens.');
       setErrorKind('generic');
     }
   };
@@ -242,7 +270,7 @@ export default function AIEducationTutor({ mobileDocked = false }: { mobileDocke
       const requestMessages = recent.map((message, index) => index === recent.length - 1 && message.role === 'user'
         ? { ...message, content: `${message.content}\n\n${INTERNAL_RESPONSE_DIRECTIVE}` }
         : message);
-      const payload = { messages: requestMessages, context: { ...studentContext, ...context }, imageDataUrl: image || undefined, clientId: tutorClientId() || undefined };
+      const payload = { messages: requestMessages, context: { ...studentContext, ...context }, imageDataUrls: images.length ? images : undefined, clientId: tutorClientId() || undefined };
 
       const response = await tutorRequest(payload, token);
       const data = await response.json().catch(() => ({}));
@@ -272,7 +300,7 @@ export default function AIEducationTutor({ mobileDocked = false }: { mobileDocke
         sources: data.sources,
       }]));
       setInput('');
-      setImage('');
+      setImages([]);
       setContext({});
       if (data.offerPlan && data.learningFocus) setPendingFocus(data.learningFocus as LearningFocus);
     } catch (err: any) {
@@ -344,7 +372,7 @@ export default function AIEducationTutor({ mobileDocked = false }: { mobileDocke
   const clearConversation = () => {
     setMessages([]);
     setContext({});
-    setImage('');
+    setImages([]);
     setInput('');
     setError('');
     setErrorKind('');
@@ -405,11 +433,22 @@ export default function AIEducationTutor({ mobileDocked = false }: { mobileDocke
         </div>
       </div>
 
-      {image && <div className="border-t border-[#d7e0ef] bg-[#fbfcff] px-3 py-2"><div className="flex items-center gap-2"><img src={image} alt="Questão anexada" className="h-14 w-14 rounded-lg border border-[#d7e0ef] object-cover"/><div className="min-w-0 flex-1 text-xs font-medium text-[#526681]"><strong className="text-[#142242]">Questão pronta para análise.</strong> A imagem é descartada ao concluir a resposta ou fechar a IA.</div><button onClick={() => setImage('')} className="rounded-lg bg-[#eef3fb] p-2 text-[#31517e]" aria-label="Remover imagem"><Trash2 size={16}/></button></div></div>}
+      {images.length > 0 && <div className="border-t border-[#d7e0ef] bg-[#fbfcff] px-3 py-2">
+        <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1">
+            {images.map((image, index) => <div key={`${image.slice(-24)}-${index}`} className="relative shrink-0">
+              <img src={image} alt={`Imagem anexada ${index + 1}`} className="h-14 w-14 rounded-lg border border-[#d7e0ef] object-cover"/>
+              <button onClick={() => setImages(current => current.filter((_, itemIndex) => itemIndex !== index))} className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-[#172641] text-white shadow" aria-label={`Remover imagem ${index + 1}`}><X size={12}/></button>
+            </div>)}
+          </div>
+          <div className="shrink-0 text-right text-[10px] font-bold text-[#526681]"><strong className="block text-xs text-[#142242]">{images.length}/{MAX_IMAGES} fotos</strong>análise conjunta</div>
+          <button onClick={() => setImages([])} className="rounded-lg bg-[#eef3fb] p-2 text-[#31517e]" aria-label="Remover todas as imagens"><Trash2 size={16}/></button>
+        </div>
+      </div>}
 
       <div className="border-t border-[#d7e0ef] bg-white p-3">
         <div className="flex items-end gap-2 rounded-2xl border border-[#c8d5e9] bg-white p-2 shadow-sm focus-within:border-[#315bea]">
-          <label className="shrink-0 cursor-pointer rounded-xl bg-[#eef3ff] p-2 text-[#315bea]" title="Anexar imagem"><ImagePlus size={19}/><input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={event => { void chooseImage(event.target.files?.[0] || null); event.currentTarget.value = ''; }}/></label>
+          <label className="shrink-0 cursor-pointer rounded-xl bg-[#eef3ff] p-2 text-[#315bea]" title="Anexar fotos"><ImagePlus size={19}/><input type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={event => { void chooseImages(event.target.files); event.currentTarget.value = ''; }}/></label>
           <textarea value={input} onChange={event => { setInput(event.target.value); if (error) { setError(''); setErrorKind(''); } }} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void send(); } }} rows={1} placeholder="Digite sua dúvida ou anexe uma questão…" className="max-h-28 min-h-10 flex-1 resize-none bg-transparent px-1 py-2 text-sm text-[#172641] outline-none placeholder:text-[#7b8ba3]"/>
           <button onClick={() => void send()} disabled={busy || authLoading || !input.trim()} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#315bea] text-white disabled:opacity-40" aria-label="Enviar"><Send size={18}/></button>
         </div>
