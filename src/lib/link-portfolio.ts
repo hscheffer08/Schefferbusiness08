@@ -6,8 +6,8 @@ export const PORTFOLIO_SOURCES = [
   { title: 'Graduação em Administração · proposta do curso', url: 'https://lsb.edu.br/pt-br/adm' },
 ];
 export const PORTFOLIO_CRITERIA = ['Completude', 'Clareza', 'Pertinência', 'Consistência documental'];
-export const PORTFOLIO_CATEGORIES = ['Projeto ou negócio', 'Trabalho ou estágio', 'Voluntariado', 'Esporte', 'Olimpíada ou competição', 'Arte ou cultura', 'Curso ou pesquisa', 'Vivência internacional', 'Responsabilidade familiar ou comunitária', 'Outra experiência'];
-export type PortfolioActivity = { title: string; category: string; period: string; role: string; actions: string; challenge: string; results: string; learning: string; evidence: string };
+export const PORTFOLIO_CATEGORIES = ['Projeto ou negócio', 'Trabalho ou estágio', 'Voluntariado', 'Esporte', 'Olimpíada ou competição', 'Arte ou cultura', 'Curso ou pesquisa', 'Vivência internacional', 'Responsabilidade familiar ou comunitária', 'Outro'];
+export type PortfolioActivity = { title: string; category: string; categoryOther: string; period: string; role: string; actions: string; challenge: string; results: string; learning: string; evidence: string };
 export type PortfolioInput = { activities: PortfolioActivity[]; context: string; academic: string; documentText: string; documentName: string; motivation: string };
 export type PortfolioCriterion = { name: string; level: number | null; excerpt: string; reasoning: string; nextStep: string };
 export type PortfolioReport = {
@@ -24,15 +24,18 @@ export function cleanPortfolio(value: unknown): PortfolioInput {
   const activities = p.activities.map((v: unknown) => {
     if (!v || typeof v !== 'object') throw new Error('Experiência inválida.');
     const a = v as Record<string, unknown>;
-    const result: PortfolioActivity = { title: text(a.title, 160), category: text(a.category, 100), period: text(a.period, 240), role: text(a.role, 800), actions: text(a.actions), challenge: text(a.challenge), results: text(a.results), learning: text(a.learning), evidence: text(a.evidence) };
+    const category = text(a.category, 100);
+    const categoryOther = text(a.categoryOther, 120);
+    const result: PortfolioActivity = { title: text(a.title, 160), category: category === 'Outra experiência' ? 'Outro' : category, categoryOther, period: text(a.period, 240), role: text(a.role, 800), actions: text(a.actions), challenge: text(a.challenge), results: text(a.results), learning: text(a.learning), evidence: text(a.evidence) };
     if (!result.title || result.actions.length < 30) throw new Error('Informe o título e descreva sua atuação em pelo menos 30 caracteres em cada experiência.');
+    if (result.category === 'Outro' && !result.categoryOther) throw new Error('Indique qual foi o tipo da experiência quando escolher “Outro”.');
     return result;
   });
   if (typeof p.documentText === 'string' && p.documentText.length > 30000) throw new Error('O texto dos documentos deve ter até 30 mil caracteres.');
   return { activities, context: text(p.context, 3000), academic: text(p.academic, 3000), motivation: text(p.motivation, 2000), documentText: text(p.documentText, 30000), documentName: text(p.documentName, 200) };
 }
 export function portfolioInterviewContext(p: PortfolioInput) {
-  return p.activities.map((a, i) => `${i + 1}. ${a.title} (${a.category}; ${a.period})\nPapel: ${a.role}\nAções: ${a.actions}\nDesafio: ${a.challenge}\nResultados: ${a.results}\nAprendizado: ${a.learning}\nEvidências declaradas, não autenticadas: ${a.evidence}`).join('\n\n') + `\nContexto: ${p.context}\nMotivação: ${p.motivation}`;
+  return p.activities.map((a, i) => `${i + 1}. ${a.title} (${a.category === 'Outro' ? `Outro — ${a.categoryOther}` : a.category}; ${a.period})\nPapel: ${a.role}\nAções: ${a.actions}\nDesafio: ${a.challenge}\nResultados: ${a.results}\nAprendizado: ${a.learning}\nEvidências declaradas, não autenticadas: ${a.evidence}`).join('\n\n') + `\nContexto: ${p.context}\nMotivação: ${p.motivation}`;
 }
 export const PORTFOLIO_SYSTEM = `Você é um orientador exigente e justo de portfólios de jovens, no Conectaê. Avalia preparação; não seleciona candidatos nem representa a Link.
 BASE OFICIAL VERIFICADA em 27/09/2026: graduação Brasil 2027.1, Manual pp.6/9, Edital pp.6/7. Link Portfolio vale 10 dos 100 pontos da Jornada, é obrigatório, e subsidia a entrevista. Critérios publicados: completude, clareza, pertinência e consistência entre informações e documentos. Não há pesos internos, nota de corte do portfólio ou tabela pública de pontos por atividade. Exames internacionais/ENEM e diplomas são evidências opcionais, sem bônus separado; não penalize ausência. Nunca importe pesos de 2025, critérios do MBA ou critérios da entrevista como se fossem do portfólio. Histórico escolar merece checklist documental, sem inventar média mínima. Inglês falado, coragem em entrevista e postura não são avaliáveis por este formulário.
@@ -47,7 +50,7 @@ Inclua exatamente os quatro critérios e uma análise por experiência na mesma 
 const feedbackLabels: Record<string, string> = {
   documentText: 'conteúdo dos comprovantes', documentName: 'nome do arquivo',
   academic: 'informações escolares', motivation: 'motivação', context: 'contexto',
-  period: 'período', role: 'papel na experiência', actions: 'ações realizadas',
+  period: 'período', role: 'papel na experiência', categoryOther: 'tipo de experiência informado', actions: 'ações realizadas',
   challenge: 'desafio', results: 'resultados', learning: 'aprendizado',
   evidence: 'evidências', evidenceGap: 'pontos a comprovar', nextStep: 'próximo passo',
   readiness: 'índice preparatório', level: 'nível', excerpt: 'trecho citado',
