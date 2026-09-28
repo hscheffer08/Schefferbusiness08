@@ -426,6 +426,8 @@ function InterviewCoach() {
     setError('');
     setFeedback(null);
     setReport(null);
+    setReportPending(false);
+    clearPendingReportSnapshot();
     setTurns([]);
     setAudio(null);
     setVoice(null);
@@ -450,6 +452,21 @@ function InterviewCoach() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function generateFinalReport(historyTurns: Turn[], practiceElapsed: number) {
+    const data = await callApi({
+      institution,
+      course: institution === 'link' ? 'Administração' : course,
+      phase: 'report',
+      history: historyTurns,
+      elapsedSeconds: practiceElapsed,
+    });
+    if (!data.complete || !data.report) throw new Error('O relatório final ficou incompleto. A avaliação continua salva; tente novamente.');
+    setReport(data.report);
+    setReportPending(false);
+    setError('');
+    clearPendingReportSnapshot();
   }
 
   async function sendAnswer() {
@@ -482,18 +499,32 @@ function InterviewCoach() {
         answer: data.voice?.transcript || pendingTurn.answer,
         feedback: data.feedback?.summary,
         scores: data.feedback?.scores,
+        coachingScores: data.feedback?.coachingScores,
         fullFeedback: data.feedback || undefined,
         voice: data.voice,
         delivery: data.voice ? JSON.stringify({ ...data.voice, transcript: undefined }) : undefined,
       };
-      setTurns([...turns, completedTurn]);
+      const completedTurns = [...turns, completedTurn];
+      setTurns(completedTurns);
       setVoice(data.voice || null);
       setAudio(null);
       setFeedback(data.feedback || null);
       setAnswer('');
 
-      if (data.complete && data.report) {
+      if (data.complete && data.reportPending) {
+        setReportPending(true);
+        savePendingReportSnapshot(completedTurns, practiceElapsed);
+        try {
+          await generateFinalReport(completedTurns, practiceElapsed);
+        } catch (reportError) {
+          setError(reportError instanceof Error
+            ? reportError.message
+            : 'A avaliação foi salva, mas o relatório não terminou. Tente gerar o relatório novamente.');
+        }
+      } else if (data.complete && data.report) {
         setReport(data.report);
+        setReportPending(false);
+        clearPendingReportSnapshot();
       } else {
         setQuestion(data.question || '');
         setQuestionNumber(data.questionNumber || questionNumber + 1);
@@ -512,6 +543,25 @@ function InterviewCoach() {
     }
   }
 
+  async function retryReport() {
+    if (busy || !turns.length) return;
+    const requestStarted = Date.now();
+    processingStartedAt.current = requestStarted;
+    setBusy(true);
+    setError('');
+    try {
+      await generateFinalReport(turns, elapsed);
+    } catch (reportError) {
+      setError(reportError instanceof Error
+        ? reportError.message
+        : 'A avaliação continua salva. Tente gerar o relatório novamente.');
+    } finally {
+      aiPausedMs.current += Date.now() - requestStarted;
+      processingStartedAt.current = null;
+      setBusy(false);
+    }
+  }
+
   function clearSession() {
     setStarted(false);
     setQuestion('');
@@ -523,6 +573,8 @@ function InterviewCoach() {
     setTurns([]);
     setFeedback(null);
     setReport(null);
+    setReportPending(false);
+    clearPendingReportSnapshot();
     setError('');
     setAudio(null);
     setVoice(null);
