@@ -275,6 +275,69 @@ function InterviewCoach() {
     return Math.max(0, Math.floor((Date.now() - startedAt.current - aiPausedMs.current - activePauseMs) / 1000));
   };
 
+  const pendingReportStorageKey = user ? 'conectae:interview:pending-report:' + user.id : '';
+
+  function savePendingReportSnapshot(nextTurns: Turn[], practiceElapsed: number) {
+    if (!pendingReportStorageKey) return;
+    window.sessionStorage.setItem(pendingReportStorageKey, JSON.stringify({
+      version: 1,
+      institution,
+      course,
+      interviewMode,
+      candidateContext,
+      turns: nextTurns,
+      elapsed: practiceElapsed,
+      savedAt: Date.now(),
+    }));
+  }
+
+  function clearPendingReportSnapshot() {
+    if (pendingReportStorageKey) window.sessionStorage.removeItem(pendingReportStorageKey);
+  }
+
+  useEffect(() => {
+    if (!user || started || report || reportPending) return;
+    const key = 'conectae:interview:pending-report:' + user.id;
+    const raw = window.sessionStorage.getItem(key);
+    if (!raw) return;
+    try {
+      const snapshot = JSON.parse(raw);
+      if (snapshot?.version !== 1 || !Array.isArray(snapshot.turns) || !snapshot.turns.length) {
+        window.sessionStorage.removeItem(key);
+        return;
+      }
+      const restoredMode: InterviewMode = ['quick', 'official', 'intensive', 'activity'].includes(snapshot.interviewMode)
+        ? snapshot.interviewMode
+        : 'official';
+      const restoredElapsed = Math.max(0, Math.min(3600, Number(snapshot.elapsed) || 0));
+      const restoredTurns = snapshot.turns as Turn[];
+      const lastTurn = restoredTurns[restoredTurns.length - 1];
+      setInstitution('link');
+      setCourse(typeof snapshot.course === 'string' ? snapshot.course : 'Administração');
+      setInterviewMode(restoredMode);
+      if (snapshot.candidateContext && typeof snapshot.candidateContext === 'object') {
+        setCandidateContext({
+          portfolio: String(snapshot.candidateContext.portfolio || ''),
+          prepVideo: String(snapshot.candidateContext.prepVideo || ''),
+          businessCase: String(snapshot.candidateContext.businessCase || ''),
+          whyLink: String(snapshot.candidateContext.whyLink || ''),
+        });
+      }
+      setTurns(restoredTurns);
+      setFeedback(lastTurn?.fullFeedback || null);
+      setVoice(lastTurn?.voice || null);
+      setElapsed(restoredElapsed);
+      setStarted(true);
+      setReportPending(true);
+      setError('');
+      startedAt.current = Date.now() - restoredElapsed * 1000;
+      aiPausedMs.current = 0;
+      processingStartedAt.current = null;
+    } catch {
+      window.sessionStorage.removeItem(key);
+    }
+  }, [user, started, report, reportPending]);
+
   useEffect(() => {
     document.title = 'Treino de entrevistas Link | Conectaê';
     const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
