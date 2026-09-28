@@ -24,6 +24,7 @@ type HistoryItem = {
   language?: Language;
   feedback?: string;
   scores?: Record<string, number | null>;
+  coachingScores?: Record<string, number | null>;
   delivery?: string;
 };
 type CandidateContext = {
@@ -93,6 +94,7 @@ function cleanHistory(value: unknown): HistoryItem[] {
       feedback: trim(candidate?.feedback, 1500),
       delivery: trim(candidate?.delivery, 9000),
       scores: candidate?.scores && typeof candidate.scores === 'object' ? candidate.scores : {},
+      coachingScores: candidate?.coachingScores && typeof candidate.coachingScores === 'object' ? candidate.coachingScores : {},
     }];
   });
 }
@@ -272,12 +274,12 @@ export default async function handler(req: any, res: any) {
     const maxQuestions = institution === 'link' && interviewMode === 'official' ? LINK_OFFICIAL_MAX_QUESTIONS : totalQuestions;
     const elapsedSeconds = Math.max(0, Math.min(3600, Number(body.elapsedSeconds) || 0));
     const course = institution === 'link' ? 'Administração (Business)' : (trim(body.course, 100) || 'curso de graduação');
-    const phase = body.phase === 'start' ? 'start' : 'answer';
+    const phase = body.phase === 'start' ? 'start' : body.phase === 'report' ? 'report' : 'answer';
     const history = cleanHistory(body.history);
     const candidateContext = cleanCandidateContext(body.candidateContext);
 
     if (Array.isArray(body.history) && body.history.length > maxQuestions) return json(res, 400, { error: 'A entrevista já atingiu o limite deste treino.' });
-    if (phase === 'answer' && !history.length) return json(res, 400, { error: 'Escreva ou grave sua resposta antes de continuar.' });
+    if ((phase === 'answer' || phase === 'report') && !history.length) return json(res, 400, { error: phase === 'report' ? 'Não há respostas suficientes para gerar o relatório.' : 'Escreva ou grave sua resposta antes de continuar.' });
 
     if (phase === 'start') {
       return json(res, 200, {
@@ -384,7 +386,10 @@ export default async function handler(req: any, res: any) {
     const hardLimitReached = institution === 'link' && interviewMode === 'official'
       ? completed >= LINK_OFFICIAL_MAX_QUESTIONS
       : completed >= totalQuestions;
-    const isFinal = phase === 'answer' && (officialTimeReached || hardLimitReached);
+    const closingReached = officialTimeReached || hardLimitReached;
+    const isFinalAnswer = phase === 'answer' && closingReached;
+    const isFinal = phase === 'report';
+    if (isFinal && !closingReached) return json(res, 400, { error: 'A entrevista ainda não atingiu o encerramento.' });
     const nextQuestionNumber = completed + 1;
     const nextLanguage: Language = institution === 'link' ? linkLanguageForQuestion(nextQuestionNumber, interviewMode) : 'pt';
     const nextStyle = institution === 'link' ? linkStyleForQuestion(nextQuestionNumber) : 'standard';
@@ -394,10 +399,14 @@ export default async function handler(req: any, res: any) {
       : '';
 
     const languageInstruction = institution === 'link'
-      ? (isFinal ? 'Na consolidação, só atribua score de Inglês se houver evidência oral em inglês em áudio ou vídeo. Se houver apenas resposta escrita em inglês, use ingles=null e explique que fluência verbal, articulação, entonação e ritmo não puderam ser avaliados.' : 'A pergunta ' + nextQuestionNumber + ' deve ser inteiramente em ' + (nextLanguage === 'en' ? 'INGLÊS' : 'PORTUGUÊS') + '. Quando estiver em inglês, mantenha também qualquer follow-up em inglês. Só atribua score de Inglês se houver evidência oral em inglês em áudio ou vídeo; texto em inglês permite coaching de gramática e vocabulário, mas ingles deve ser null por não medir fluência verbal, articulação, entonação e ritmo.')
+      ? (isFinal
+          ? 'Na consolidação, só atribua score de Inglês se houver evidência oral em inglês registrada no histórico. Se houver apenas resposta escrita em inglês, use ingles=null e explique que fluência verbal, articulação, entonação e ritmo não puderam ser avaliados.'
+          : isFinalAnswer
+            ? 'Avalie a última resposta no idioma em que foi solicitada. Só atribua score de Inglês se houver evidência oral em inglês em áudio ou vídeo; texto em inglês permite coaching de gramática e vocabulário, mas ingles deve ser null por não medir fluência verbal, articulação, entonação e ritmo.'
+            : 'A pergunta ' + nextQuestionNumber + ' deve ser inteiramente em ' + (nextLanguage === 'en' ? 'INGLÊS' : 'PORTUGUÊS') + '. Quando estiver em inglês, mantenha também qualquer follow-up em inglês. Só atribua score de Inglês se houver evidência oral em inglês em áudio ou vídeo; texto em inglês permite coaching de gramática e vocabulário, mas ingles deve ser null por não medir fluência verbal, articulação, entonação e ritmo.')
       : '';
 
-    const pressureInstruction = institution === 'link' && nextStyle === 'pressure'
+    const pressureInstruction = !isFinal && !isFinalAnswer && institution === 'link' && nextStyle === 'pressure'
       ? 'A próxima pergunta é um follow-up de pressão. Conteste uma premissa, apresente uma objeção ou peça que o candidato defenda uma decisão difícil. Seja firme sem ser hostil. O objetivo é testar Coragem com evidência observável.'
       : '';
 
@@ -426,15 +435,49 @@ export default async function handler(req: any, res: any) {
       ',"coaching_scores":{"clareza":0,"especificidade":0,"estrutura":0,"concisao":0},"detailed":[{"criterion":"...","evidence":"...","impact":"...","how":"...","example":"...","exercise":"..."}],"structure":{"opening":"...","development":"...","closing":"..."}' + visualShape + '}';
 
     const task = isFinal
-      ? 'Avalie a última resposta e consolide toda a entrevista. Para Link, official_criteria deve resumir os quatro critérios oficiais usando evidências de perguntas específicas e mencionar Pergunta N na evidência. Use score=null quando a evidência for insuficiente, especialmente Inglês sem fala em áudio/vídeo. Retorne {' + feedbackShape + ',"complete":true,"report":{"overall_score":0,"verdict":"...","official_criteria":{"ingles":{"score":null,"evidence":"...","next_step":"..."},"coragem":{"score":null,"evidence":"...","next_step":"..."},"capacidadeTrabalho":{"score":null,"evidence":"...","next_step":"..."},"vontade":{"score":null,"evidence":"...","next_step":"..."}},"strongest_points":["..."],"priority_improvements":["..."],"pressure_questions":["...","...","..."],"seven_day_plan":["dia 1 ...","dia 2 ...","dia 3 ...","dia 4 ...","dia 5 ...","dia 6 ...","dia 7 ..."],"final_tip":"..."}}.'
-      : 'Avalie a resposta mais recente e faça a pergunta ' + nextQuestionNumber + '. A pergunta deve obedecer idioma e estilo solicitados. Retorne {' + feedbackShape + ',"complete":false,"question":"...","question_number":' + nextQuestionNumber + ',"competency":"..."}.'; 
+      ? 'Consolide toda a entrevista em um relatório final usando o histórico já avaliado. Não refaça o feedback da última resposta e não gere uma nova pergunta. Para Link, official_criteria deve resumir os quatro critérios oficiais usando evidências de perguntas específicas e mencionar Pergunta N na evidência. Use score=null quando a evidência for insuficiente, especialmente Inglês sem evidência oral registrada. Retorne {"complete":true,"report":{"overall_score":0,"verdict":"...","official_criteria":{"ingles":{"score":null,"evidence":"...","next_step":"..."},"coragem":{"score":null,"evidence":"...","next_step":"..."},"capacidadeTrabalho":{"score":null,"evidence":"...","next_step":"..."},"vontade":{"score":null,"evidence":"...","next_step":"..."}},"strongest_points":["..."],"priority_improvements":["..."],"pressure_questions":["...","...","..."],"seven_day_plan":["dia 1 ...","dia 2 ...","dia 3 ...","dia 4 ...","dia 5 ...","dia 6 ...","dia 7 ..."],"final_tip":"..."}}.'
+      : isFinalAnswer
+        ? 'Avalie SOMENTE a resposta mais recente. Salve um feedback completo para esta resposta, mas NÃO consolide a entrevista, NÃO gere relatório final e NÃO faça uma nova pergunta. Retorne {' + feedbackShape + ',"complete":true,"report_pending":true}.'
+        : 'Avalie a resposta mais recente e faça a pergunta ' + nextQuestionNumber + '. A pergunta deve obedecer idioma e estilo solicitados. Retorne {' + feedbackShape + ',"complete":false,"question":"...","question_number":' + nextQuestionNumber + ',"competency":"..."}.'; 
 
+    const compactDelivery = (value: string | undefined) => {
+      if (!value) return '';
+      try {
+        const parsed = JSON.parse(value);
+        return JSON.stringify({
+          mediaKind: parsed.mediaKind,
+          duration: parsed.duration,
+          pace: parsed.pace,
+          pauses: parsed.pauses,
+          fillers: parsed.fillers,
+          articulation: parsed.articulation,
+          intonation: parsed.intonation,
+          limitations: parsed.limitations,
+        });
+      } catch {
+        return trim(value, 1200);
+      }
+    };
+    const promptHistory = isFinal
+      ? history.map(item => ({
+          ...item,
+          answer: trim(item.answer, 3500),
+          feedback: trim(item.feedback, 1200),
+          delivery: compactDelivery(item.delivery),
+        }))
+      : history;
+    const promptContext = isFinal ? {
+      portfolio: trim(candidateContext.portfolio, 4500),
+      prepVideo: trim(candidateContext.prepVideo, 1800),
+      businessCase: trim(candidateContext.businessCase, 2800),
+      whyLink: trim(candidateContext.whyLink, 1800),
+    } : candidateContext;
     const promptText = task +
       '\n\nMODO: ' + interviewMode +
       '\nTEMPO DE PRATICA SEM LATENCIA DA IA: ' + elapsedSeconds + ' segundos' +
       (institution === 'link' && interviewMode === 'official' ? '\nALVO OFICIAL: aproximadamente ' + LINK_OFFICIAL_TARGET_SECONDS + ' segundos. Não encerre antes de 18 minutos salvo limite máximo de perguntas.' : '') +
-      '\n\nCONTEXTO DO CANDIDATO:\n' + contextText(candidateContext) +
-      '\n\nHISTORICO:\n' + JSON.stringify(history);
+      '\n\nCONTEXTO DO CANDIDATO:\n' + contextText(promptContext) +
+      '\n\nHISTORICO:\n' + JSON.stringify(promptHistory);
 
     const userContent: any[] = [{ type: 'text', text: promptText }];
     frames.forEach((frame, index) => {
@@ -446,9 +489,9 @@ export default async function handler(req: any, res: any) {
       model: MODEL,
       system,
       messages: [{ role: 'user', content: userContent }],
-      maxOutputTokens: isFinal ? 7500 : 6500,
+      maxOutputTokens: isFinal ? 5000 : 6500,
       maxRetries: 0,
-      abortSignal: AbortSignal.timeout(isFinal ? (frames.length ? 120_000 : 125_000) : (frames.length ? 100_000 : 85_000)),
+      abortSignal: AbortSignal.timeout(isFinal ? 190_000 : (frames.length ? 100_000 : 85_000)),
       output: Output.json({ name: 'interview_coach_result' }),
       providerOptions: {
         openai: { reasoningEffort: 'high' },
@@ -457,11 +500,25 @@ export default async function handler(req: any, res: any) {
     } as any);
 
     const parsed: any = generated.output ?? parseJson(String(generated.text || ''));
-    if (!parsed.feedback?.summary || !Array.isArray(parsed.feedback?.detailed) || !parsed.feedback.detailed.length || (isFinal && !parsed.report?.seven_day_plan?.length)) {
+    if (isFinal) {
+      if (!parsed.report?.seven_day_plan?.length) {
+        return json(res, 502, { error: 'O relatório ficou incompleto. A avaliação já está preservada; tente gerar o relatório novamente.' });
+      }
+    } else if (!parsed.feedback?.summary || !Array.isArray(parsed.feedback?.detailed) || !parsed.feedback.detailed.length) {
       return json(res, 502, { error: 'A análise ficou incompleta. Sua resposta foi preservada; tente novamente.' });
     }
 
-    const feedback = {
+    const feedback = isFinal ? {
+      summary: '',
+      detailed: [],
+      structure: { opening: '', development: '', closing: '' },
+      strength: '',
+      improvement: '',
+      action: '',
+      scores: normalizeScores(institution, {}),
+      coachingScores: normalizeCoachingScores(history[history.length - 1]?.coachingScores),
+      visual: null,
+    } : {
       summary: cleanAiText(parsed.feedback.summary, 1400),
       detailed: parsed.feedback.detailed.slice(0, 8).map((item: any) => ({
         criterion: cleanAiText(item?.criterion, 180),
@@ -490,6 +547,16 @@ export default async function handler(req: any, res: any) {
       headers: { apikey: cfg.key, Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
       body: JSON.stringify({ user_id: user.id, exam_id: institution, has_image: mediaKind === 'video' }),
     }).catch(() => {});
+
+    if (isFinalAnswer) {
+      return json(res, 200, {
+        feedback,
+        voice,
+        model: generated.response.modelId,
+        complete: true,
+        reportPending: true,
+      });
+    }
 
     if (isFinal) {
       const report = parsed.report || {};
@@ -560,7 +627,9 @@ export default async function handler(req: any, res: any) {
   } catch (error: any) {
     console.error('interview-coach failed', error?.message || error);
     if (isTimeoutLikeError(error)) return json(res, 504, {
-      error: 'A análise demorou mais que o esperado. Sua resposta foi preservada. Tente enviar novamente.',
+      error: req.body?.phase === 'report'
+        ? 'O relatório demorou mais que o esperado. A avaliação já está preservada. Tente gerar o relatório novamente.'
+        : 'A análise demorou mais que o esperado. Sua resposta foi preservada. Tente enviar novamente.',
     });
     return json(res, 500, { error: 'A entrevista ficou indisponível. Tente novamente em instantes.' });
   }

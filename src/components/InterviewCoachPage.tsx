@@ -52,6 +52,7 @@ type Turn = {
   language: Language;
   feedback?: string;
   scores?: Scores;
+  coachingScores?: Scores;
   fullFeedback?: Feedback;
   voice?: Voice | null;
   delivery?: string;
@@ -79,6 +80,7 @@ type ApiResult = {
   feedback?: Feedback | null;
   complete?: boolean;
   report?: Report;
+  reportPending?: boolean;
   language?: Language;
   questionStyle?: string;
   targetMinutes?: number | null;
@@ -255,6 +257,7 @@ function InterviewCoach() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [report, setReport] = useState<Report | null>(null);
+  const [reportPending, setReportPending] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [elapsed, setElapsed] = useState(0);
@@ -272,6 +275,78 @@ function InterviewCoach() {
     return Math.max(0, Math.floor((Date.now() - startedAt.current - aiPausedMs.current - activePauseMs) / 1000));
   };
 
+  const pendingReportStorageKey = user ? 'conectae:interview:pending-report:' + user.id : '';
+
+  function savePendingReportSnapshot(nextTurns: Turn[], practiceElapsed: number) {
+    if (!pendingReportStorageKey) return;
+    try {
+      window.sessionStorage.setItem(pendingReportStorageKey, JSON.stringify({
+        version: 1,
+        institution,
+        course,
+        interviewMode,
+        candidateContext,
+        turns: nextTurns,
+        elapsed: practiceElapsed,
+        savedAt: Date.now(),
+      }));
+    } catch {
+      // Persistence is best-effort; report generation must keep working without storage.
+    }
+  }
+
+  function clearPendingReportSnapshot() {
+    if (!pendingReportStorageKey) return;
+    try {
+      window.sessionStorage.removeItem(pendingReportStorageKey);
+    } catch {
+      // Ignore browser storage restrictions.
+    }
+  }
+
+  useEffect(() => {
+    if (!user || started || report || reportPending) return;
+    const key = 'conectae:interview:pending-report:' + user.id;
+    try {
+      const raw = window.sessionStorage.getItem(key);
+      if (!raw) return;
+      const snapshot = JSON.parse(raw);
+      if (snapshot?.version !== 1 || !Array.isArray(snapshot.turns) || !snapshot.turns.length) {
+        window.sessionStorage.removeItem(key);
+        return;
+      }
+      const restoredMode: InterviewMode = ['quick', 'official', 'intensive', 'activity'].includes(snapshot.interviewMode)
+        ? snapshot.interviewMode
+        : 'official';
+      const restoredElapsed = Math.max(0, Math.min(3600, Number(snapshot.elapsed) || 0));
+      const restoredTurns = snapshot.turns as Turn[];
+      const lastTurn = restoredTurns[restoredTurns.length - 1];
+      setInstitution('link');
+      setCourse(typeof snapshot.course === 'string' ? snapshot.course : 'Administração');
+      setInterviewMode(restoredMode);
+      if (snapshot.candidateContext && typeof snapshot.candidateContext === 'object') {
+        setCandidateContext({
+          portfolio: String(snapshot.candidateContext.portfolio || ''),
+          prepVideo: String(snapshot.candidateContext.prepVideo || ''),
+          businessCase: String(snapshot.candidateContext.businessCase || ''),
+          whyLink: String(snapshot.candidateContext.whyLink || ''),
+        });
+      }
+      setTurns(restoredTurns);
+      setFeedback(lastTurn?.fullFeedback || null);
+      setVoice(lastTurn?.voice || null);
+      setElapsed(restoredElapsed);
+      setStarted(true);
+      setReportPending(true);
+      setError('');
+      startedAt.current = Date.now() - restoredElapsed * 1000;
+      aiPausedMs.current = 0;
+      processingStartedAt.current = null;
+    } catch {
+      try { window.sessionStorage.removeItem(key); } catch {}
+    }
+  }, [user, started, report, reportPending]);
+
   useEffect(() => {
     document.title = 'Treino de entrevistas Link | Conectaê';
     const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
@@ -279,10 +354,10 @@ function InterviewCoach() {
   }, []);
 
   useEffect(() => {
-    if (!started || report) return;
+    if (!started || report || reportPending) return;
     const id = window.setInterval(() => setElapsed(currentElapsed()), 1000);
     return () => window.clearInterval(id);
-  }, [started, report]);
+  }, [started, report, reportPending]);
 
   const averageScores = useMemo(() => {
     const result: Scores = {};
@@ -307,14 +382,8 @@ function InterviewCoach() {
     const currentSession = await ensureFreshSession();
     if (!currentSession?.access_token) throw requireLogin();
 
-    const historyLength = Array.isArray(payload.history) ? payload.history.length : 0;
-    const payloadElapsed = Math.max(0, Number(payload.elapsedSeconds) || 0);
-    const closingRequest = payload.phase === 'answer' && (
-      institution === 'link' && interviewMode === 'official'
-        ? historyLength >= 12 || (historyLength >= 6 && payloadElapsed >= 18 * 60)
-        : historyLength >= totalQuestions
-    );
-    const requestTimeoutMs = closingRequest ? 230_000 : payload.audio ? 210_000 : 120_000;
+    const reportRequest = payload.phase === 'report';
+    const requestTimeoutMs = reportRequest ? 225_000 : payload.audio ? 210_000 : 120_000;
 
     const request = (token: string) => fetch('/api/interview-coach', {
       method: 'POST',
@@ -328,7 +397,9 @@ function InterviewCoach() {
       signal: AbortSignal.timeout(requestTimeoutMs),
     }).catch((requestError: unknown) => {
       if (requestError instanceof Error && (requestError.name === 'TimeoutError' || requestError.name === 'AbortError')) {
-        throw new Error('A análise demorou mais que o esperado. Sua resposta foi preservada. Tente enviar novamente.');
+        throw new Error(reportRequest
+          ? 'O relatório demorou mais que o esperado. A avaliação já está preservada. Tente gerar o relatório novamente.'
+          : 'A análise demorou mais que o esperado. Sua resposta foi preservada. Tente enviar novamente.');
       }
       throw requestError;
     });
@@ -344,10 +415,14 @@ function InterviewCoach() {
     try {
       data = await response.json() as ApiResult;
     } catch {
-      if (response.status === 504) throw new Error('A análise demorou mais que o esperado. Sua resposta foi preservada. Tente enviar novamente.');
+      if (response.status === 504) throw new Error(reportRequest
+        ? 'O relatório demorou mais que o esperado. A avaliação já está preservada. Tente gerar o relatório novamente.'
+        : 'A análise demorou mais que o esperado. Sua resposta foi preservada. Tente enviar novamente.');
       throw new Error(response.ok ? 'A resposta da entrevista ficou incompleta. Tente novamente.' : 'Não foi possível continuar agora.');
     }
-    if (!response.ok) throw new Error(data.error || (response.status === 504 ? 'A análise demorou mais que o esperado. Sua resposta foi preservada. Tente enviar novamente.' : 'Não foi possível continuar agora.'));
+    if (!response.ok) throw new Error(data.error || (response.status === 504
+      ? (reportRequest ? 'O relatório demorou mais que o esperado. A avaliação já está preservada. Tente gerar o relatório novamente.' : 'A análise demorou mais que o esperado. Sua resposta foi preservada. Tente enviar novamente.')
+      : 'Não foi possível continuar agora.'));
     return data;
   }
 
@@ -360,6 +435,8 @@ function InterviewCoach() {
     setError('');
     setFeedback(null);
     setReport(null);
+    setReportPending(false);
+    clearPendingReportSnapshot();
     setTurns([]);
     setAudio(null);
     setVoice(null);
@@ -384,6 +461,30 @@ function InterviewCoach() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function generateFinalReport(historyTurns: Turn[], practiceElapsed: number) {
+    const compactHistory = historyTurns.map(({ question, answer, language, feedback, scores, coachingScores, delivery }) => ({
+      question,
+      answer,
+      language,
+      feedback,
+      scores,
+      coachingScores,
+      delivery,
+    }));
+    const data = await callApi({
+      institution,
+      course: institution === 'link' ? 'Administração' : course,
+      phase: 'report',
+      history: compactHistory,
+      elapsedSeconds: practiceElapsed,
+    });
+    if (!data.complete || !data.report) throw new Error('O relatório final ficou incompleto. A avaliação continua salva; tente novamente.');
+    setReport(data.report);
+    setReportPending(false);
+    setError('');
+    clearPendingReportSnapshot();
   }
 
   async function sendAnswer() {
@@ -416,18 +517,32 @@ function InterviewCoach() {
         answer: data.voice?.transcript || pendingTurn.answer,
         feedback: data.feedback?.summary,
         scores: data.feedback?.scores,
+        coachingScores: data.feedback?.coachingScores,
         fullFeedback: data.feedback || undefined,
         voice: data.voice,
         delivery: data.voice ? JSON.stringify({ ...data.voice, transcript: undefined }) : undefined,
       };
-      setTurns([...turns, completedTurn]);
+      const completedTurns = [...turns, completedTurn];
+      setTurns(completedTurns);
       setVoice(data.voice || null);
       setAudio(null);
       setFeedback(data.feedback || null);
       setAnswer('');
 
-      if (data.complete && data.report) {
+      if (data.complete && data.reportPending) {
+        setReportPending(true);
+        savePendingReportSnapshot(completedTurns, practiceElapsed);
+        try {
+          await generateFinalReport(completedTurns, practiceElapsed);
+        } catch (reportError) {
+          setError(reportError instanceof Error
+            ? reportError.message
+            : 'A avaliação foi salva, mas o relatório não terminou. Tente gerar o relatório novamente.');
+        }
+      } else if (data.complete && data.report) {
         setReport(data.report);
+        setReportPending(false);
+        clearPendingReportSnapshot();
       } else {
         setQuestion(data.question || '');
         setQuestionNumber(data.questionNumber || questionNumber + 1);
@@ -446,6 +561,25 @@ function InterviewCoach() {
     }
   }
 
+  async function retryReport() {
+    if (busy || !turns.length) return;
+    const requestStarted = Date.now();
+    processingStartedAt.current = requestStarted;
+    setBusy(true);
+    setError('');
+    try {
+      await generateFinalReport(turns, elapsed);
+    } catch (reportError) {
+      setError(reportError instanceof Error
+        ? reportError.message
+        : 'A avaliação continua salva. Tente gerar o relatório novamente.');
+    } finally {
+      aiPausedMs.current += Date.now() - requestStarted;
+      processingStartedAt.current = null;
+      setBusy(false);
+    }
+  }
+
   function clearSession() {
     setStarted(false);
     setQuestion('');
@@ -457,6 +591,8 @@ function InterviewCoach() {
     setTurns([]);
     setFeedback(null);
     setReport(null);
+    setReportPending(false);
+    clearPendingReportSnapshot();
     setError('');
     setAudio(null);
     setVoice(null);
@@ -658,6 +794,30 @@ function InterviewCoach() {
           <button onClick={reset} className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-[#246cff] px-5 font-black"><RefreshCcw className="h-4 w-4" />Treinar novamente</button>
           <button onClick={() => window.location.assign('/')} className="min-h-12 rounded-xl border border-[#31588e] px-5 font-bold text-[#b5c8e3]">Voltar ao início</button>
         </div>
+      </div> : reportPending ? <div className="mx-auto max-w-3xl">
+        <section className="rounded-[30px] border border-[#31588e] bg-[#06152f] p-6 shadow-2xl shadow-black/30 md:p-9">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#0b2856]">
+              {busy ? <Loader2 className="h-6 w-6 animate-spin text-[#72a5ff]" /> : <CheckCircle2 className="h-6 w-6 text-emerald-300" />}
+            </div>
+            <div>
+              <div className="text-xs font-black uppercase tracking-[.16em] text-[#72a5ff]">Última resposta salva</div>
+              <h1 className="mt-2 text-2xl font-black md:text-4xl">{busy ? 'Gerando seu relatório final…' : 'Sua avaliação está preservada'}</h1>
+              <p className="mt-3 leading-relaxed text-[#b5c8e3]">{busy
+                ? 'A última resposta já foi avaliada. Agora o Astra está apenas consolidando o relatório final, sem reavaliar sua resposta.'
+                : 'O relatório final não terminou, mas suas respostas e a última avaliação continuam salvas nesta sessão. Você pode tentar gerar somente o relatório novamente.'}</p>
+            </div>
+          </div>
+
+          {error && <p className="mt-5 rounded-xl border border-rose-400/25 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">{error}</p>}
+
+          <button onClick={retryReport} disabled={busy} className="mt-5 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#246cff] px-5 font-black disabled:opacity-50">
+            {busy ? <><Loader2 className="h-5 w-5 animate-spin" />Gerando apenas o relatório…</> : <><RefreshCcw className="h-5 w-5" />Tentar relatório novamente</>}
+          </button>
+          <p className="mt-3 text-center text-xs text-[#7891b4]">Atualizar a página não apaga esta etapa pendente nesta sessão.</p>
+        </section>
+
+        <div className="mt-5"><FeedbackPanel feedback={feedback} voice={voice} institution={institution} /></div>
       </div> : <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
         <section className="rounded-[28px] border border-[#234576] bg-[#06152f] shadow-2xl shadow-black/25">
           <div className="border-b border-[#173765] p-5 md:p-6">
