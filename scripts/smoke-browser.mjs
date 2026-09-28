@@ -90,6 +90,18 @@ try {
   await page.getByRole('button', { name: 'Avaliar portfólio Link' }).click();
   await page.getByRole('heading', { name: 'O que sua trajetória demonstra?' }).waitFor({ state: 'visible' });
 
+  const categorySelect = page.locator('#activity-0-category');
+  await categorySelect.selectOption({ label: 'Outro' });
+  const otherCategory = page.locator('#activity-0-category-other');
+  await otherCategory.waitFor({ state: 'visible' });
+  if (!(await otherCategory.getAttribute('required')) && !(await otherCategory.evaluate(node => node.required))) {
+    throw new Error('campo de tipo personalizado não ficou obrigatório ao selecionar Outro');
+  }
+  await otherCategory.fill('Monitoria acadêmica');
+  if ((await otherCategory.inputValue()) !== 'Monitoria acadêmica') {
+    throw new Error('campo de tipo personalizado não aceita texto');
+  }
+
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   if (overflow > 1) throw new Error(`overflow horizontal de ${overflow}px`);
 
