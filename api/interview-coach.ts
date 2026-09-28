@@ -205,7 +205,7 @@ function cleanVisualFeedback(value: any) {
 export default async function handler(req: any, res: any) {
   if (req.method === 'GET') return json(res, 200, {
     ok: true,
-    institutions: ['link', 'espm'],
+    institutions: ['link'],
     sessionModes: ['quick', 'official', 'intensive'],
     sessionLengths: [5, 10, 15],
     linkOfficialMinutes: 20,
@@ -235,7 +235,7 @@ export default async function handler(req: any, res: any) {
     if (error || !user) return json(res, 401, { error: 'Sua sessão expirou. Entre novamente.' });
 
     const body = req.body && typeof req.body === 'object' ? req.body : {};
-    if (body.institution && !['link', 'espm'].includes(String(body.institution))) return json(res, 400, { error: 'Instituição de entrevista não suportada.' });
+    if (body.institution && body.institution !== 'link') return json(res, 400, { error: 'Instituição de entrevista não suportada no momento.' });
 
     if (body.phase === 'portfolio') {
       if (body.institution !== 'link') return json(res, 400, { error: 'O avaliador de portfólio está disponível para a Link.' });
@@ -260,7 +260,7 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    const institution: Institution = body.institution === 'espm' ? 'espm' : 'link';
+    const institution: Institution = 'link';
     const requestedMode = String(body.interviewMode || '');
     const interviewMode: InterviewMode = Number(body.totalQuestions) === 1
       ? 'activity'
