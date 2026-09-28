@@ -435,15 +435,20 @@ export default async function handler(req: any, res: any) {
       ',"coaching_scores":{"clareza":0,"especificidade":0,"estrutura":0,"concisao":0},"detailed":[{"criterion":"...","evidence":"...","impact":"...","how":"...","example":"...","exercise":"..."}],"structure":{"opening":"...","development":"...","closing":"..."}' + visualShape + '}';
 
     const task = isFinal
-      ? 'Avalie a última resposta e consolide toda a entrevista. Para Link, official_criteria deve resumir os quatro critérios oficiais usando evidências de perguntas específicas e mencionar Pergunta N na evidência. Use score=null quando a evidência for insuficiente, especialmente Inglês sem fala em áudio/vídeo. Retorne {' + feedbackShape + ',"complete":true,"report":{"overall_score":0,"verdict":"...","official_criteria":{"ingles":{"score":null,"evidence":"...","next_step":"..."},"coragem":{"score":null,"evidence":"...","next_step":"..."},"capacidadeTrabalho":{"score":null,"evidence":"...","next_step":"..."},"vontade":{"score":null,"evidence":"...","next_step":"..."}},"strongest_points":["..."],"priority_improvements":["..."],"pressure_questions":["...","...","..."],"seven_day_plan":["dia 1 ...","dia 2 ...","dia 3 ...","dia 4 ...","dia 5 ...","dia 6 ...","dia 7 ..."],"final_tip":"..."}}.'
-      : 'Avalie a resposta mais recente e faça a pergunta ' + nextQuestionNumber + '. A pergunta deve obedecer idioma e estilo solicitados. Retorne {' + feedbackShape + ',"complete":false,"question":"...","question_number":' + nextQuestionNumber + ',"competency":"..."}.'; 
+      ? 'Consolide toda a entrevista em um relatório final usando o histórico já avaliado. Não refaça o feedback da última resposta e não gere uma nova pergunta. Para Link, official_criteria deve resumir os quatro critérios oficiais usando evidências de perguntas específicas e mencionar Pergunta N na evidência. Use score=null quando a evidência for insuficiente, especialmente Inglês sem evidência oral registrada. Retorne {"complete":true,"report":{"overall_score":0,"verdict":"...","official_criteria":{"ingles":{"score":null,"evidence":"...","next_step":"..."},"coragem":{"score":null,"evidence":"...","next_step":"..."},"capacidadeTrabalho":{"score":null,"evidence":"...","next_step":"..."},"vontade":{"score":null,"evidence":"...","next_step":"..."}},"strongest_points":["..."],"priority_improvements":["..."],"pressure_questions":["...","...","..."],"seven_day_plan":["dia 1 ...","dia 2 ...","dia 3 ...","dia 4 ...","dia 5 ...","dia 6 ...","dia 7 ..."],"final_tip":"..."}}.'
+      : isFinalAnswer
+        ? 'Avalie SOMENTE a resposta mais recente. Salve um feedback completo para esta resposta, mas NÃO consolide a entrevista, NÃO gere relatório final e NÃO faça uma nova pergunta. Retorne {' + feedbackShape + ',"complete":true,"report_pending":true}.'
+        : 'Avalie a resposta mais recente e faça a pergunta ' + nextQuestionNumber + '. A pergunta deve obedecer idioma e estilo solicitados. Retorne {' + feedbackShape + ',"complete":false,"question":"...","question_number":' + nextQuestionNumber + ',"competency":"..."}.'; 
 
+    const promptHistory = isFinal
+      ? history.map(item => ({ ...item, answer: trim(item.answer, 5000), delivery: trim(item.delivery, 2200) }))
+      : history;
     const promptText = task +
       '\n\nMODO: ' + interviewMode +
       '\nTEMPO DE PRATICA SEM LATENCIA DA IA: ' + elapsedSeconds + ' segundos' +
       (institution === 'link' && interviewMode === 'official' ? '\nALVO OFICIAL: aproximadamente ' + LINK_OFFICIAL_TARGET_SECONDS + ' segundos. Não encerre antes de 18 minutos salvo limite máximo de perguntas.' : '') +
       '\n\nCONTEXTO DO CANDIDATO:\n' + contextText(candidateContext) +
-      '\n\nHISTORICO:\n' + JSON.stringify(history);
+      '\n\nHISTORICO:\n' + JSON.stringify(promptHistory);
 
     const userContent: any[] = [{ type: 'text', text: promptText }];
     frames.forEach((frame, index) => {
@@ -455,9 +460,9 @@ export default async function handler(req: any, res: any) {
       model: MODEL,
       system,
       messages: [{ role: 'user', content: userContent }],
-      maxOutputTokens: isFinal ? 7500 : 6500,
+      maxOutputTokens: isFinal ? 5600 : 6500,
       maxRetries: 0,
-      abortSignal: AbortSignal.timeout(isFinal ? (frames.length ? 120_000 : 125_000) : (frames.length ? 100_000 : 85_000)),
+      abortSignal: AbortSignal.timeout(isFinal ? 170_000 : (frames.length ? 100_000 : 85_000)),
       output: Output.json({ name: 'interview_coach_result' }),
       providerOptions: {
         openai: { reasoningEffort: 'high' },
