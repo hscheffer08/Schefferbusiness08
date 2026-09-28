@@ -273,7 +273,7 @@ function InterviewCoach() {
   };
 
   useEffect(() => {
-    document.title = 'Treino de entrevistas Link e ESPM | Conectaê';
+    document.title = 'Treino de entrevistas Link | Conectaê';
     const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
     if (description) description.content = 'Pratique a entrevista da Link 2027.1 com critérios oficiais, inglês, Portfolio, vídeo em múltiplos frames e feedback por IA.';
   }, []);
@@ -542,7 +542,7 @@ function InterviewCoach() {
           <section className="rounded-[28px] border border-[#234576] bg-gradient-to-b from-[#081a38] to-[#051127] p-5 shadow-2xl shadow-black/30 md:p-7">
             <h2 className="text-xl font-black">Qual entrevista você quer treinar?</h2>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {(Object.keys(institutions) as Institution[]).map(key => {
+              {(['link'] as Institution[]).map(key => {
                 const item = institutions[key];
                 const selected = institution === key;
                 return <button key={key} disabled={busy} onClick={() => { setInstitution(key); if (key === 'link') setInterviewMode('official'); }} aria-pressed={selected} className={'rounded-2xl border p-4 text-left transition ' + (selected ? 'border-[#72a5ff] bg-[#0b2856]' : 'border-[#173765] bg-[#041027] hover:border-[#31588e]')}>
