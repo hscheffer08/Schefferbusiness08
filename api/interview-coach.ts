@@ -471,11 +471,25 @@ export default async function handler(req: any, res: any) {
     } as any);
 
     const parsed: any = generated.output ?? parseJson(String(generated.text || ''));
-    if (!parsed.feedback?.summary || !Array.isArray(parsed.feedback?.detailed) || !parsed.feedback.detailed.length || (isFinal && !parsed.report?.seven_day_plan?.length)) {
+    if (isFinal) {
+      if (!parsed.report?.seven_day_plan?.length) {
+        return json(res, 502, { error: 'O relatório ficou incompleto. A avaliação já está preservada; tente gerar o relatório novamente.' });
+      }
+    } else if (!parsed.feedback?.summary || !Array.isArray(parsed.feedback?.detailed) || !parsed.feedback.detailed.length) {
       return json(res, 502, { error: 'A análise ficou incompleta. Sua resposta foi preservada; tente novamente.' });
     }
 
-    const feedback = {
+    const feedback = isFinal ? {
+      summary: '',
+      detailed: [],
+      structure: { opening: '', development: '', closing: '' },
+      strength: '',
+      improvement: '',
+      action: '',
+      scores: normalizeScores(institution, {}),
+      coachingScores: normalizeCoachingScores(history[history.length - 1]?.coachingScores),
+      visual: null,
+    } : {
       summary: cleanAiText(parsed.feedback.summary, 1400),
       detailed: parsed.feedback.detailed.slice(0, 8).map((item: any) => ({
         criterion: cleanAiText(item?.criterion, 180),
@@ -504,6 +518,16 @@ export default async function handler(req: any, res: any) {
       headers: { apikey: cfg.key, Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
       body: JSON.stringify({ user_id: user.id, exam_id: institution, has_image: mediaKind === 'video' }),
     }).catch(() => {});
+
+    if (isFinalAnswer) {
+      return json(res, 200, {
+        feedback,
+        voice,
+        model: generated.response.modelId,
+        complete: true,
+        reportPending: true,
+      });
+    }
 
     if (isFinal) {
       const report = parsed.report || {};
