@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { ensureFreshSession } from '@/lib/supabase';
 import { PORTFOLIO_CATEGORIES, PORTFOLIO_CRITERIA, PORTFOLIO_SOURCES, cleanPortfolio, portfolioInterviewContext, type PortfolioActivity, type PortfolioInput, type PortfolioReport } from '@/lib/link-portfolio';
 
-const blank = (): PortfolioActivity => ({ title: '', category: PORTFOLIO_CATEGORIES[0], period: '', role: '', actions: '', challenge: '', results: '', learning: '', evidence: '' });
+const blank = (): PortfolioActivity => ({ title: '', category: PORTFOLIO_CATEGORIES[0], categoryOther: '', period: '', role: '', actions: '', challenge: '', results: '', learning: '', evidence: '' });
 const fieldClass = 'mt-2 w-full rounded-xl border border-[#8fa7c6] bg-white p-3 text-base text-[#10213f] placeholder:text-slate-400 outline-none transition focus:border-[#246cff] focus:ring-2 focus:ring-[#246cff]/15';
 const cardClass = 'rounded-2xl border border-[#234576] bg-white p-5 text-[#10213f] shadow-[0_14px_45px_rgba(0,0,0,.16)] md:p-7';
 const primaryFields: { key: keyof PortfolioActivity; label: string; hint: string; max: number }[] = [
@@ -108,7 +108,16 @@ export default function PortfolioEvaluator({ onUseInInterview }: { onUseInInterv
         <div className={cardClass}><h2 className="text-xl font-black">1. Suas experiências</h2><p className="mt-2">Comece pelo essencial: o que você fez, por que foi difícil, o que aconteceu e o que aprendeu. Detalhes extras ficam recolhidos para o formulário não virar um currículo infinito.</p><p className="mt-2 text-sm text-slate-600">Escolha até 8 experiências por análise. Esse limite é do treino, não da Link.</p></div>
         {input.activities.map((a, index) => <article className={cardClass} key={index}>
           <div className="flex items-center justify-between gap-3"><h3 className="text-lg font-bold">Experiência {index + 1}</h3>{input.activities.length > 1 && <button type="button" onClick={() => change({ activities: input.activities.filter((_, i) => i !== index) })} className="flex min-h-11 items-center gap-2 rounded-lg border px-3 text-sm" aria-label={`Remover experiência ${index + 1}`}><Trash2 size={16} />Remover</button>}</div>
-          <div className="mt-4 grid gap-4 md:grid-cols-2"><label className="block font-bold" htmlFor={`activity-${index}-title`}>Título *<input id={`activity-${index}-title`} required maxLength={160} value={a.title} onChange={e => activity(index, 'title', e.target.value)} className={fieldClass} placeholder="Ex.: organizei uma feira de trocas na escola" /></label><label className="block font-bold" htmlFor={`activity-${index}-category`}>Tipo<select id={`activity-${index}-category`} value={a.category} onChange={e => activity(index, 'category', e.target.value)} className={fieldClass}>{PORTFOLIO_CATEGORIES.map(c => <option key={c}>{c}</option>)}</select></label></div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <label className="block font-bold" htmlFor={`activity-${index}-title`}>Título *<input id={`activity-${index}-title`} required maxLength={160} value={a.title} onChange={e => activity(index, 'title', e.target.value)} className={fieldClass} placeholder="Ex.: organizei uma feira de trocas na escola" /></label>
+            <div>
+              <label className="block font-bold" htmlFor={`activity-${index}-category`}>Tipo da experiência<select id={`activity-${index}-category`} value={a.category} onChange={e => {
+                const category = e.target.value;
+                change({ activities: input.activities.map((item, i) => i === index ? { ...item, category, categoryOther: category === 'Outro' ? item.categoryOther : '' } : item) });
+              }} className={fieldClass}>{PORTFOLIO_CATEGORIES.map(c => <option key={c}>{c}</option>)}</select></label>
+              {a.category === 'Outro' && <label className="mt-4 block font-bold" htmlFor={`activity-${index}-category-other`}>Qual tipo de experiência? *<input id={`activity-${index}-category-other`} required maxLength={120} value={a.categoryOther} onChange={e => activity(index, 'categoryOther', e.target.value)} className={fieldClass} placeholder="Ex.: monitoria, grêmio estudantil, atividade religiosa..." /></label>}
+            </div>
+          </div>
           <div className="mt-4 grid gap-4 md:grid-cols-2">{primaryFields.map(f => <label className="block" key={f.key} htmlFor={`activity-${index}-${f.key}`}><span className="font-bold">{f.label}</span><textarea id={`activity-${index}-${f.key}`} rows={3} required={f.key === 'actions'} minLength={f.key === 'actions' ? 30 : undefined} maxLength={f.max} value={a[f.key]} onChange={e => activity(index, f.key, e.target.value)} className={fieldClass} placeholder={f.hint} /></label>)}</div>
           <details className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
             <summary className="cursor-pointer font-bold text-[#214773]">Adicionar detalhes que deixam a análise mais precisa</summary>
