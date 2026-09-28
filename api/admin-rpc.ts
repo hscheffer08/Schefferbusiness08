@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const ALLOWED_RPCS = new Set([
   'get_admin_sessions',
+  'get_admin_dashboard_stats',
   'get_admin_session_answers',
   'get_admin_impact_stats',
   'get_admin_traffic_stats',
