@@ -399,7 +399,11 @@ export default async function handler(req: any, res: any) {
       : '';
 
     const languageInstruction = institution === 'link'
-      ? (isFinal ? 'Na consolidação, só atribua score de Inglês se houver evidência oral em inglês em áudio ou vídeo. Se houver apenas resposta escrita em inglês, use ingles=null e explique que fluência verbal, articulação, entonação e ritmo não puderam ser avaliados.' : 'A pergunta ' + nextQuestionNumber + ' deve ser inteiramente em ' + (nextLanguage === 'en' ? 'INGLÊS' : 'PORTUGUÊS') + '. Quando estiver em inglês, mantenha também qualquer follow-up em inglês. Só atribua score de Inglês se houver evidência oral em inglês em áudio ou vídeo; texto em inglês permite coaching de gramática e vocabulário, mas ingles deve ser null por não medir fluência verbal, articulação, entonação e ritmo.')
+      ? (isFinal
+          ? 'Na consolidação, só atribua score de Inglês se houver evidência oral em inglês registrada no histórico. Se houver apenas resposta escrita em inglês, use ingles=null e explique que fluência verbal, articulação, entonação e ritmo não puderam ser avaliados.'
+          : isFinalAnswer
+            ? 'Avalie a última resposta no idioma em que foi solicitada. Só atribua score de Inglês se houver evidência oral em inglês em áudio ou vídeo; texto em inglês permite coaching de gramática e vocabulário, mas ingles deve ser null por não medir fluência verbal, articulação, entonação e ritmo.'
+            : 'A pergunta ' + nextQuestionNumber + ' deve ser inteiramente em ' + (nextLanguage === 'en' ? 'INGLÊS' : 'PORTUGUÊS') + '. Quando estiver em inglês, mantenha também qualquer follow-up em inglês. Só atribua score de Inglês se houver evidência oral em inglês em áudio ou vídeo; texto em inglês permite coaching de gramática e vocabulário, mas ingles deve ser null por não medir fluência verbal, articulação, entonação e ritmo.')
       : '';
 
     const pressureInstruction = institution === 'link' && nextStyle === 'pressure'
