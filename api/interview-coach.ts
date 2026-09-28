@@ -461,16 +461,16 @@ export default async function handler(req: any, res: any) {
     const promptHistory = isFinal
       ? history.map(item => ({
           ...item,
-          answer: trim(item.answer, 2800),
-          feedback: trim(item.feedback, 900),
+          answer: trim(item.answer, 3500),
+          feedback: trim(item.feedback, 1200),
           delivery: compactDelivery(item.delivery),
         }))
       : history;
     const promptContext = isFinal ? {
-      portfolio: trim(candidateContext.portfolio, 2600),
-      prepVideo: trim(candidateContext.prepVideo, 1200),
-      businessCase: trim(candidateContext.businessCase, 1800),
-      whyLink: trim(candidateContext.whyLink, 1200),
+      portfolio: trim(candidateContext.portfolio, 4500),
+      prepVideo: trim(candidateContext.prepVideo, 1800),
+      businessCase: trim(candidateContext.businessCase, 2800),
+      whyLink: trim(candidateContext.whyLink, 1800),
     } : candidateContext;
     const promptText = task +
       '\n\nMODO: ' + interviewMode +
@@ -489,12 +489,12 @@ export default async function handler(req: any, res: any) {
       model: MODEL,
       system,
       messages: [{ role: 'user', content: userContent }],
-      maxOutputTokens: isFinal ? 4200 : 6500,
+      maxOutputTokens: isFinal ? 5000 : 6500,
       maxRetries: 0,
-      abortSignal: AbortSignal.timeout(isFinal ? 150_000 : (frames.length ? 100_000 : 85_000)),
+      abortSignal: AbortSignal.timeout(isFinal ? 190_000 : (frames.length ? 100_000 : 85_000)),
       output: Output.json({ name: 'interview_coach_result' }),
       providerOptions: {
-        openai: { reasoningEffort: isFinal ? 'medium' : 'high' },
+        openai: { reasoningEffort: 'high' },
         gateway: { user: user.id, tags: ['feature:interview-coach', 'model:astra-final', 'institution:' + institution] },
       },
     } as any);
