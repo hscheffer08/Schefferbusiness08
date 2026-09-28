@@ -279,28 +279,37 @@ function InterviewCoach() {
 
   function savePendingReportSnapshot(nextTurns: Turn[], practiceElapsed: number) {
     if (!pendingReportStorageKey) return;
-    window.sessionStorage.setItem(pendingReportStorageKey, JSON.stringify({
-      version: 1,
-      institution,
-      course,
-      interviewMode,
-      candidateContext,
-      turns: nextTurns,
-      elapsed: practiceElapsed,
-      savedAt: Date.now(),
-    }));
+    try {
+      window.sessionStorage.setItem(pendingReportStorageKey, JSON.stringify({
+        version: 1,
+        institution,
+        course,
+        interviewMode,
+        candidateContext,
+        turns: nextTurns,
+        elapsed: practiceElapsed,
+        savedAt: Date.now(),
+      }));
+    } catch {
+      // Persistence is best-effort; report generation must keep working without storage.
+    }
   }
 
   function clearPendingReportSnapshot() {
-    if (pendingReportStorageKey) window.sessionStorage.removeItem(pendingReportStorageKey);
+    if (!pendingReportStorageKey) return;
+    try {
+      window.sessionStorage.removeItem(pendingReportStorageKey);
+    } catch {
+      // Ignore browser storage restrictions.
+    }
   }
 
   useEffect(() => {
     if (!user || started || report || reportPending) return;
     const key = 'conectae:interview:pending-report:' + user.id;
-    const raw = window.sessionStorage.getItem(key);
-    if (!raw) return;
     try {
+      const raw = window.sessionStorage.getItem(key);
+      if (!raw) return;
       const snapshot = JSON.parse(raw);
       if (snapshot?.version !== 1 || !Array.isArray(snapshot.turns) || !snapshot.turns.length) {
         window.sessionStorage.removeItem(key);
