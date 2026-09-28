@@ -343,7 +343,7 @@ function InterviewCoach() {
       aiPausedMs.current = 0;
       processingStartedAt.current = null;
     } catch {
-      window.sessionStorage.removeItem(key);
+      try { window.sessionStorage.removeItem(key); } catch {}
     }
   }, [user, started, report, reportPending]);
 
