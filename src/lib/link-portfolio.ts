@@ -7,6 +7,7 @@ export const PORTFOLIO_SOURCES = [
 ];
 export const PORTFOLIO_CRITERIA = ['Completude', 'Clareza', 'Pertinência', 'Consistência documental'];
 export const PORTFOLIO_CATEGORIES = ['Projeto ou negócio', 'Trabalho ou estágio', 'Voluntariado', 'Esporte', 'Olimpíada ou competição', 'Arte ou cultura', 'Curso ou pesquisa', 'Vivência internacional', 'Responsabilidade familiar ou comunitária', 'Outro'];
+// “Outro” keeps a separate user-provided label for accurate evaluation.
 export type PortfolioActivity = { title: string; category: string; categoryOther: string; period: string; role: string; actions: string; challenge: string; results: string; learning: string; evidence: string };
 export type PortfolioInput = { activities: PortfolioActivity[]; context: string; academic: string; documentText: string; documentName: string; motivation: string };
 export type PortfolioCriterion = { name: string; level: number | null; excerpt: string; reasoning: string; nextStep: string };
