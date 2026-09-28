@@ -279,7 +279,7 @@ export default async function handler(req: any, res: any) {
     const candidateContext = cleanCandidateContext(body.candidateContext);
 
     if (Array.isArray(body.history) && body.history.length > maxQuestions) return json(res, 400, { error: 'A entrevista já atingiu o limite deste treino.' });
-    if (phase === 'answer' && !history.length) return json(res, 400, { error: 'Escreva ou grave sua resposta antes de continuar.' });
+    if ((phase === 'answer' || phase === 'report') && !history.length) return json(res, 400, { error: phase === 'report' ? 'Não há respostas suficientes para gerar o relatório.' : 'Escreva ou grave sua resposta antes de continuar.' });
 
     if (phase === 'start') {
       return json(res, 200, {
@@ -386,7 +386,10 @@ export default async function handler(req: any, res: any) {
     const hardLimitReached = institution === 'link' && interviewMode === 'official'
       ? completed >= LINK_OFFICIAL_MAX_QUESTIONS
       : completed >= totalQuestions;
-    const isFinal = phase === 'answer' && (officialTimeReached || hardLimitReached);
+    const closingReached = officialTimeReached || hardLimitReached;
+    const isFinalAnswer = phase === 'answer' && closingReached;
+    const isFinal = phase === 'report';
+    if (isFinal && !closingReached) return json(res, 400, { error: 'A entrevista ainda não atingiu o encerramento.' });
     const nextQuestionNumber = completed + 1;
     const nextLanguage: Language = institution === 'link' ? linkLanguageForQuestion(nextQuestionNumber, interviewMode) : 'pt';
     const nextStyle = institution === 'link' ? linkStyleForQuestion(nextQuestionNumber) : 'standard';
