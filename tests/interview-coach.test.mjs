@@ -211,6 +211,9 @@ assert.equal(reportTimeout.statusCode, 504);
 assert.ok(reportTimeout.body.error.includes('relatório'));
 assert.ok(reportTimeout.body.error.includes('avaliação já está preservada'));
 astraFailure = null;
+const reportRetry = await request({ phase: 'report', interviewMode: 'activity', totalQuestions: 1, history: typedHistory });
+assert.equal(reportRetry.statusCode, 200);
+assert.equal(reportRetry.body.report.sevenDayPlan.length, 7);
 
 const twoTurns = [
   history[0],
@@ -280,7 +283,7 @@ assert.ok(pageSource.includes("const reportRequest = payload.phase === 'report'"
 assert.ok(pageSource.includes('const requestTimeoutMs = reportRequest ? 225_000'));
 assert.ok(pageSource.includes("phase: 'report'"));
 assert.ok(pageSource.includes('window.sessionStorage.setItem'));
-assert.ok(pageSource.includes('Tentar relatório novamente'));
+assert.ok(pageSource.includes('Gerar relatório novamente'));
 assert.ok(pageSource.includes('Analisando sua resposta, fala e vídeo'));
 assert.ok(recorderSource.includes('Prévia ao vivo da câmera'));
 assert.ok(!pageSource.includes('Feedback Astra'));
