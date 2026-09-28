@@ -776,6 +776,30 @@ function InterviewCoach() {
           <button onClick={reset} className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-[#246cff] px-5 font-black"><RefreshCcw className="h-4 w-4" />Treinar novamente</button>
           <button onClick={() => window.location.assign('/')} className="min-h-12 rounded-xl border border-[#31588e] px-5 font-bold text-[#b5c8e3]">Voltar ao início</button>
         </div>
+      </div> : reportPending ? <div className="mx-auto max-w-3xl">
+        <section className="rounded-[30px] border border-[#31588e] bg-[#06152f] p-6 shadow-2xl shadow-black/30 md:p-9">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#0b2856]">
+              {busy ? <Loader2 className="h-6 w-6 animate-spin text-[#72a5ff]" /> : <CheckCircle2 className="h-6 w-6 text-emerald-300" />}
+            </div>
+            <div>
+              <div className="text-xs font-black uppercase tracking-[.16em] text-[#72a5ff]">Última resposta salva</div>
+              <h1 className="mt-2 text-2xl font-black md:text-4xl">{busy ? 'Gerando seu relatório final…' : 'Sua avaliação está preservada'}</h1>
+              <p className="mt-3 leading-relaxed text-[#b5c8e3]">{busy
+                ? 'A última resposta já foi avaliada. Agora o Astra está apenas consolidando o relatório final, sem reavaliar sua resposta.'
+                : 'O relatório final não terminou, mas suas respostas e a última avaliação continuam salvas nesta sessão. Você pode tentar gerar somente o relatório novamente.'}</p>
+            </div>
+          </div>
+
+          {error && <p className="mt-5 rounded-xl border border-rose-400/25 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">{error}</p>}
+
+          <button onClick={retryReport} disabled={busy} className="mt-5 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#246cff] px-5 font-black disabled:opacity-50">
+            {busy ? <><Loader2 className="h-5 w-5 animate-spin" />Gerando apenas o relatório…</> : <><RefreshCcw className="h-5 w-5" />Tentar relatório novamente</>}
+          </button>
+          <p className="mt-3 text-center text-xs text-[#7891b4]">Atualizar a página não apaga esta etapa pendente nesta sessão.</p>
+        </section>
+
+        <div className="mt-5"><FeedbackPanel feedback={feedback} voice={voice} institution={institution} /></div>
       </div> : <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
         <section className="rounded-[28px] border border-[#234576] bg-[#06152f] shadow-2xl shadow-black/25">
           <div className="border-b border-[#173765] p-5 md:p-6">
