@@ -455,11 +455,20 @@ function InterviewCoach() {
   }
 
   async function generateFinalReport(historyTurns: Turn[], practiceElapsed: number) {
+    const compactHistory = historyTurns.map(({ question, answer, language, feedback, scores, coachingScores, delivery }) => ({
+      question,
+      answer,
+      language,
+      feedback,
+      scores,
+      coachingScores,
+      delivery,
+    }));
     const data = await callApi({
       institution,
       course: institution === 'link' ? 'Administração' : course,
       phase: 'report',
-      history: historyTurns,
+      history: compactHistory,
       elapsedSeconds: practiceElapsed,
     });
     if (!data.complete || !data.report) throw new Error('O relatório final ficou incompleto. A avaliação continua salva; tente novamente.');
@@ -800,6 +809,25 @@ function InterviewCoach() {
         </section>
 
         <div className="mt-5"><FeedbackPanel feedback={feedback} voice={voice} institution={institution} /></div>
+      </div> : reportPending ? <div className="mx-auto max-w-3xl space-y-5">
+        <section className="rounded-[30px] border border-[#31588e] bg-[#06152f] p-6 text-center shadow-2xl shadow-black/30 md:p-9">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0b2856]">
+            {busy ? <Loader2 className="h-7 w-7 animate-spin text-[#72a5ff]" /> : <CheckCircle2 className="h-7 w-7 text-emerald-300" />}
+          </div>
+          <div className="mt-5 text-xs font-black uppercase tracking-[.16em] text-[#72a5ff]">Última resposta avaliada e preservada</div>
+          <h1 className="mt-2 text-2xl font-black md:text-4xl">{busy ? 'Gerando seu relatório final…' : 'O relatório final ficou pendente'}</h1>
+          <p className="mx-auto mt-3 max-w-2xl leading-relaxed text-[#a9bddc]">
+            {busy
+              ? 'A resposta já foi avaliada. Agora o Astra está apenas consolidando o relatório; sua resposta não será enviada nem avaliada novamente.'
+              : 'Sua resposta e o feedback já estão salvos nesta sessão. Tentar novamente refaz somente o relatório final, sem repetir a avaliação da resposta.'}
+          </p>
+          {error && <p className="mx-auto mt-5 max-w-2xl rounded-xl border border-rose-400/25 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">{error}</p>}
+          <button onClick={retryReport} disabled={busy} className="mt-6 inline-flex min-h-13 items-center justify-center gap-2 rounded-xl bg-[#246cff] px-5 font-black disabled:opacity-50">
+            {busy ? <><Loader2 className="h-4 w-4 animate-spin" />Consolidando relatório…</> : <><RefreshCcw className="h-4 w-4" />Gerar relatório novamente</>}
+          </button>
+          <p className="mt-4 text-xs text-[#7891b4]">Se a página for recarregada, esta etapa pendente pode ser recuperada durante a sessão.</p>
+        </section>
+        <FeedbackPanel feedback={feedback} voice={voice} institution={institution} />
       </div> : <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
         <section className="rounded-[28px] border border-[#234576] bg-[#06152f] shadow-2xl shadow-black/25">
           <div className="border-b border-[#173765] p-5 md:p-6">
