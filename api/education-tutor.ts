@@ -184,7 +184,7 @@ async function callTutorModel(
   question: string,
   examId: string,
   context: TutorContext,
-  imageDataUrl: string,
+  imageDataUrls: string[],
   seenContext: string,
 ) {
   const { baseUrl, apiKey, model, provider } = aiConfig();
@@ -214,10 +214,10 @@ async function callTutorModel(
     contextText ? `Contexto do aluno:\n${contextText}` : '',
   ].filter(Boolean).join('\n\n');
 
-  const userContent: unknown = imageDataUrl
+  const userContent: unknown = imageDataUrls.length
     ? [
-        { type: 'text', text: question || 'Analise esta questão e ensine como resolvê-la.' },
-        { type: 'image_url', image_url: { url: imageDataUrl } },
+        { type: 'text', text: question || 'Analise estas imagens em conjunto e ensine como resolver a questão.' },
+        ...imageDataUrls.map((url) => ({ type: 'image_url', image_url: { url } })),
       ]
     : question;
 
@@ -282,13 +282,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const body = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {}) as Record<string, unknown>;
   const question = resolveQuestion(body);
-  const imageDataUrl = cleanText(body.imageDataUrl);
+  const rawImages = Array.isArray(body.imageDataUrls)
+    ? body.imageDataUrls
+    : body.imageDataUrl
+      ? [body.imageDataUrl]
+      : [];
+  const imageDataUrls = rawImages.map((value) => cleanText(value)).filter(Boolean).slice(0, 6);
+  if (rawImages.length > 6) return json(res, 400, { error: 'Envie no máximo 6 imagens por mensagem.' });
+  if (imageDataUrls.some((value) => !/^data:image\/(jpeg|png|webp);base64,/i.test(value))) {
+    return json(res, 400, { error: 'Formato de imagem inválido.' });
+  }
+  if (imageDataUrls.reduce((sum, value) => sum + value.length, 0) > 4_200_000) {
+    return json(res, 413, { error: 'As imagens juntas ficaram grandes demais. Recorte as fotos e tente novamente.' });
+  }
   const examId = resolveExamId(body);
   const context = body.context && typeof body.context === 'object'
     ? body.context as Record<string, unknown>
     : {};
 
-  if (!question && !imageDataUrl) return json(res, 400, { error: 'Envie uma pergunta ou imagem.' });
+  if (!question && !imageDataUrls.length) return json(res, 400, { error: 'Envie uma pergunta ou imagem.' });
 
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const [{ data: usage, error: usageError }, seenContext] = await Promise.all([
@@ -306,13 +318,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const remainingQuestions: number | null = null;
 
   try {
-    const result = await callTutorModel(question, examId, context, imageDataUrl, seenContext);
+    const result = await callTutorModel(question, examId, context, imageDataUrls, seenContext);
 
     const { error: trackError } = await supabase.from('ai_tutor_usage').insert({
       user_id: userId,
       feature: 'tutor',
       exam_id: examId,
-      has_image: Boolean(imageDataUrl),
+      has_image: imageDataUrls.length > 0,
     });
     if (trackError) console.warn('education-tutor usage write failed', trackError.message);
 
