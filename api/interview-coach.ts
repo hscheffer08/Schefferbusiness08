@@ -24,6 +24,7 @@ type HistoryItem = {
   language?: Language;
   feedback?: string;
   scores?: Record<string, number | null>;
+  coachingScores?: Record<string, number | null>;
   delivery?: string;
 };
 type CandidateContext = {
@@ -93,6 +94,7 @@ function cleanHistory(value: unknown): HistoryItem[] {
       feedback: trim(candidate?.feedback, 1500),
       delivery: trim(candidate?.delivery, 9000),
       scores: candidate?.scores && typeof candidate.scores === 'object' ? candidate.scores : {},
+      coachingScores: candidate?.coachingScores && typeof candidate.coachingScores === 'object' ? candidate.coachingScores : {},
     }];
   });
 }
