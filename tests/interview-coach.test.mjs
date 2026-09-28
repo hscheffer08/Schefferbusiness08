@@ -283,7 +283,7 @@ assert.ok(pageSource.includes("const reportRequest = payload.phase === 'report'"
 assert.ok(pageSource.includes('const requestTimeoutMs = reportRequest ? 225_000'));
 assert.ok(pageSource.includes("phase: 'report'"));
 assert.ok(pageSource.includes('window.sessionStorage.setItem'));
-assert.ok(pageSource.includes('Gerar relatório novamente'));
+assert.ok(pageSource.includes('Tentar relatório novamente'));
 assert.ok(pageSource.includes('Analisando sua resposta, fala e vídeo'));
 assert.ok(recorderSource.includes('Prévia ao vivo da câmera'));
 assert.ok(!pageSource.includes('Feedback Astra'));
