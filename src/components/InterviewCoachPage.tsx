@@ -52,6 +52,7 @@ type Turn = {
   language: Language;
   feedback?: string;
   scores?: Scores;
+  coachingScores?: Scores;
   fullFeedback?: Feedback;
   voice?: Voice | null;
   delivery?: string;
@@ -79,6 +80,7 @@ type ApiResult = {
   feedback?: Feedback | null;
   complete?: boolean;
   report?: Report;
+  reportPending?: boolean;
   language?: Language;
   questionStyle?: string;
   targetMinutes?: number | null;
@@ -255,6 +257,7 @@ function InterviewCoach() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [report, setReport] = useState<Report | null>(null);
+  const [reportPending, setReportPending] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [elapsed, setElapsed] = useState(0);
