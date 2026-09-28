@@ -272,7 +272,7 @@ export default async function handler(req: any, res: any) {
     const maxQuestions = institution === 'link' && interviewMode === 'official' ? LINK_OFFICIAL_MAX_QUESTIONS : totalQuestions;
     const elapsedSeconds = Math.max(0, Math.min(3600, Number(body.elapsedSeconds) || 0));
     const course = institution === 'link' ? 'Administração (Business)' : (trim(body.course, 100) || 'curso de graduação');
-    const phase = body.phase === 'start' ? 'start' : 'answer';
+    const phase = body.phase === 'start' ? 'start' : body.phase === 'report' ? 'report' : 'answer';
     const history = cleanHistory(body.history);
     const candidateContext = cleanCandidateContext(body.candidateContext);
 
