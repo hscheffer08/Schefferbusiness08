@@ -406,7 +406,7 @@ export default async function handler(req: any, res: any) {
             : 'A pergunta ' + nextQuestionNumber + ' deve ser inteiramente em ' + (nextLanguage === 'en' ? 'INGLÊS' : 'PORTUGUÊS') + '. Quando estiver em inglês, mantenha também qualquer follow-up em inglês. Só atribua score de Inglês se houver evidência oral em inglês em áudio ou vídeo; texto em inglês permite coaching de gramática e vocabulário, mas ingles deve ser null por não medir fluência verbal, articulação, entonação e ritmo.')
       : '';
 
-    const pressureInstruction = institution === 'link' && nextStyle === 'pressure'
+    const pressureInstruction = !isFinal && !isFinalAnswer && institution === 'link' && nextStyle === 'pressure'
       ? 'A próxima pergunta é um follow-up de pressão. Conteste uma premissa, apresente uma objeção ou peça que o candidato defenda uma decisão difícil. Seja firme sem ser hostil. O objetivo é testar Coragem com evidência observável.'
       : '';
 
@@ -440,14 +440,43 @@ export default async function handler(req: any, res: any) {
         ? 'Avalie SOMENTE a resposta mais recente. Salve um feedback completo para esta resposta, mas NÃO consolide a entrevista, NÃO gere relatório final e NÃO faça uma nova pergunta. Retorne {' + feedbackShape + ',"complete":true,"report_pending":true}.'
         : 'Avalie a resposta mais recente e faça a pergunta ' + nextQuestionNumber + '. A pergunta deve obedecer idioma e estilo solicitados. Retorne {' + feedbackShape + ',"complete":false,"question":"...","question_number":' + nextQuestionNumber + ',"competency":"..."}.'; 
 
+    const compactDelivery = (value: string | undefined) => {
+      if (!value) return '';
+      try {
+        const parsed = JSON.parse(value);
+        return JSON.stringify({
+          mediaKind: parsed.mediaKind,
+          duration: parsed.duration,
+          pace: parsed.pace,
+          pauses: parsed.pauses,
+          fillers: parsed.fillers,
+          articulation: parsed.articulation,
+          intonation: parsed.intonation,
+          limitations: parsed.limitations,
+        });
+      } catch {
+        return trim(value, 1200);
+      }
+    };
     const promptHistory = isFinal
-      ? history.map(item => ({ ...item, answer: trim(item.answer, 5000), delivery: trim(item.delivery, 2200) }))
+      ? history.map(item => ({
+          ...item,
+          answer: trim(item.answer, 2800),
+          feedback: trim(item.feedback, 900),
+          delivery: compactDelivery(item.delivery),
+        }))
       : history;
+    const promptContext = isFinal ? {
+      portfolio: trim(candidateContext.portfolio, 2600),
+      prepVideo: trim(candidateContext.prepVideo, 1200),
+      businessCase: trim(candidateContext.businessCase, 1800),
+      whyLink: trim(candidateContext.whyLink, 1200),
+    } : candidateContext;
     const promptText = task +
       '\n\nMODO: ' + interviewMode +
       '\nTEMPO DE PRATICA SEM LATENCIA DA IA: ' + elapsedSeconds + ' segundos' +
       (institution === 'link' && interviewMode === 'official' ? '\nALVO OFICIAL: aproximadamente ' + LINK_OFFICIAL_TARGET_SECONDS + ' segundos. Não encerre antes de 18 minutos salvo limite máximo de perguntas.' : '') +
-      '\n\nCONTEXTO DO CANDIDATO:\n' + contextText(candidateContext) +
+      '\n\nCONTEXTO DO CANDIDATO:\n' + contextText(promptContext) +
       '\n\nHISTORICO:\n' + JSON.stringify(promptHistory);
 
     const userContent: any[] = [{ type: 'text', text: promptText }];
@@ -460,12 +489,12 @@ export default async function handler(req: any, res: any) {
       model: MODEL,
       system,
       messages: [{ role: 'user', content: userContent }],
-      maxOutputTokens: isFinal ? 5600 : 6500,
+      maxOutputTokens: isFinal ? 4200 : 6500,
       maxRetries: 0,
-      abortSignal: AbortSignal.timeout(isFinal ? 170_000 : (frames.length ? 100_000 : 85_000)),
+      abortSignal: AbortSignal.timeout(isFinal ? 150_000 : (frames.length ? 100_000 : 85_000)),
       output: Output.json({ name: 'interview_coach_result' }),
       providerOptions: {
-        openai: { reasoningEffort: 'high' },
+        openai: { reasoningEffort: isFinal ? 'medium' : 'high' },
         gateway: { user: user.id, tags: ['feature:interview-coach', 'model:astra-final', 'institution:' + institution] },
       },
     } as any);
