@@ -3,7 +3,7 @@ import { ArrowLeft, Shield, Users, Trophy, TrendingUp, Percent, DollarSign, Load
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import type { AdminSettings } from '@/types';
-import { getAdminSettings, getConsentStats } from '@/lib/api';
+import { getAdminSettings } from '@/lib/api';
 import ReferralAdmin from '@/components/ReferralAdmin';
 import AdminImpact from '@/components/AdminImpact';
 
@@ -71,65 +71,41 @@ export default function Admin({ onBack }: AdminProps) {
       startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     }
 
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      if (!token) throw new Error('Sessão expirada.');
 
-    const [visitorsRes, usersRes, startedRes, completedRes, matchesRes, topUniRes, recentRes] = await Promise.all([
-      startDate
-        ? supabase.from('analytics_events').select('session_id', { count: 'exact', head: false }).gte('created_at', startDate)
-        : supabase.from('analytics_events').select('session_id', { count: 'exact', head: false }),
-      startDate
-        ? supabase.from('user_profiles').select('*', { count: 'exact', head: true }).gte('created_at', startDate)
-        : supabase.from('user_profiles').select('*', { count: 'exact', head: true }),
-      startDate
-        ? supabase.from('analytics_events').select('*', { count: 'exact', head: true }).eq('event_type', 'match_started').gte('created_at', startDate)
-        : supabase.from('analytics_events').select('*', { count: 'exact', head: true }).eq('event_type', 'match_started'),
-      startDate
-        ? supabase.from('analytics_events').select('*', { count: 'exact', head: true }).eq('event_type', 'match_completed').gte('created_at', startDate)
-        : supabase.from('analytics_events').select('*', { count: 'exact', head: true }).eq('event_type', 'match_completed'),
-      startDate
-        ? supabase.from('match_history').select('*', { count: 'exact', head: true }).gte('created_at', startDate)
-        : supabase.from('match_history').select('*', { count: 'exact', head: true }),
-      startDate
-        ? supabase.from('match_history').select('top_university_name').gte('created_at', startDate)
-        : supabase.from('match_history').select('top_university_name'),
-      startDate
-        ? supabase.from('analytics_events').select('event_type, created_at').order('created_at', { ascending: false }).limit(20).gte('created_at', startDate)
-        : supabase.from('analytics_events').select('event_type, created_at').order('created_at', { ascending: false }).limit(20),
-    ]);
+      const response = await fetch('/api/admin-rpc', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          rpc: 'get_admin_dashboard_stats',
+          params: { p_since: startDate },
+        }),
+      });
 
-    const failedQuery = [visitorsRes, usersRes, startedRes, completedRes, matchesRes, topUniRes, recentRes].find((result) => result.error);
-    if (failedQuery?.error) setDashboardError('Algumas métricas não puderam ser atualizadas. Tente novamente.');
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || 'Falha ao carregar métricas.');
 
-    const topUniMap = new Map<string, number>();
-    (topUniRes.data ?? []).forEach((row: { top_university_name: string }) => {
-      topUniMap.set(row.top_university_name, (topUniMap.get(row.top_university_name) ?? 0) + 1);
-    });
-    const topUniversities = Array.from(topUniMap.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 7);
-
-    const consentStats = await getConsentStats(startDate);
-
-    const uniqueSessions = new Set(
-      (visitorsRes.data ?? []).map((row: { session_id: string }) => row.session_id)
-    ).size;
-
-    setStats({
-      totalVisitors: uniqueSessions,
-      totalUsers: usersRes.count ?? 0,
-      quizzesStarted: startedRes.count ?? 0,
-      quizzesCompleted: completedRes.count ?? 0,
-      matchesGenerated: matchesRes.count ?? 0,
-      topUniversities,
-      recentEvents: recentRes.data ?? [],
-      consentAccepted: consentStats.accepted,
-      consentDeclined: consentStats.declined,
-      consentRevoked: consentStats.revoked,
-      consentTotal: consentStats.total,
-      consentByScope: consentStats.byScope,
-    });
-    setLastUpdated(new Date());
-    setLoading(false);
+      const dashboard = json.data as DashboardStats;
+      setStats({
+        ...dashboard,
+        topUniversities: dashboard.topUniversities ?? [],
+        recentEvents: dashboard.recentEvents ?? [],
+        consentByScope: dashboard.consentByScope ?? [],
+      });
+      setLastUpdated(new Date());
+    } catch (err) {
+      console.error('admin dashboard metrics failed', err);
+      setDashboardError('Não foi possível carregar as métricas reais do painel. Tente atualizar novamente.');
+      setStats(null);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
