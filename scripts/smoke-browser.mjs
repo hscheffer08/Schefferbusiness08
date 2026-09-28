@@ -80,6 +80,33 @@ for (const route of routes) {
 }
 
 try {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const response = await page.goto(`${baseUrl}/?planner=aprovacao`, {
+    waitUntil: 'networkidle',
+    timeout: 30_000,
+  });
+  if (!response || !response.ok()) throw new Error(`HTTP ${response?.status() ?? 'sem resposta'}`);
+  await page.locator('.plan6').waitFor({ state: 'visible' });
+  const theme = await page.evaluate(() => {
+    const card = document.querySelector('.plan6-card');
+    const heading = document.querySelector('.plan6 h1');
+    const top = document.querySelector('.plan6-top');
+    if (!card || !heading || !top) return null;
+    return {
+      card: getComputedStyle(card).backgroundColor,
+      heading: getComputedStyle(heading).color,
+      top: getComputedStyle(top).backgroundColor,
+    };
+  });
+  if (!theme) throw new Error('tema do planner não foi encontrado');
+  if (!/rgb\(255, 255, 255\)/.test(theme.card)) throw new Error(`card do planner não está claro: ${theme.card}`);
+  if (!/rgb\((?:15|16|17|18),/.test(theme.heading)) throw new Error(`título do planner não está escuro: ${theme.heading}`);
+  console.log('✓ planner light theme');
+} catch (error) {
+  failures.push(`planner light theme: ${error instanceof Error ? error.message : String(error)}`);
+}
+
+try {
   await page.setViewportSize({ width: 390, height: 844 });
   const response = await page.goto(`${baseUrl}/treino-entrevista`, {
     waitUntil: 'networkidle',
