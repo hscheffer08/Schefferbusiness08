@@ -598,7 +598,9 @@ export default async function handler(req: any, res: any) {
   } catch (error: any) {
     console.error('interview-coach failed', error?.message || error);
     if (isTimeoutLikeError(error)) return json(res, 504, {
-      error: 'A análise demorou mais que o esperado. Sua resposta foi preservada. Tente enviar novamente.',
+      error: req.body?.phase === 'report'
+        ? 'O relatório demorou mais que o esperado. A avaliação já está preservada. Tente gerar o relatório novamente.'
+        : 'A análise demorou mais que o esperado. Sua resposta foi preservada. Tente enviar novamente.',
     });
     return json(res, 500, { error: 'A entrevista ficou indisponível. Tente novamente em instantes.' });
   }
