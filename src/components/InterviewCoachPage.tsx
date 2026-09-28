@@ -282,10 +282,10 @@ function InterviewCoach() {
   }, []);
 
   useEffect(() => {
-    if (!started || report) return;
+    if (!started || report || reportPending) return;
     const id = window.setInterval(() => setElapsed(currentElapsed()), 1000);
     return () => window.clearInterval(id);
-  }, [started, report]);
+  }, [started, report, reportPending]);
 
   const averageScores = useMemo(() => {
     const result: Scores = {};
@@ -310,14 +310,8 @@ function InterviewCoach() {
     const currentSession = await ensureFreshSession();
     if (!currentSession?.access_token) throw requireLogin();
 
-    const historyLength = Array.isArray(payload.history) ? payload.history.length : 0;
-    const payloadElapsed = Math.max(0, Number(payload.elapsedSeconds) || 0);
-    const closingRequest = payload.phase === 'answer' && (
-      institution === 'link' && interviewMode === 'official'
-        ? historyLength >= 12 || (historyLength >= 6 && payloadElapsed >= 18 * 60)
-        : historyLength >= totalQuestions
-    );
-    const requestTimeoutMs = closingRequest ? 230_000 : payload.audio ? 210_000 : 120_000;
+    const reportRequest = payload.phase === 'report';
+    const requestTimeoutMs = reportRequest ? 225_000 : payload.audio ? 210_000 : 120_000;
 
     const request = (token: string) => fetch('/api/interview-coach', {
       method: 'POST',
@@ -331,7 +325,9 @@ function InterviewCoach() {
       signal: AbortSignal.timeout(requestTimeoutMs),
     }).catch((requestError: unknown) => {
       if (requestError instanceof Error && (requestError.name === 'TimeoutError' || requestError.name === 'AbortError')) {
-        throw new Error('A análise demorou mais que o esperado. Sua resposta foi preservada. Tente enviar novamente.');
+        throw new Error(reportRequest
+          ? 'O relatório demorou mais que o esperado. A avaliação já está preservada. Tente gerar o relatório novamente.'
+          : 'A análise demorou mais que o esperado. Sua resposta foi preservada. Tente enviar novamente.');
       }
       throw requestError;
     });
@@ -347,10 +343,14 @@ function InterviewCoach() {
     try {
       data = await response.json() as ApiResult;
     } catch {
-      if (response.status === 504) throw new Error('A análise demorou mais que o esperado. Sua resposta foi preservada. Tente enviar novamente.');
+      if (response.status === 504) throw new Error(reportRequest
+        ? 'O relatório demorou mais que o esperado. A avaliação já está preservada. Tente gerar o relatório novamente.'
+        : 'A análise demorou mais que o esperado. Sua resposta foi preservada. Tente enviar novamente.');
       throw new Error(response.ok ? 'A resposta da entrevista ficou incompleta. Tente novamente.' : 'Não foi possível continuar agora.');
     }
-    if (!response.ok) throw new Error(data.error || (response.status === 504 ? 'A análise demorou mais que o esperado. Sua resposta foi preservada. Tente enviar novamente.' : 'Não foi possível continuar agora.'));
+    if (!response.ok) throw new Error(data.error || (response.status === 504
+      ? (reportRequest ? 'O relatório demorou mais que o esperado. A avaliação já está preservada. Tente gerar o relatório novamente.' : 'A análise demorou mais que o esperado. Sua resposta foi preservada. Tente enviar novamente.')
+      : 'Não foi possível continuar agora.'));
     return data;
   }
 
