@@ -27,22 +27,28 @@ export default function EssayCourse() {
   let alive = true;
   setAccess(false); setError('');
   if (!userId || !supabase) { setChecking(false); return; }
-  const localGrant = window.localStorage.getItem(`essay-course-access:${userId}`) === 'granted';
-  if (localGrant) { setAccess(true); setChecking(false); return; }
   setChecking(true);
   void supabase.rpc('has_essay_course_access').then(({ data, error: issue }) => {
    if (!alive) return;
-   if (issue) setError('Não foi possível verificar seu acesso. Tente novamente.');
-   else setAccess(data === true);
+   if (issue) {
+    setError('Não foi possível verificar seu acesso. Tente novamente.');
+   } else {
+    const allowed = data === true;
+    setAccess(allowed);
+    if (allowed) window.localStorage.setItem(`essay-course-access:${userId}`, 'granted');
+    else window.localStorage.removeItem(`essay-course-access:${userId}`);
+   }
    setChecking(false);
   });
   return () => { alive = false; };
  }, [userId, reload]);
  async function enter() {
-  if (!user || !password.trim()) return;
+  if (!user || !password.trim() || !supabase) return;
   setBusy(true); setError('');
   try {
-   if (password.trim() !== 'cursoredacao1000') throw new Error('Senha incorreta.');
+   const { data, error: issue } = await supabase.rpc('redeem_essay_course_access', { p_password: password.trim() });
+   if (issue) throw new Error('Não foi possível validar a senha. Tente novamente.');
+   if (data !== true) throw new Error('Senha incorreta.');
    window.localStorage.setItem(`essay-course-access:${user.id}`, 'granted');
    setPassword('');
    setAccess(true);
