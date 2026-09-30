@@ -48,7 +48,7 @@ const quickStudySets: QuickStudySet[] = [
   {
     id: 'genetica',
     title: 'Genética',
-    description: 'Uma revisão visual de DNA, expressão gênica, mutações, Mendel, probabilidade e padrões de dominância.',
+    description: 'Uma revisão visual de DNA, expressão gênica, mutações, Mendel, probabilidade, padrões de dominância, ligação gênica e heranças especiais.',
     pages: [
       { title: 'DNA, gene, cromossomo e genoma', image: '/biology/quick-study/genetica/01-gene-dna-cromossomo-genoma.jpeg', alt: 'Resumo visual sobre DNA, gene, cromossomo e genoma.' },
       { title: 'Genótipo x fenótipo', image: '/biology/quick-study/genetica/02-genotipo-fenotipo.jpeg', alt: 'Resumo visual comparando genótipo e fenótipo.' },
@@ -59,6 +59,12 @@ const quickStudySets: QuickStudySet[] = [
       { title: 'Cruzamento-teste', image: '/biology/quick-study/genetica/07-cruzamento-teste.jpeg', alt: 'Resumo visual sobre cruzamento-teste para descobrir um genótipo.' },
       { title: '2ª Lei de Mendel', image: '/biology/quick-study/genetica/08-segunda-lei-mendel.jpeg', alt: 'Resumo visual sobre a segunda lei de Mendel e segregação independente.' },
       { title: 'Dominância incompleta', image: '/biology/quick-study/genetica/09-dominancia-incompleta.jpeg', alt: 'Resumo visual sobre dominância incompleta.' },
+      { title: 'Ligação gênica e crossing-over', image: '/biology/quick-study/genetica/10-ligacao-genica-crossing-over.avif', alt: 'Resumo visual sobre ligação gênica, crossing-over e gametas recombinantes.' },
+      { title: 'Herança ligada ao sexo', image: '/biology/quick-study/genetica/11-heranca-ligada-ao-sexo.avif', alt: 'Resumo visual sobre cromossomos sexuais e heranças ligadas aos cromossomos X e Y.' },
+      { title: 'Sistema ABO', image: '/biology/quick-study/genetica/12-sistema-abo.avif', alt: 'Resumo visual sobre alelos múltiplos, codominância e tipos sanguíneos do sistema ABO.' },
+      { title: 'Pleiotropia', image: '/biology/quick-study/genetica/13-pleiotropia.avif', alt: 'Resumo visual sobre pleiotropia e os múltiplos efeitos de um único gene.' },
+      { title: 'Alelos letais', image: '/biology/quick-study/genetica/14-alelos-letais.avif', alt: 'Resumo visual sobre alelos letais e alterações nas proporções mendelianas.' },
+      { title: 'Codominância', image: '/biology/quick-study/genetica/15-codominancia.avif', alt: 'Resumo visual sobre codominância e expressão simultânea dos alelos no heterozigoto.' },
     ],
   },
 ];
