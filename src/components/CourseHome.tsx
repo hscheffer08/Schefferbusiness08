@@ -100,7 +100,7 @@ export default function CourseHome() {
             <div className="relative rounded-[28px] border border-[#d9e0f1] bg-white p-5 shadow-[0_26px_70px_rgba(25,45,95,.12)] md:p-7">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <div className="text-xs font-extrabold uppercase tracking-[.15em] text-[#66738c]">Seu plano da semana</div>
+                  <div className="text-xs font-extrabold uppercase tracking-[.15em] text-[#66738c]">Exemplo de plano semanal</div>
                   <h2 className="mt-2 text-2xl font-black tracking-[-.035em]">Rumo à sua meta</h2>
                 </div>
                 <span className="rounded-xl bg-[#eef1ff] p-2.5 text-[#3155e7]"><Target className="h-5 w-5" /></span>
@@ -108,7 +108,7 @@ export default function CourseHome() {
 
               <div className="mt-7 rounded-2xl bg-[#f3f5fb] p-4">
                 <div className="flex items-center justify-between text-sm font-bold">
-                  <span>Progresso semanal</span><span className="text-[#3155e7]">68%</span>
+                  <span>Progresso ilustrativo</span><span className="text-[#3155e7]">68%</span>
                 </div>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#dfe4f0]">
                   <div className="h-full w-[68%] rounded-full bg-gradient-to-r from-[#3155e7] to-[#6c57e8]" />
@@ -166,7 +166,7 @@ export default function CourseHome() {
                 <MessageSquareText className="h-7 w-7 text-[#3155e7]" /><h3 className="mt-8 text-xl font-black text-[#172344]">Entrevista com IA</h3><p className="mt-2 text-sm leading-6 text-[#66738c]">Treine por voz ou texto e veja exatamente o que melhorar antes da entrevista.</p><span className="mt-6 inline-flex items-center gap-2 text-sm font-black text-[#3155e7]">Treinar agora <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></span>
               </button>
               <button onClick={openOfficialBank} className="group rounded-[24px] border border-[#dbe2f0] bg-[#f8f9fd] p-6 text-left hover:-translate-y-1 hover:border-[#aebcff]">
-                <BookOpenCheck className="h-7 w-7 text-[#3155e7]" /><h3 className="mt-8 text-xl font-black">Questões oficiais</h3><p className="mt-2 text-sm leading-6 text-[#66738c]">Pratique por prova, edição e matéria com a fonte sempre visível.</p><span className="mt-6 inline-flex items-center gap-2 text-sm font-black text-[#3155e7]">Abrir banco <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></span>
+                <BookOpenCheck className="h-7 w-7 text-[#3155e7]" /><h3 className="mt-8 text-xl font-black">Questões oficiais</h3><p className="mt-2 text-sm leading-6 text-[#66738c]">Pratique por prova, edição e matéria com acesso à fonte após responder.</p><span className="mt-6 inline-flex items-center gap-2 text-sm font-black text-[#3155e7]">Abrir banco <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></span>
               </button>
               <button onClick={openCollegeTools} className="group rounded-[24px] border border-[#dbe2f0] bg-[#f8f9fd] p-6 text-left hover:-translate-y-1 hover:border-[#aebcff]">
                 <Compass className="h-7 w-7 text-[#6c57e8]" /><h3 className="mt-8 text-xl font-black">Descobrir opções</h3><p className="mt-2 text-sm leading-6 text-[#66738c]">Explore cursos, compare faculdades e faça o teste vocacional.</p><span className="mt-6 inline-flex items-center gap-2 text-sm font-black text-[#6c57e8]">Explorar <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></span>
@@ -198,6 +198,9 @@ export default function CourseHome() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 text-sm text-[#66738c] sm:flex-row">
           <span className="font-black text-[#172344]">Conectaê</span>
           <div className="flex flex-wrap justify-center gap-5 font-semibold">
+            <a href="/faq" className="hover:text-[#3155e7]">Ajuda</a>
+            <a href="/privacidade" className="hover:text-[#3155e7]">Privacidade</a>
+            <a href="/termos" className="hover:text-[#3155e7]">Termos</a>
             <button onClick={openOfficialBank} className="hover:text-[#3155e7]">Questões</button>
             <button onClick={openInterview} className="inline-flex items-center gap-1.5 hover:text-[#3155e7]"><MessageSquareText className="h-4 w-4" /> Entrevistas</button>
             <button onClick={openCollegeTools} className="inline-flex items-center gap-1.5 hover:text-[#3155e7]"><FileText className="h-4 w-4" /> Faculdades</button>

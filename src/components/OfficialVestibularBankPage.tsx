@@ -18,7 +18,7 @@ export default function OfficialVestibularBankPage({onBack}:{onBack:()=>void}){
           <h1>Questões reais, separadas da parte autoral.</h1>
           <p className="plan6-lead">Filtre por vestibular, edição, componente e matéria específica. Cada item mantém a identificação da prova e acesso à fonte oficial correspondente.</p>
         </div>
-        <aside className="plan6-summary"><strong>1.946</strong><small>questões oficiais interativas</small><div className="plan6-summary-row"><span>ENEM + CMMG + FUVEST</span><span><b>fontes rastreadas</b></span></div></aside>
+        <aside className="plan6-summary"><strong>Provas oficiais</strong><small>Consulte o total atualizado nos filtros abaixo</small><div className="plan6-summary-row"><span>ENEM + CMMG + FUVEST</span><span><b>fontes rastreadas</b></span></div></aside>
       </section>
       <div className="plan6-grid"><div className="span12"><OfficialQuestionWorkspaceV3/></div></div>
     </main>
