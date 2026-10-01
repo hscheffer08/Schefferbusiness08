@@ -1,0 +1,47 @@
+name: Diagnose build
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Mobile UX
+        run: npm run validate:mobile-ux
+      - name: Planner auth
+        run: npm run validate:planner-auth
+      - name: AI quality
+        run: npm run validate:ai-quality
+      - name: Interview
+        run: npm run validate:interview
+      - name: Catalog
+        run: npm run validate:catalog
+      - name: Questionnaires
+        run: npm run validate:questionnaires
+      - name: Professional match
+        run: npm run validate:professional-match
+      - name: Course intelligence
+        run: npm run validate:course-intelligence
+      - name: Adaptive planner
+        run: npm run validate:adaptive-planner
+      - name: Adaptive integration
+        run: npm run validate:adaptive-integration
+      - name: New institutions
+        run: npm run validate:new-institutions
+      - name: Official questions
+        run: npm run validate:official-questions
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Vite build
+        run: npx vite build
