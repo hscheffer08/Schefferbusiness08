@@ -238,6 +238,7 @@ function FeedbackPanel({ feedback, voice, institution }: { feedback: Feedback | 
 function InterviewCoach() {
   const { user, session, loading } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
+  const [authStartMode, setAuthStartMode] = useState<'login' | 'signup' | null>(null);
   const [workspace, setWorkspace] = useState<'interview' | 'portfolio'>('interview');
   const [institution, setInstitution] = useState<Institution>('link');
   const [course, setCourse] = useState('Administração');
@@ -374,9 +375,14 @@ function InterviewCoach() {
       ? Math.min(96, Math.round((elapsed / 1200) * 100))
       : started ? Math.round((questionNumber / totalQuestions) * 100) : 0;
 
+  const openAuth = () => {
+    setAuthStartMode(null);
+    setShowAuth(true);
+  };
+
   async function callApi(payload: Record<string, unknown>) {
     const requireLogin = () => {
-      setShowAuth(true);
+      openAuth();
       return new Error('Entre na sua conta para continuar a entrevista.');
     };
     const currentSession = await ensureFreshSession();
@@ -428,7 +434,7 @@ function InterviewCoach() {
 
   async function startInterview() {
     if (!user) {
-      setShowAuth(true);
+      openAuth();
       return;
     }
     setBusy(true);
@@ -609,7 +615,7 @@ function InterviewCoach() {
 
   function startActivity(id: string) {
     if (!user) {
-      setShowAuth(true);
+      openAuth();
       return;
     }
     const item = interviewActivities.find(row => row.id === id);
@@ -628,9 +634,38 @@ function InterviewCoach() {
 
   if (loading) return <div className="flex min-h-screen items-center justify-center gap-3 bg-[#f6f8ff] text-slate-700" role="status"><Loader2 className="h-5 w-5 animate-spin" />Verificando seu acesso…</div>;
 
-  if (showAuth) return <div className="min-h-screen bg-[#f6f8ff] py-10">
-    <p className="mx-auto mb-4 max-w-md px-5 text-center text-slate-700">Entre na sua conta para iniciar o treino. A apresentação e os critérios podem ser consultados sem login.</p>
-    <Auth compact onBack={() => setShowAuth(false)} onSuccess={() => { setShowAuth(false); setError(''); }} onPrivacy={() => window.location.assign('/privacidade')} onTerms={() => window.location.assign('/termos')} />
+  if (showAuth) return <div className="min-h-screen bg-[#f6f8ff] px-5 py-10 text-slate-950">
+    {authStartMode ? <div className="mx-auto max-w-md">
+      <Auth
+        key={authStartMode}
+        compact
+        initialMode={authStartMode}
+        onBack={() => setAuthStartMode(null)}
+        onSuccess={() => { setShowAuth(false); setAuthStartMode(null); setError(''); }}
+        onPrivacy={() => window.location.assign('/privacidade')}
+        onTerms={() => window.location.assign('/termos')}
+      />
+    </div> : <main className="mx-auto flex min-h-[75vh] max-w-md flex-col justify-center">
+      <button type="button" onClick={() => setShowAuth(false)} className="mb-8 inline-flex w-fit items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-900"><ArrowLeft className="h-4 w-4" />Voltar ao treino</button>
+      <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60 sm:p-8">
+        <div className="text-center">
+          <div className="text-xl font-black">Conecta<span className="text-[#246cff]">ê</span></div>
+          <h1 className="mt-5 text-3xl font-black tracking-tight">Como você quer continuar?</h1>
+          <p className="mt-3 text-sm leading-relaxed text-slate-600">Entre se já tem uma conta ou crie seu acesso agora para começar a praticar.</p>
+        </div>
+        <div className="mt-7 grid gap-3">
+          <button type="button" onClick={() => setAuthStartMode('login')} className="rounded-2xl bg-[#246cff] px-5 py-4 text-left text-white shadow-lg shadow-blue-500/20 transition hover:bg-[#1f5ee0]">
+            <span className="block text-base font-black">Entrar</span>
+            <span className="mt-1 block text-xs text-blue-100">Já tenho conta no Conectaê</span>
+          </button>
+          <button type="button" onClick={() => setAuthStartMode('signup')} className="rounded-2xl border-2 border-[#246cff] bg-white px-5 py-4 text-left text-[#174fc5] transition hover:bg-blue-50">
+            <span className="block text-base font-black">Criar conta</span>
+            <span className="mt-1 block text-xs text-slate-600">Sou novo e quero criar meu acesso</span>
+          </button>
+        </div>
+        <p className="mt-5 text-center text-xs leading-relaxed text-slate-500">Criar a conta leva poucos segundos. Depois você volta direto para o treino.</p>
+      </div>
+    </main>}
   </div>;
 
   const filteredActivities = activityFilter === 'Todas' ? interviewActivities : interviewActivities.filter(item => item.category === activityFilter);
@@ -648,7 +683,7 @@ function InterviewCoach() {
         <div className="text-center"><div className="text-lg font-black">Conecta<span className="text-[#72a5ff]">ê</span></div><div className="text-[10px] font-extrabold uppercase tracking-[.17em] text-[#7891b4]">Treino de entrevista</div></div>
         {user && session
           ? <div className="hidden text-xs font-bold text-[#7891b4] sm:block">Análise por IA · voz + vídeo</div>
-          : <button onClick={() => setShowAuth(true)} className="rounded-xl border border-[#31588e] px-3 py-2 text-xs font-black text-[#c5d9f4] hover:border-[#72a5ff]">Entrar para praticar</button>}
+          : <button onClick={openAuth} className="rounded-xl border border-[#31588e] px-3 py-2 text-xs font-black text-[#c5d9f4] hover:border-[#72a5ff]">Entrar para praticar</button>}
       </div>
     </header>
 
