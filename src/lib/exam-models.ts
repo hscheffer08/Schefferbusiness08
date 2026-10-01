@@ -280,8 +280,9 @@ export function mergeRemoteExamModel(base: ExamModel, row?: RemoteExamModelRow |
   } : base.target;
 
   const practiceExamId = asCoreExamId(row.practice_exam_id, base.examId);
-  const allowedQuestionAreas = Array.isArray(raw.allowedQuestionAreas ?? raw.allowed_question_areas)
-    ? (raw.allowedQuestionAreas ?? raw.allowed_question_areas as unknown[]).map(String)
+  const rawAllowed=raw.allowedQuestionAreas??raw.allowed_question_areas;
+  const allowedQuestionAreas = Array.isArray(rawAllowed)
+    ? (rawAllowed as unknown[]).map(String)
     : metrics.map(metric => metric.studyArea ?? metric.key);
 
   return {
