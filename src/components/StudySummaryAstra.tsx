@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { BookOpenCheck, BrainCircuit, CheckCircle2, ChevronDown, Clipboard, Loader2, RotateCcw, Sparkles, Target } from 'lucide-react';
-import { ensureFreshSession } from '@/lib/supabase';
+import { BookOpenCheck, BrainCircuit, CheckCircle2, ChevronDown, Clipboard, Download, FileText, Loader2, RotateCcw, Share2, Sparkles, Target, Trash2 } from 'lucide-react';
+import { ensureFreshSession, supabase } from '@/lib/supabase';
+import { createStudySummaryPdfFile, downloadStudySummaryPdf } from '@/lib/study-summary-pdf';
 
 type Section = { number:number; title:string; objective:string; explanation:string; keyPoints:string[]; connections:string[] };
 type Summary = {
@@ -25,7 +26,31 @@ type ApiResponse = {
 const SUBJECTS=['Biologia','História','Geografia','Filosofia','Sociologia','Português','Literatura','Matemática','Física','Química','Inglês','Outra'];
 const FOCUSES=['ENEM e vestibulares','Ensino médio','Aprofundado','Do zero'];
 const STORAGE='conectae:study-summary:last';
+const LIBRARY_STORAGE='conectae:study-summaries:v1';
+const LIBRARY_LIMIT=18;
 const EMPTY_EXTRAS:Extras={chronology:[],glossary:[],mustRemember:[],commonConfusions:[],finalReview:'',activeRecall:[]};
+type SavedSummary={id:string;createdAt:string;updatedAt:string;summary:Summary};
+
+function isSummary(value:unknown):value is Summary{
+  if(!value||typeof value!=='object')return false;
+  const candidate=value as Partial<Summary>;
+  return typeof candidate.title==='string'&&typeof candidate.subject==='string'&&typeof candidate.topic==='string'&&Array.isArray(candidate.sections)&&candidate.sections.length>0;
+}
+function readLibrary():SavedSummary[]{
+  try{
+    const raw=localStorage.getItem(LIBRARY_STORAGE);if(!raw)return[];
+    const parsed=JSON.parse(raw);if(!Array.isArray(parsed))return[];
+    return parsed.filter((item):item is SavedSummary=>Boolean(item&&typeof item.id==='string'&&typeof item.createdAt==='string'&&typeof item.updatedAt==='string'&&isSummary(item.summary))).slice(0,LIBRARY_LIMIT);
+  }catch{return[]}
+}
+function writeLibrary(items:SavedSummary[]){try{localStorage.setItem(LIBRARY_STORAGE,JSON.stringify(items.slice(0,LIBRARY_LIMIT)))}catch{}}
+function mergeLibrary(...groups:SavedSummary[][]){
+  const merged=new Map<string,SavedSummary>();
+  groups.flat().forEach(item=>{const current=merged.get(item.id);if(!current||item.updatedAt>current.updatedAt)merged.set(item.id,item)});
+  return Array.from(merged.values()).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,LIBRARY_LIMIT);
+}
+function makeSummaryId(){return globalThis.crypto?.randomUUID?.()||`summary-${Date.now()}-${Math.random().toString(36).slice(2,10)}`}
+function savedDate(value:string){try{return new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'short',year:'numeric'}).format(new Date(value))}catch{return''}}
 
 function toText(s:Summary){
   const out=[s.title,'',s.orientation,'',s.introduction,''];
@@ -51,10 +76,28 @@ export default function StudySummaryAstra(){
   const[error,setError]=useState('');
   const[progress,setProgress]=useState('');
   const[copied,setCopied]=useState(false);
+  const[savedSummaries,setSavedSummaries]=useState<SavedSummary[]>([]);
+  const[sharingId,setSharingId]=useState<string|null>(null);
   const chosen=subject==='Outra'?custom.trim():subject;
   const canGenerate=chosen.length>=2&&topic.trim().length>=3&&!busy;
 
   useEffect(()=>{try{const raw=sessionStorage.getItem(STORAGE);if(!raw)return;const x=JSON.parse(raw);if(!x?.summary?.sections?.length)return;setSubject(x.subject||'Biologia');setCustom(x.custom||'');setTopic(x.topic||'');setFocus(x.focus||FOCUSES[0]);setMaterial(x.material||'');setSummary(x.summary)}catch{}},[]);
+  useEffect(()=>{
+    let alive=true;
+    const local=readLibrary();setSavedSummaries(local);
+    void(async()=>{
+      try{
+        const session=await ensureFreshSession();
+        if(!alive||!session?.user?.id||!supabase)return;
+        const{data,error:loadError}=await supabase.from('study_summaries').select('id,summary,created_at,updated_at').eq('user_id',session.user.id).order('updated_at',{ascending:false}).limit(24);
+        if(loadError){console.warn('Could not load saved study summaries',loadError);return}
+        const remote:SavedSummary[]=(data??[]).flatMap((row:any)=>isSummary(row.summary)?[{id:String(row.id),createdAt:String(row.created_at),updatedAt:String(row.updated_at),summary:row.summary as Summary}]:[]);
+        if(!alive)return;
+        setSavedSummaries(current=>{const next=mergeLibrary(current,remote);writeLibrary(next);return next});
+      }catch(error){console.warn('Could not sync saved study summaries',error)}
+    })();
+    return()=>{alive=false};
+  },[]);
 
   async function request(token:string,payload:Record<string,unknown>){
     let lastError='Não foi possível gerar esta parte do resumo.';
@@ -155,16 +198,65 @@ export default function StudySummaryAstra(){
       setSummary(finalSummary);
       setProgress('');
       try{sessionStorage.setItem(STORAGE,JSON.stringify({subject,custom,topic,focus,material,summary:finalSummary}))}catch{}
+      saveGeneratedSummary(finalSummary);
     }catch(e){
       setError(e instanceof Error?e.message:'Não foi possível gerar o resumo agora.');
       setProgress('');
     }finally{setBusy(false)}
   }
 
+  function saveGeneratedSummary(value:Summary){
+    const now=new Date().toISOString();
+    const item:SavedSummary={id:makeSummaryId(),createdAt:now,updatedAt:now,summary:value};
+    setSavedSummaries(current=>{const next=mergeLibrary([item],current);writeLibrary(next);return next});
+    void(async()=>{
+      try{
+        const session=await ensureFreshSession();
+        if(!session?.user?.id||!supabase)return;
+        const{error:saveError}=await supabase.from('study_summaries').upsert({id:item.id,user_id:session.user.id,title:value.title,subject:value.subject,topic:value.topic,focus:value.focus,summary:value,created_at:now,updated_at:now},{onConflict:'id'});
+        if(saveError)console.warn('Could not sync study summary',saveError);
+      }catch(syncError){console.warn('Could not sync study summary',syncError)}
+    })();
+  }
+
   async function copy(){
     if(!summary)return;
     try{await navigator.clipboard.writeText(toText(summary));setCopied(true);setTimeout(()=>setCopied(false),1800)}
     catch{setError('Não foi possível copiar automaticamente.')}
+  }
+
+  function openSaved(item:SavedSummary){
+    const value=item.summary;
+    if(SUBJECTS.includes(value.subject)){setSubject(value.subject);setCustom('')}else{setSubject('Outra');setCustom(value.subject)}
+    setTopic(value.topic);setFocus(FOCUSES.includes(value.focus)?value.focus:FOCUSES[0]);setMaterial('');setSummary(value);setError('');setProgress('');setCopied(false);
+    try{sessionStorage.setItem(STORAGE,JSON.stringify({subject:value.subject,custom:'',topic:value.topic,focus:value.focus,material:'',summary:value}))}catch{}
+    window.setTimeout(()=>document.getElementById('astra-summary-result')?.scrollIntoView({behavior:'smooth',block:'start'}),80);
+  }
+
+  async function sharePdf(value:Summary,id:string){
+    setSharingId(id);setError('');
+    try{
+      const file=createStudySummaryPdfFile(value);
+      const canNativeShare=typeof navigator.share==='function'&&(!navigator.canShare||navigator.canShare({files:[file]}));
+      if(canNativeShare)await navigator.share({title:value.title,text:`Resumo do Astra: ${value.subject} · ${value.topic}`,files:[file]});
+      else downloadStudySummaryPdf(value);
+    }catch(shareError){
+      if(shareError instanceof Error&&shareError.name==='AbortError')return;
+      setError('Não foi possível compartilhar o PDF agora. Você ainda pode baixar o arquivo normalmente.');
+    }finally{setSharingId(null)}
+  }
+
+  function removeSaved(id:string){
+    if(!window.confirm('Remover este resumo salvo?'))return;
+    setSavedSummaries(current=>{const next=current.filter(item=>item.id!==id);writeLibrary(next);return next});
+    void(async()=>{
+      try{
+        const session=await ensureFreshSession();
+        if(!session?.user?.id||!supabase)return;
+        const{error:deleteError}=await supabase.from('study_summaries').delete().eq('id',id).eq('user_id',session.user.id);
+        if(deleteError)console.warn('Could not delete study summary',deleteError);
+      }catch(deleteError){console.warn('Could not delete study summary',deleteError)}
+    })();
   }
 
   function reset(){
@@ -180,6 +272,14 @@ export default function StudySummaryAstra(){
         <h1 className="mt-4 max-w-3xl text-3xl font-black tracking-[-.04em] md:text-5xl">Entenda a matéria em uma sequência que faz sentido.</h1>
         <p className="mt-4 max-w-3xl text-sm leading-7 text-[#a9bddc] md:text-base">O Astra divide automaticamente resumos grandes em partes menores, aprofunda cada uma e junta tudo no final. Assim, o tamanho do conteúdo não fica preso ao limite de uma única resposta.</p>
       </div>
+
+      {!!savedSummaries.length&&<div className="border-b border-[#173765] bg-[#041027] p-5 md:p-7">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="flex items-center gap-2 text-lg font-black"><FileText className="h-5 w-5 text-[#72a5ff]"/>Seus resumos</h2><p className="mt-1 text-xs leading-5 text-[#7891b4]">Abra, baixe ou compartilhe de novo. Quando você está logado, os resumos também ficam sincronizados com sua conta.</p></div><span className="text-[11px] font-black uppercase tracking-[.1em] text-[#607a9f]">{savedSummaries.length} salvo{savedSummaries.length===1?'':'s'}</span></div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">{savedSummaries.map(item=><article key={item.id} className="overflow-hidden rounded-2xl border border-[#234576] bg-[#06152f]">
+          <button type="button" onClick={()=>openSaved(item)} className="flex w-full items-start gap-3 p-4 text-left transition hover:bg-[#071a38]"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#0b2856] text-[#72a5ff]"><FileText className="h-5 w-5"/></span><span className="min-w-0"><strong className="block line-clamp-2 text-sm leading-5">{item.summary.title}</strong><span className="mt-1 block truncate text-xs font-bold text-[#8eb7ff]">{item.summary.subject} · {item.summary.topic}</span><span className="mt-1 block text-[10px] font-bold text-[#607a9f]">Salvo em {savedDate(item.createdAt)}</span></span></button>
+          <div className="flex items-center gap-2 border-t border-[#173765] px-3 py-2.5"><button type="button" onClick={()=>downloadStudySummaryPdf(item.summary)} className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#0b2856] px-3 text-[11px] font-black text-[#b9d2f4]"><Download className="h-3.5 w-3.5"/>PDF</button><button type="button" onClick={()=>void sharePdf(item.summary,item.id)} disabled={sharingId===item.id} className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#31588e] px-3 text-[11px] font-black text-[#dce9fb] disabled:opacity-50">{sharingId===item.id?<Loader2 className="h-3.5 w-3.5 animate-spin"/>:<Share2 className="h-3.5 w-3.5"/>}Compartilhar</button><button type="button" onClick={()=>removeSaved(item.id)} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[#234576] text-[#7891b4] hover:text-rose-200" aria-label="Remover resumo salvo"><Trash2 className="h-3.5 w-3.5"/></button></div>
+        </article>)}</div>
+      </div>}
 
       <div className="grid gap-5 p-5 md:p-7 lg:grid-cols-2">
         <label className="text-xs font-black uppercase tracking-[.12em] text-[#8eb7ff]">Matéria
@@ -205,9 +305,9 @@ export default function StudySummaryAstra(){
       </div>
     </section>
 
-    {summary&&<article className="space-y-5">
+    {summary&&<article id="astra-summary-result" className="scroll-mt-24 space-y-5">
       <section className="rounded-[28px] border border-[#31588e] bg-[#071a38] p-6 md:p-8">
-        <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between"><div><div className="text-[11px] font-black uppercase tracking-[.14em] text-[#72a5ff]">{summary.subject} · {summary.focus}</div><h2 className="mt-2 max-w-3xl text-3xl font-black tracking-[-.04em] md:text-4xl">{summary.title}</h2><p className="mt-4 max-w-4xl whitespace-pre-line text-sm leading-7 text-[#b5c8e3]">{summary.orientation}</p></div><div className="flex gap-2"><button onClick={copy} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#31588e] bg-[#0b2856] px-4 text-xs font-black">{copied?<CheckCircle2 className="h-4 w-4 text-emerald-300"/>:<Clipboard className="h-4 w-4"/>}{copied?'Copiado':'Copiar'}</button><button onClick={reset} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#234576] px-4 text-xs font-black text-[#b5c8e3]"><RotateCcw className="h-4 w-4"/>Novo</button></div></div>
+        <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between"><div><div className="text-[11px] font-black uppercase tracking-[.14em] text-[#72a5ff]">{summary.subject} · {summary.focus}</div><h2 className="mt-2 max-w-3xl text-3xl font-black tracking-[-.04em] md:text-4xl">{summary.title}</h2><p className="mt-4 max-w-4xl whitespace-pre-line text-sm leading-7 text-[#b5c8e3]">{summary.orientation}</p></div><div className="flex flex-wrap gap-2"><button onClick={()=>downloadStudySummaryPdf(summary)} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#246cff] px-4 text-xs font-black"><Download className="h-4 w-4"/>Baixar PDF</button><button onClick={()=>void sharePdf(summary,'current')} disabled={sharingId==='current'} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#72a5ff]/45 bg-[#0b2856] px-4 text-xs font-black disabled:opacity-50">{sharingId==='current'?<Loader2 className="h-4 w-4 animate-spin"/>:<Share2 className="h-4 w-4"/>}Compartilhar</button><button onClick={copy} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#31588e] bg-[#0b2856] px-4 text-xs font-black">{copied?<CheckCircle2 className="h-4 w-4 text-emerald-300"/>:<Clipboard className="h-4 w-4"/>}{copied?'Copiado':'Copiar'}</button><button onClick={reset} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#234576] px-4 text-xs font-black text-[#b5c8e3]"><RotateCcw className="h-4 w-4"/>Novo</button></div></div>
         <div className="mt-6 rounded-2xl border border-[#234576] bg-[#031027] p-5"><div className="flex items-center gap-2 font-black"><BookOpenCheck className="h-5 w-5 text-[#72a5ff]"/>Visão geral</div><p className="mt-3 whitespace-pre-line text-sm leading-7 text-[#c4d4ea]">{summary.introduction}</p></div>
       </section>
 
