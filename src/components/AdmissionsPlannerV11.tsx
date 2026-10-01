@@ -18,7 +18,6 @@ type Priority={metric:ExamMetric;current:number;goal:number;missing:number;score
 type SkillDiagnostic={id:string;exam_id:string;area:string;skill_code:string|null;error_type:string|null;error_detail:string|null;diagnosis:{skill_name?:string}|null;created_at:string;evidence_path:string|null};
 type AdmissionCutoff={institution:string;exam_id:string;course_label:string;variant:string;year:number;modality:string;target_kind:string;target_value:number;max_value:number|null;confidence:string;source_url:string;notes:string|null};
 
-const RETAINED=new Set(['UFMG','USP','Faculdade Ciências Médicas de Minas Gerais','Insper','Link School of Business','Ibmec','Faculdade Israelita de Ciências da Saúde Albert Einstein','FGV EAESP']);
 const GENERIC_ENEM_UNIVERSITY='ENEM — plano geral';
 const GUEST_PREF_KEY='conectae:planner-guest-preference';
 const GUEST_ATTEMPTS_KEY='conectae:planner-guest-attempts';
@@ -149,7 +148,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
       supabase.from('admission_cutoff_references').select('institution,exam_id,course_label,variant,year,modality,target_kind,target_value,max_value,confidence,source_url,notes').order('year',{ascending:false}),
     ]);
     if(!alive)return;
-    const verifiedUniversities=((u??[]) as University[]).filter(x=>RETAINED.has(x.university_name)&&isSupportedInstitutionCourse(x.university_name,x.course_label));
+    const verifiedUniversities=((u??[]) as University[]).filter(x=>isSupportedInstitutionCourse(x.university_name,x.course_label));
     const cleanAreas=(a??[]) as AcademicArea[];
     const genericUniversities:University[]=cleanAreas.map((ar,index)=>({
       area_university_id:-100000-index,
