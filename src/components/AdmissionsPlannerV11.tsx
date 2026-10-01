@@ -295,7 +295,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   },[metrics,appliedValues,attempts,model.examId,dataGoals]);
   const priorities=useMemo(()=>[...diagnosis].sort((a,b)=>b.score-a.score),[diagnosis]);
   const readiness=Math.round((()=>{
-    const rows=diagnosis.map(p=>{const declaredProgress=Math.min(1,p.current/Math.max(1,p.goal));const measuredProgress=p.accuracy==null||p.sampleConfidence<=0?declaredProgress:Math.min(1,p.accuracy/.8);const measuredWeight=p.accuracy==null?0:.35*p.sampleConfidence;const progress=declaredProgress*(1-measuredWeight)+measuredProgress*measuredWeight;const weight=p.metric.weight&&p.metric.weight>0?p.metric.weight:1;return{progress,weight}});
+    const rows=diagnosis.map(p=>{const declaredProgress=Math.min(1,p.current/Math.max(1,p.goal));const measuredProgress=Math.min(1,(p.accuracy??0)/.8);const measuredWeight=.35*p.sampleConfidence;const progress=p.accuracy==null||p.sampleConfidence<=0?declaredProgress:declaredProgress*(1-measuredWeight)+measuredProgress*measuredWeight;const weight=p.metric.weight&&p.metric.weight>0?p.metric.weight:1;return{progress,weight}});
     const totalWeight=rows.reduce((sum,row)=>sum+row.weight,0)||1;
     return rows.reduce((sum,row)=>sum+row.progress*row.weight,0)/totalWeight*100;
   })());
