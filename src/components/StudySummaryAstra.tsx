@@ -58,25 +58,33 @@ export default function StudySummaryAstra(){
 
   async function request(token:string,payload:Record<string,unknown>){
     let lastError='Não foi possível gerar esta parte do resumo.';
+    let activeToken=token;
     for(let attempt=0;attempt<3;attempt++){
       try{
         const response=await fetch('/api/study-summary',{
           method:'POST',
-          headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},
+          headers:{'Content-Type':'application/json',Authorization:'Bearer '+activeToken},
           body:JSON.stringify({...payload,compact:attempt>0}),
-          signal:AbortSignal.timeout(attempt>0?110_000:140_000)
+          signal:AbortSignal.timeout(attempt>0?95_000:115_000)
         });
         let data:ApiResponse={};
         try{data=await response.json() as ApiResponse}catch{}
         if(response.ok)return data;
         lastError=data.error||lastError;
-        if(response.status===401)throw new Error(lastError);
-        if(![500,502,504].includes(response.status)||attempt===2)throw new Error(lastError);
+        if(response.status===401&&attempt<2){
+          const refreshed=await ensureFreshSession(true);
+          if(refreshed?.access_token){
+            activeToken=refreshed.access_token;
+            await wait(250);
+            continue;
+          }
+        }
+        if(![429,500,502,503,504].includes(response.status)||attempt===2)throw new Error(lastError);
       }catch(e){
         lastError=e instanceof Error?e.message:lastError;
         if(attempt===2||/sessão|Entre na sua conta/i.test(lastError))throw new Error(lastError);
       }
-      await wait(700*(attempt+1));
+      await wait(900*(attempt+1));
     }
     throw new Error(lastError);
   }
@@ -100,13 +108,6 @@ export default function StudySummaryAstra(){
 
       setProgress('Estrutura pronta. Escrevendo '+plans.length+' partes em blocos menores…');
 
-      const extrasPromise=request(token,{
-        ...base,
-        phase:'extras',
-        outline,
-        outlineSections:plans
-      }).catch(()=>null);
-
       async function worker(){
         while(true){
           const index=cursor++;
@@ -125,9 +126,14 @@ export default function StudySummaryAstra(){
         }
       }
 
-      await Promise.all(Array.from({length:Math.min(3,plans.length)},()=>worker()));
+      await Promise.all(Array.from({length:Math.min(2,plans.length)},()=>worker()));
       setProgress('Finalizando revisão, glossário e perguntas…');
-      const extrasData=await extrasPromise;
+      const extrasData=await request(token,{
+        ...base,
+        phase:'extras',
+        outline,
+        outlineSections:plans
+      }).catch(()=>null);
       const extras=extrasData?.extras||EMPTY_EXTRAS;
 
       const finalSummary:Summary={
