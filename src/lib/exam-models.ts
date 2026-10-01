@@ -340,5 +340,8 @@ export function isSupportedInstitutionCourse(university: string, course: string)
   if (university === 'Link School of Business') return course === 'Administração';
   if (university === 'Insper') return INSPER_VERIFIED_COURSES.has(course);
   if (getExamId(university) === 'fgv') return FGV_VERIFIED_COURSES.has(course);
-  return false;
+  // Other catalog institutions can still be selected in the approval course.
+  // Until a dedicated institutional exam model is verified, they use the clearly
+  // labeled generic ENEM study model rather than disappearing from the selector.
+  return SITE_PLANNER_COURSE_SET.has(course);
 }
