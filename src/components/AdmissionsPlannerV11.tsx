@@ -259,42 +259,46 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   const activeCutoff=useMemo(()=>{
     if(!university)return null;
     return cutoffs
-      .filter(c=>normalize(c.institution)===normalize(university.university_name)&&normalize(c.exam_id)===normalize(model.examId)&&normalize(c.course_label)===normalize(course))
+      .filter(c=>normalize(c.institution)===normalize(university.university_name)&&normalize(c.exam_id)===normalize(model.admissionExamId??model.examId)&&normalize(c.course_label)===normalize(course))
       .sort((a,b)=>b.year-a.year||Number(b.target_value)-Number(a.target_value))[0]??null;
-  },[cutoffs,university,model.examId,course]);
+  },[cutoffs,university,model.examId,model.admissionExamId,course]);
+  const effectiveTarget=targetOverride??model.target?.value??(activeCutoff?Number(activeCutoff.target_value):null);
   const dataGoals=useMemo<Record<string,number>>(()=>{
     const goals:Record<string,number>={};
-    if(!activeCutoff)return goals;
-    if(model.examId==='enem')return {...goals,...enemGoalsFromCutoff(Number(activeCutoff.target_value))};
-    if(model.examId==='fuvest'){
+    if(!Number.isFinite(Number(effectiveTarget)))return goals;
+    if(model.examId==='enem')return {...goals,...enemGoalsFromCutoff(Number(effectiveTarget))};
+    if(model.examId==='fuvest'&&activeCutoff){
       const first=metrics.find(m=>m.key==='1ª fase');
       if(!first)return goals;
       const historicalMax=Number(activeCutoff.max_value||90);
       goals['1ª fase']=Math.ceil(Number(activeCutoff.target_value)/Math.max(1,historicalMax)*first.max);
     }
     return goals;
-  },[activeCutoff,model.examId,metrics]);
+  },[activeCutoff,effectiveTarget,model.examId,metrics]);
 
-  const diagnosis:Priority[]=useMemo(()=>metrics.map(metric=>{
-    const current=appliedValues[metric.key]??metric.defaultValue;
-    const goal=goalFor(metric,model.examId,dataGoals[metric.key]);
-    const relevant=attempts.filter(a=>a.exam_id===model.examId&&matchQuestionArea(a.area,metric.key)&&a.correct!==null).slice(0,40);
-    const accuracy=relevant.length?relevant.filter(x=>x.correct).length/relevant.length:null;
-    const missing=Math.max(0,goal-current);
-    const sampleSize=relevant.length;
-    const sampleConfidence=Math.min(1,sampleSize/8);
-    const performanceMultiplier=accuracy==null?1:accuracy<.6?1+.25*sampleConfidence:accuracy>.85?1-.2*sampleConfidence:1;
-    const score=(missing/Math.max(1,metric.max))*performanceMultiplier;
-    return{metric,current,goal,missing,score,accuracy,sampleSize,sampleConfidence};
-  }),[metrics,appliedValues,attempts,model.examId,dataGoals]);
+  const diagnosis:Priority[]=useMemo(()=>{
+    const averageWeight=metrics.reduce((sum,metric)=>sum+(metric.weight&&metric.weight>0?metric.weight:1),0)/Math.max(1,metrics.length);
+    return metrics.map(metric=>{
+      const current=appliedValues[metric.key]??metric.defaultValue;
+      const goal=goalFor(metric,model.examId,dataGoals[metric.key]);
+      const studyKey=metric.studyArea??metric.key;
+      const relevant=attempts.filter(a=>a.exam_id===model.examId&&matchQuestionArea(a.area,studyKey)&&a.correct!==null).slice(0,40);
+      const accuracy=relevant.length?relevant.filter(x=>x.correct).length/relevant.length:null;
+      const missing=Math.max(0,goal-current);
+      const sampleSize=relevant.length;
+      const sampleConfidence=Math.min(1,sampleSize/8);
+      const performanceMultiplier=accuracy==null?1:accuracy<.6?1+.25*sampleConfidence:accuracy>.85?1-.2*sampleConfidence:1;
+      const weightImpact=(metric.weight&&metric.weight>0?metric.weight:1)/Math.max(.1,averageWeight);
+      const score=(missing/Math.max(1,metric.max))*performanceMultiplier*weightImpact;
+      return{metric,current,goal,missing,score,accuracy,sampleSize,sampleConfidence};
+    });
+  },[metrics,appliedValues,attempts,model.examId,dataGoals]);
   const priorities=useMemo(()=>[...diagnosis].sort((a,b)=>b.score-a.score),[diagnosis]);
-  const readiness=Math.round(diagnosis.reduce((sum,p)=>{
-    const declaredProgress=Math.min(1,p.current/Math.max(1,p.goal));
-    if(p.accuracy==null||p.sampleConfidence<=0)return sum+declaredProgress;
-    const measuredProgress=Math.min(1,p.accuracy/.8);
-    const measuredWeight=.35*p.sampleConfidence;
-    return sum+declaredProgress*(1-measuredWeight)+measuredProgress*measuredWeight;
-  },0)/Math.max(1,diagnosis.length)*100);
+  const readiness=Math.round((()=>{
+    const rows=diagnosis.map(p=>{const declaredProgress=Math.min(1,p.current/Math.max(1,p.goal));const measuredProgress=p.accuracy==null||p.sampleConfidence<=0?declaredProgress:Math.min(1,p.accuracy/.8);const measuredWeight=p.accuracy==null?0:.35*p.sampleConfidence;const progress=declaredProgress*(1-measuredWeight)+measuredProgress*measuredWeight;const weight=p.metric.weight&&p.metric.weight>0?p.metric.weight:1;return{progress,weight}});
+    const totalWeight=rows.reduce((sum,row)=>sum+row.weight,0)||1;
+    return rows.reduce((sum,row)=>sum+row.progress*row.weight,0)/totalWeight*100;
+  })());
   const top=priorities[0];
   const relevantDiagnostics=useMemo(()=>diagnostics.filter(d=>d.exam_id===model.examId&&model.allowedQuestionAreas.some(a=>matchQuestionArea(d.area,a))).slice(0,8),[diagnostics,model]);
   const roadmap=useMemo(()=>buildRoadmap({model,course,priorities,weeklyHours:appliedWeeklyHours,questions:allowedQuestions,difficultyTopics,diagnostics:relevantDiagnostics.map(d=>({area:d.area,skill:d.diagnosis?.skill_name||d.skill_code||d.area}))}),[model,course,priorities,appliedWeeklyHours,allowedQuestions,difficultyTopics,relevantDiagnostics]);
