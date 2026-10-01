@@ -144,11 +144,12 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
 
   useEffect(()=>{let alive=true;(async()=>{
     if(!supabase){setLoading(false);return}
-    const[{data:a},{data:u},{data:userData},{data:cutoffRows}]=await Promise.all([
+    const[{data:a},{data:u},{data:userData},{data:cutoffRows},{data:modelRows}]=await Promise.all([
       supabase.from('academic_areas').select('area_id,name,courses').order('name'),
       supabase.from('area_universities').select('area_university_id,area_id,university_name,course_label').order('university_name'),
       supabase.auth.getUser(),
       supabase.from('admission_cutoff_references').select('institution,exam_id,course_label,variant,year,modality,target_kind,target_value,max_value,confidence,source_url,notes').order('year',{ascending:false}),
+      supabase.from('course_exam_models').select('university_name,course_label,exam_id,route_key,route_label,practice_exam_id,source_confidence,cycle_label,structure_verified,notes,official_source_url,model').order('university_name'),
     ]);
     if(!alive)return;
     const verifiedUniversities=((u??[]) as University[]).filter(x=>isSupportedInstitutionCourse(x.university_name,x.course_label));
@@ -160,8 +161,8 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
       course_label:ar.courses||ar.name,
     }));
     const cleanUniversities=[...verifiedUniversities,...genericUniversities];
-    setAreas(cleanAreas);setUniversities(cleanUniversities);setCutoffs((cutoffRows??[]) as AdmissionCutoff[]);
-    let guest:{selectedArea?:string;selectedUniversity?:string;weeklyHours?:number;difficultyTopics?:DifficultySelection}={};
+    setAreas(cleanAreas);setUniversities(cleanUniversities);setCutoffs((cutoffRows??[]) as AdmissionCutoff[]);setExamModelRows((modelRows??[]) as RemoteExamModelRow[]);
+    let guest:{selectedArea?:string;selectedUniversity?:string;selectedRouteKey?:string;weeklyHours?:number;difficultyTopics?:DifficultySelection}={};
     try{guest=JSON.parse(localStorage.getItem(GUEST_PREF_KEY)||'{}')}catch{guest={}}
     const user=userData.user;
     if(user){
@@ -172,6 +173,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
       const savedLocal=guest.selectedArea===desiredArea&&guest.selectedUniversity&&allowed.some(x=>String(x.area_university_id)===String(guest.selectedUniversity))?String(guest.selectedUniversity):'';
       const desiredUniversity=pref?.selected_university_id&&allowed.some(x=>x.area_university_id===pref.selected_university_id)?String(pref.selected_university_id):savedLocal||String(allowed[0]?.area_university_id??'');
       setSelectedUniversity(desiredUniversity);
+      setSelectedRouteKey(String(pref?.selected_route_key??guest.selectedRouteKey??'primary'));
       const wh=Number(pref?.weekly_hours??guest.weeklyHours??9);setWeeklyHours(wh);setAppliedWeeklyHours(wh);
       if(guest.difficultyTopics&&typeof guest.difficultyTopics==='object')setDifficultyTopics(guest.difficultyTopics);
     }else{
@@ -181,6 +183,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
       const allowed=cleanUniversities.filter(x=>x.area_id===desiredArea);
       const desiredUniversity=guest.selectedUniversity&&allowed.some(x=>String(x.area_university_id)===String(guest.selectedUniversity))?String(guest.selectedUniversity):String(allowed[0]?.area_university_id??'');
       setSelectedUniversity(desiredUniversity);
+      setSelectedRouteKey(String(guest.selectedRouteKey??'primary'));
       const localHours=Number(guest.weeklyHours||localStorage.getItem('conectae:weekly-hours')||9);
       if(Number.isFinite(localHours)){setWeeklyHours(localHours);setAppliedWeeklyHours(localHours)}
       if(guest.difficultyTopics&&typeof guest.difficultyTopics==='object')setDifficultyTopics(guest.difficultyTopics);
@@ -193,9 +196,13 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   const university=filteredUniversities.find(u=>String(u.area_university_id)===selectedUniversity)??null;
   const area=areas.find(a=>a.area_id===selectedArea)??null;
   const course=university?.course_label||area?.courses||area?.name||'Curso';
-  const model=useMemo(()=>getExamModel(university?.university_name??GENERIC_ENEM_UNIVERSITY,course),[university?.university_name,course]);
+  const routeOptions=useMemo(()=>examModelRows.filter(row=>normalize(row.university_name)===normalize(university?.university_name??'')&&normalize(row.course_label)===normalize(course)),[examModelRows,university?.university_name,course]);
+  useEffect(()=>{if(!routeOptions.length){if(selectedRouteKey!=='primary')setSelectedRouteKey('primary');return}if(routeOptions.some(row=>(row.route_key||'primary')===selectedRouteKey))return;const preferred=routeOptions.find(row=>(row.route_key||'primary')==='primary')??routeOptions[0];setSelectedRouteKey(preferred.route_key||'primary')},[routeOptions,selectedRouteKey]);
+  const activeRemoteModel=useMemo(()=>routeOptions.find(row=>(row.route_key||'primary')===selectedRouteKey)??routeOptions.find(row=>(row.route_key||'primary')==='primary')??routeOptions[0]??null,[routeOptions,selectedRouteKey]);
+  const baseModel=useMemo(()=>getExamModel(university?.university_name??GENERIC_ENEM_UNIVERSITY,course),[university?.university_name,course]);
+  const model=useMemo(()=>mergeRemoteExamModel(baseModel,activeRemoteModel),[baseModel,activeRemoteModel]);
   const metrics=model.metrics;
-  const scoreStorageKey=useMemo(()=>`conectae:exam-values:${model.examId}:${university?.university_name??'sem-faculdade'}:${course}`,[model.examId,university?.university_name,course]);
+  const scoreStorageKey=useMemo(()=>`conectae:exam-values:${model.examId}:${university?.university_name??'sem-faculdade'}:${course}:${model.routeKey??selectedRouteKey}`,[model.examId,model.routeKey,university?.university_name,course,selectedRouteKey]);
 
   useEffect(()=>{let alive=true;(async()=>{
     if(!supabase){setQuestions(mergePracticeQuestions([]) as Question[]);return}
