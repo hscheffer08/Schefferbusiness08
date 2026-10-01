@@ -7,6 +7,36 @@ export type ExamMetric = {
   defaultValue: number;
   unit: 'acertos' | 'pontos' | 'desempenho';
   phase?: string;
+  weight?: number;
+  minimum?: number;
+  goal?: number;
+  studyArea?: string;
+};
+
+export type ExamTarget = {
+  value: number;
+  max?: number;
+  kind?: string;
+  year?: number;
+  modality?: string;
+  label?: string;
+  sourceUrl?: string;
+  confidence?: string;
+};
+
+export type RemoteExamModelRow = {
+  university_name: string;
+  course_label: string;
+  exam_id: string;
+  route_key?: string | null;
+  route_label?: string | null;
+  practice_exam_id?: string | null;
+  source_confidence?: string | null;
+  cycle_label?: string | null;
+  structure_verified?: boolean | null;
+  notes?: string | null;
+  official_source_url?: string | null;
+  model?: Record<string, unknown> | null;
 };
 
 export type ExamModel = {
@@ -16,14 +46,24 @@ export type ExamModel = {
   metrics: ExamMetric[];
   allowedQuestionAreas: string[];
   officialSource: string;
+  admissionExamId?: string;
+  routeKey?: string;
+  routeLabel?: string;
+  cycleLabel?: string;
+  scoreInputHelp?: string;
+  sourceConfidence?: string;
+  structureVerified?: boolean;
+  notes?: string;
+  overall?: { method: 'weighted_average' | 'weighted_sum' | 'sum' | 'mean' | 'percentage'; max?: number };
+  target?: ExamTarget;
 };
 
 const ENEM_METRICS: ExamMetric[] = [
-  { key: 'Linguagens', label: 'Linguagens', max: 45, defaultValue: 28, unit: 'acertos' },
-  { key: 'Humanas', label: 'Ciências Humanas', max: 45, defaultValue: 29, unit: 'acertos' },
-  { key: 'Natureza', label: 'Ciências da Natureza', max: 45, defaultValue: 24, unit: 'acertos' },
-  { key: 'Matemática', label: 'Matemática', max: 45, defaultValue: 26, unit: 'acertos' },
-  { key: 'Redação', label: 'Redação', max: 1000, defaultValue: 760, unit: 'pontos' },
+  { key: 'Linguagens', label: 'Linguagens', max: 1000, defaultValue: 620, unit: 'pontos', weight: 1, studyArea: 'Linguagens' },
+  { key: 'Humanas', label: 'Ciências Humanas', max: 1000, defaultValue: 640, unit: 'pontos', weight: 1, studyArea: 'Humanas' },
+  { key: 'Natureza', label: 'Ciências da Natureza', max: 1000, defaultValue: 610, unit: 'pontos', weight: 1, studyArea: 'Natureza' },
+  { key: 'Matemática', label: 'Matemática', max: 1000, defaultValue: 650, unit: 'pontos', weight: 1, studyArea: 'Matemática' },
+  { key: 'Redação', label: 'Redação', max: 1000, defaultValue: 800, unit: 'pontos', weight: 1, studyArea: 'Redação' },
 ];
 
 const CMMG_MEDICINA_METRICS: ExamMetric[] = [
@@ -184,6 +224,122 @@ export function getSupportedPlannerCourseMatrix():SupportedPlannerInstitution[] 
   ];
 }
 
+
+const CORE_EXAM_IDS = new Set<ExamId>(['enem','fuvest','insper','link','fgv','cmmg','ibmec','einstein']);
+
+function asCoreExamId(value: unknown, fallback: ExamId): ExamId {
+  return typeof value === 'string' && CORE_EXAM_IDS.has(value as ExamId) ? value as ExamId : fallback;
+}
+
+function numberOr(value: unknown, fallback: number) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+export function mergeRemoteExamModel(base: ExamModel, row?: RemoteExamModelRow | null): ExamModel {
+  if (!row) return base;
+  const raw = row.model && typeof row.model === 'object' ? row.model as Record<string, unknown> : {};
+  const rawComponents = Array.isArray(raw.components) ? raw.components as Array<Record<string, unknown>> : [];
+  const metrics: ExamMetric[] = rawComponents.length ? rawComponents.map((component, index) => {
+    const baseMetric = base.metrics.find(metric => metric.key === component.key) ?? base.metrics[index];
+    const unitRaw = String(component.unit ?? baseMetric?.unit ?? 'pontos');
+    const unit: ExamMetric['unit'] = unitRaw === 'acertos' || unitRaw === 'desempenho' ? unitRaw : 'pontos';
+    const max = Math.max(1, numberOr(component.max, baseMetric?.max ?? 100));
+    const rawDefault = numberOr(component.defaultValue ?? component.default_value, baseMetric?.defaultValue ?? Math.round(max * .65));
+    return {
+      key: String(component.key ?? baseMetric?.key ?? `Componente ${index + 1}`),
+      label: String(component.label ?? component.key ?? baseMetric?.label ?? `Componente ${index + 1}`),
+      max,
+      defaultValue: Math.max(0, Math.min(max, rawDefault)),
+      unit,
+      phase: component.phase ? String(component.phase) : baseMetric?.phase,
+      weight: Number.isFinite(Number(component.weight)) ? Number(component.weight) : baseMetric?.weight,
+      minimum: Number.isFinite(Number(component.minimum ?? component.min)) ? Number(component.minimum ?? component.min) : undefined,
+      goal: Number.isFinite(Number(component.goal)) ? Number(component.goal) : undefined,
+      studyArea: component.studyArea || component.study_area ? String(component.studyArea ?? component.study_area) : baseMetric?.studyArea,
+    };
+  }) : base.metrics;
+
+  const rawOverall = raw.overall && typeof raw.overall === 'object' ? raw.overall as Record<string, unknown> : null;
+  const methodRaw = String(rawOverall?.method ?? '');
+  const overall = ['weighted_average','weighted_sum','sum','mean','percentage'].includes(methodRaw)
+    ? { method: methodRaw as NonNullable<ExamModel['overall']>['method'], max: Number.isFinite(Number(rawOverall?.max)) ? Number(rawOverall?.max) : undefined }
+    : base.overall;
+
+  const rawTarget = raw.target && typeof raw.target === 'object' ? raw.target as Record<string, unknown> : null;
+  const targetValue = Number(rawTarget?.value);
+  const target = Number.isFinite(targetValue) ? {
+    value: targetValue,
+    max: Number.isFinite(Number(rawTarget?.max)) ? Number(rawTarget?.max) : undefined,
+    kind: rawTarget?.kind ? String(rawTarget.kind) : undefined,
+    year: Number.isFinite(Number(rawTarget?.year)) ? Number(rawTarget?.year) : undefined,
+    modality: rawTarget?.modality ? String(rawTarget.modality) : undefined,
+    label: rawTarget?.label ? String(rawTarget.label) : undefined,
+    sourceUrl: rawTarget?.sourceUrl || rawTarget?.source_url ? String(rawTarget.sourceUrl ?? rawTarget.source_url) : undefined,
+    confidence: rawTarget?.confidence ? String(rawTarget.confidence) : undefined,
+  } : base.target;
+
+  const practiceExamId = asCoreExamId(row.practice_exam_id, base.examId);
+  const allowedQuestionAreas = Array.isArray(raw.allowedQuestionAreas ?? raw.allowed_question_areas)
+    ? (raw.allowedQuestionAreas ?? raw.allowed_question_areas as unknown[]).map(String)
+    : metrics.map(metric => metric.studyArea ?? metric.key);
+
+  return {
+    ...base,
+    examId: practiceExamId,
+    admissionExamId: row.exam_id || base.admissionExamId || base.examId,
+    routeKey: row.route_key || base.routeKey || 'primary',
+    routeLabel: row.route_label || (raw.routeLabel ? String(raw.routeLabel) : base.routeLabel),
+    cycleLabel: row.cycle_label || (raw.cycleLabel ? String(raw.cycleLabel) : base.cycleLabel),
+    sourceConfidence: row.source_confidence || base.sourceConfidence,
+    structureVerified: row.structure_verified ?? base.structureVerified,
+    notes: row.notes || (raw.notes ? String(raw.notes) : base.notes),
+    title: raw.title ? String(raw.title) : base.title,
+    structure: raw.structure ? String(raw.structure) : base.structure,
+    scoreInputHelp: raw.scoreInputHelp || raw.score_input_help ? String(raw.scoreInputHelp ?? raw.score_input_help) : base.scoreInputHelp,
+    officialSource: row.official_source_url || (raw.officialSource ? String(raw.officialSource) : base.officialSource),
+    metrics,
+    allowedQuestionAreas,
+    overall,
+    target,
+  };
+}
+
+export function calculateExamScore(model: ExamModel, values: Record<string, number>) {
+  const rows = model.metrics.map(metric => ({
+    metric,
+    value: Math.max(0, Math.min(metric.max, Number(values[metric.key] ?? metric.defaultValue))),
+    weight: Number.isFinite(Number(metric.weight)) && Number(metric.weight) > 0 ? Number(metric.weight) : 1,
+  }));
+  if (!rows.length) return 0;
+  const method = model.overall?.method ?? 'mean';
+  if (method === 'weighted_average') {
+    const totalWeight = rows.reduce((sum, row) => sum + row.weight, 0) || 1;
+    return rows.reduce((sum, row) => sum + row.value * row.weight, 0) / totalWeight;
+  }
+  if (method === 'weighted_sum') return rows.reduce((sum, row) => sum + row.value * row.weight, 0);
+  if (method === 'sum') return rows.reduce((sum, row) => sum + row.value, 0);
+  if (method === 'percentage') {
+    const earned = rows.reduce((sum, row) => sum + row.value * row.weight, 0);
+    const possible = rows.reduce((sum, row) => sum + row.metric.max * row.weight, 0) || 1;
+    return earned / possible * (model.overall?.max ?? 100);
+  }
+  return rows.reduce((sum, row) => sum + row.value, 0) / rows.length;
+}
+
+export function normalizeStoredScores(model: ExamModel, stored: Record<string, number> | null | undefined) {
+  const source = stored && typeof stored === 'object' ? stored : {};
+  const next: Record<string, number> = {};
+  for (const metric of model.metrics) {
+    const raw = Number(source[metric.key]);
+    const legacyEnemAcertos = model.examId === 'enem' && metric.key !== 'Redação' && metric.max === 1000 && Number.isFinite(raw) && raw >= 0 && raw <= 45;
+    next[metric.key] = Number.isFinite(raw) && !legacyEnemAcertos
+      ? Math.max(0, Math.min(metric.max, raw))
+      : metric.defaultValue;
+  }
+  return next;
+}
+
 export const supportedFuvestCourse = (course: string) => Boolean(FUVEST_SECOND_PHASE[course]);
 
 export function getExamId(university: string): ExamId {
@@ -321,15 +477,20 @@ export function getExamModel(university: string, course: string): ExamModel {
   const genericInstitution = university && university !== 'ENEM — plano geral' ? university : null;
   return {
     examId,
+    admissionExamId: 'enem',
+    routeKey: 'primary',
+    routeLabel: ufmg ? 'ENEM / SiSU' : 'Plano geral ENEM',
     title: ufmg ? `ENEM / SiSU — ${course} na UFMG` : genericInstitution ? `${course} · ${genericInstitution} — plano geral ENEM` : `ENEM 2026 — plano geral para ${course}`,
     structure: ufmg
-      ? 'ENEM em dois dias: 45 questões de Linguagens, 45 de Ciências Humanas, 45 de Ciências da Natureza, 45 de Matemática e uma Redação de 0 a 1000 pontos. A UFMG usa o ENEM no SiSU; pesos e notas mínimas podem variar por curso.'
+      ? 'Informe as cinco notas do seu boletim do ENEM, de 0 a 1000. A classificação do SiSU usa as notas e os pesos definidos para o curso; o plano prioriza as áreas de maior peso e maior distância da meta.'
       : genericInstitution
-        ? `Esta faculdade já está disponível como meta, mas o Conectaê ainda não possui um modelo institucional verificado do processo seletivo de ${genericInstitution}. Enquanto isso, o cronograma usa o ENEM como referência geral de estudo e não deve ser interpretado como reprodução do vestibular específico da instituição.`
-        : 'Plano geral baseado no ENEM: 45 questões de Linguagens, 45 de Ciências Humanas, 45 de Ciências da Natureza, 45 de Matemática e uma Redação de 0 a 1000 pontos.',
+        ? `Esta faculdade já está disponível como meta, mas o Conectaê ainda não possui um modelo institucional verificado do processo seletivo de ${genericInstitution}. Enquanto isso, o cronograma usa as cinco notas do ENEM como referência geral e não finge reproduzir um vestibular específico.`
+        : 'Informe as cinco notas do seu boletim do ENEM, de 0 a 1000. O plano usa essas notas para distribuir o estudo entre Linguagens, Humanas, Natureza, Matemática e Redação.',
+    scoreInputHelp: 'Digite exatamente as cinco notas do seu boletim do ENEM (0–1000), não o número de acertos.',
     metrics: ENEM_METRICS,
     allowedQuestionAreas: ['Linguagens', 'Humanas', 'Natureza', 'Matemática', 'Redação'],
     officialSource: ufmg ? 'https://www.ufmg.br/sisu/' : 'https://www.gov.br/inep/pt-br/areas-de-atuacao/avaliacao-e-exames-educacionais/enem',
+    overall: { method: 'weighted_average' as const, max: 1000 },
   };
 }
 
