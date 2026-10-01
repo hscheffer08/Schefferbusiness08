@@ -1,49 +1,99 @@
 {
   "functions": {
-    "api/interview-coach.ts": { "maxDuration": 240 },
+    "api/interview-coach.ts": {
+      "maxDuration": 240
+    },
     "api/warm-official-question-cache.ts": {
       "includeFiles": "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"
     },
     "api/materialize-official-pdf.ts": {
       "includeFiles": "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"
+    },
+    "api/study-summary.ts": {
+      "maxDuration": 180
     }
   },
   "rewrites": [
-    { "source": "/treino-entrevista", "destination": "/treino-entrevista/index.html" },
-    { "source": "/como-funciona", "destination": "/como-funciona/index.html" },
-    { "source": "/metodologia", "destination": "/metodologia/index.html" },
-    { "source": "/faq", "destination": "/faq/index.html" },
-    { "source": "/privacidade", "destination": "/privacidade/index.html" },
-    { "source": "/termos", "destination": "/termos/index.html" },
-    { "source": "/((?!assets/|api/).*)", "destination": "/index.html" }
+    {
+      "source": "/treino-entrevista",
+      "destination": "/treino-entrevista/index.html"
+    },
+    {
+      "source": "/como-funciona",
+      "destination": "/como-funciona/index.html"
+    },
+    {
+      "source": "/metodologia",
+      "destination": "/metodologia/index.html"
+    },
+    {
+      "source": "/faq",
+      "destination": "/faq/index.html"
+    },
+    {
+      "source": "/privacidade",
+      "destination": "/privacidade/index.html"
+    },
+    {
+      "source": "/termos",
+      "destination": "/termos/index.html"
+    },
+    {
+      "source": "/((?!assets/|api/).*)",
+      "destination": "/index.html"
+    }
   ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Permissions-Policy", "value": "camera=(self), microphone=(self), geolocation=()" },
-        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" }
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(self), microphone=(self), geolocation=()"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000; includeSubDomains; preload"
+        }
       ]
     },
     {
       "source": "/index.html",
       "headers": [
-        { "key": "Cache-Control", "value": "no-store, max-age=0" }
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        }
       ]
     },
     {
       "source": "/((?!assets/).*)",
       "headers": [
-        { "key": "Cache-Control", "value": "no-store, max-age=0" }
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        }
       ]
     },
     {
       "source": "/assets/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
       ]
     }
   ]
