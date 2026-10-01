@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ArrowLeft, BookOpen, CalendarDays, CheckCircle2, ExternalLink, Home, Loader2, Minus, PlayCircle, Plus, Save, Sparkles, Target, Trophy, Video, X, XCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { getExamModel, isSupportedInstitutionCourse, type ExamId, type ExamMetric } from '@/lib/exam-models';
+import { calculateExamScore, getExamModel, isSupportedInstitutionCourse, mergeRemoteExamModel, normalizeStoredScores, type ExamId, type ExamMetric, type RemoteExamModelRow } from '@/lib/exam-models';
 import { buildRoadmap } from '@/lib/admissions-roadmap-balanced';
 import { isSupplementalQuestion, mergePracticeQuestions } from '@/lib/supplemental-practice-questions';
 import WeeklyPlanExperience from '@/components/WeeklyPlanExperience';
@@ -42,9 +42,10 @@ function matchQuestionArea(area:string,key:string){
 }
 
 function goalFor(metric:ExamMetric,examId:ExamId,dataGoal?:number){
-  if(Number.isFinite(dataGoal))return clamp(Math.round(dataGoal!),0,metric.max);
+  if(Number.isFinite(metric.goal))return clamp(Number(metric.goal),0,metric.max);
+  if(Number.isFinite(dataGoal))return clamp(Number(dataGoal),0,metric.max);
   if(examId==='enem'){
-    const fallback:Record<string,number>={Linguagens:36,Humanas:37,Natureza:35,'Matemática':37,'Redação':900};
+    const fallback:Record<string,number>={Linguagens:700,Humanas:720,Natureza:760,'Matemática':790,'Redação':880};
     return fallback[metric.key]??Math.round(metric.max*.8);
   }
   if(examId==='cmmg'){
@@ -76,13 +77,12 @@ function goalFor(metric:ExamMetric,examId:ExamId,dataGoal?:number){
 }
 
 function enemGoalsFromCutoff(cutoff:number){
-  if(cutoff>=810)return {Linguagens:39,Humanas:40,Natureza:40,'Matemática':41,'Redação':940};
-  if(cutoff>=795)return {Linguagens:38,Humanas:39,Natureza:39,'Matemática':40,'Redação':920};
-  if(cutoff>=780)return {Linguagens:37,Humanas:38,Natureza:37,'Matemática':39,'Redação':910};
-  if(cutoff>=765)return {Linguagens:36,Humanas:37,Natureza:35,'Matemática':38,'Redação':900};
-  if(cutoff>=750)return {Linguagens:35,Humanas:36,Natureza:34,'Matemática':37,'Redação':880};
-  if(cutoff>=735)return {Linguagens:34,Humanas:35,Natureza:32,'Matemática':36,'Redação':860};
-  return {Linguagens:32,Humanas:34,Natureza:30,'Matemática':34,'Redação':840};
+  if(cutoff>=815)return {Linguagens:740,Humanas:760,Natureza:820,'Matemática':850,'Redação':930};
+  if(cutoff>=800)return {Linguagens:720,Humanas:740,Natureza:800,'Matemática':830,'Redação':910};
+  if(cutoff>=780)return {Linguagens:700,Humanas:720,Natureza:770,'Matemática':810,'Redação':890};
+  if(cutoff>=760)return {Linguagens:680,Humanas:700,Natureza:750,'Matemática':790,'Redação':870};
+  if(cutoff>=740)return {Linguagens:660,Humanas:680,Natureza:730,'Matemática':770,'Redação':850};
+  return {Linguagens:640,Humanas:660,Natureza:700,'Matemática':740,'Redação':820};
 }
 
 function recoveryAction(type:string|null,area:string,skill:string){
@@ -126,6 +126,9 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   const[simulationScore,setSimulationScore]=useState(0);
   const[simulationResult,setSimulationResult]=useState<{correct:number;total:number;label:string}|null>(null);
   const[cutoffs,setCutoffs]=useState<AdmissionCutoff[]>([]);
+  const[examModelRows,setExamModelRows]=useState<RemoteExamModelRow[]>([]);
+  const[selectedRouteKey,setSelectedRouteKey]=useState('primary');
+  const[targetOverride,setTargetOverride]=useState<number|null>(null);
   const[difficultyTopics,setDifficultyTopics]=useState<DifficultySelection>({});
 
   const reloadDiagnostics=async(userId?:string,examId?:string)=>{
