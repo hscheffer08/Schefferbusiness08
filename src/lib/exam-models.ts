@@ -318,12 +318,15 @@ export function getExamModel(university: string, course: string): ExamModel {
   }
 
   const ufmg = university === 'UFMG';
+  const genericInstitution = university && university !== 'ENEM — plano geral' ? university : null;
   return {
     examId,
-    title: ufmg ? `ENEM / SiSU — ${course} na UFMG` : `ENEM 2026 — plano geral para ${course}`,
+    title: ufmg ? `ENEM / SiSU — ${course} na UFMG` : genericInstitution ? `${course} · ${genericInstitution} — plano geral ENEM` : `ENEM 2026 — plano geral para ${course}`,
     structure: ufmg
       ? 'ENEM em dois dias: 45 questões de Linguagens, 45 de Ciências Humanas, 45 de Ciências da Natureza, 45 de Matemática e uma Redação de 0 a 1000 pontos. A UFMG usa o ENEM no SiSU; pesos e notas mínimas podem variar por curso.'
-      : 'Plano geral baseado no ENEM: 45 questões de Linguagens, 45 de Ciências Humanas, 45 de Ciências da Natureza, 45 de Matemática e uma Redação de 0 a 1000 pontos. Use esta opção quando ainda não houver uma rota institucional verificada para o curso.',
+      : genericInstitution
+        ? `Esta faculdade já está disponível como meta, mas o Conectaê ainda não possui um modelo institucional verificado do processo seletivo de ${genericInstitution}. Enquanto isso, o cronograma usa o ENEM como referência geral de estudo e não deve ser interpretado como reprodução do vestibular específico da instituição.`
+        : 'Plano geral baseado no ENEM: 45 questões de Linguagens, 45 de Ciências Humanas, 45 de Ciências da Natureza, 45 de Matemática e uma Redação de 0 a 1000 pontos.',
     metrics: ENEM_METRICS,
     allowedQuestionAreas: ['Linguagens', 'Humanas', 'Natureza', 'Matemática', 'Redação'],
     officialSource: ufmg ? 'https://www.ufmg.br/sisu/' : 'https://www.gov.br/inep/pt-br/areas-de-atuacao/avaliacao-e-exames-educacionais/enem',
