@@ -216,10 +216,10 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   })();return()=>{alive=false}},[model.examId]);
 
   useEffect(()=>{(async()=>{
-    const defaults=Object.fromEntries(metrics.map(m=>[m.key,m.defaultValue]));
     let stored:Record<string,number>={};try{stored=JSON.parse(localStorage.getItem(scoreStorageKey)||'{}')}catch{stored={}}
     let saved:Record<string,number>={};
     let signedIn=false;
+    let routeTarget:number|null=null;
     if(supabase){
       const{data:userData}=await supabase.auth.getUser();
       if(userData.user){
@@ -228,8 +228,13 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
           supabase.from('student_exam_preferences').select('current_scores,weekly_hours,difficulty_topics').eq('user_id',userData.user.id).eq('exam_id',model.examId).maybeSingle(),
           supabase.from('student_practice_attempts').select('exam_id,area,skill_name,correct,created_at').eq('user_id',userData.user.id).eq('exam_id',model.examId).order('created_at',{ascending:false}).limit(400),
         ]);
+        if(university&&university.area_university_id>0){
+          const{data:routeData}=await supabase.from('student_exam_route_scores').select('current_scores,target_override').eq('user_id',userData.user.id).eq('area_university_id',university.area_university_id).eq('course_label',course).eq('route_key',model.routeKey??selectedRouteKey).maybeSingle();
+          if(routeData?.current_scores&&typeof routeData.current_scores==='object')saved=routeData.current_scores as Record<string,number>;
+          if(Number.isFinite(Number(routeData?.target_override)))routeTarget=Number(routeData?.target_override);
+        }
         setAttempts((examAttempts??[]) as Attempt[]);
-        if(pref?.current_scores&&typeof pref.current_scores==='object')saved=pref.current_scores as Record<string,number>;
+        if(!Object.keys(saved).length&&pref?.current_scores&&typeof pref.current_scores==='object')saved=pref.current_scores as Record<string,number>;
         if(pref?.weekly_hours){setWeeklyHours(Number(pref.weekly_hours));setAppliedWeeklyHours(Number(pref.weekly_hours))}
         if(pref?.difficulty_topics&&typeof pref.difficulty_topics==='object')setDifficultyTopics(pref.difficulty_topics as DifficultySelection);else setDifficultyTopics({});
         await reloadDiagnostics(userData.user.id,model.examId);
@@ -241,8 +246,9 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
         setAttempts(Array.isArray(localAttempts)?(localAttempts as Attempt[]).filter(row=>row.exam_id===model.examId).slice(0,400):[]);
       }catch{setAttempts([])}
     }
-    const next={...defaults,...stored,...saved};setValues(next);setAppliedValues(next);setDirty(false);setQuestionArea('Todas');setActiveQuestion(null);setSelectedOption('');setPracticeResult(null);localStorage.setItem('conectae:active-exam',model.examId);
-  })()},[scoreStorageKey,model.examId,metrics]);
+    if(routeTarget===null){const rawTarget=localStorage.getItem(`${scoreStorageKey}:target`);const localTarget=rawTarget===null?NaN:Number(rawTarget);routeTarget=Number.isFinite(localTarget)&&localTarget>0?localTarget:null}
+    const next=normalizeStoredScores(model,{...stored,...saved});setValues(next);setAppliedValues(next);setTargetOverride(routeTarget);setDirty(false);setQuestionArea('Todas');setActiveQuestion(null);setSelectedOption('');setPracticeResult(null);localStorage.setItem('conectae:active-exam',model.examId);
+  })()},[scoreStorageKey,model.examId,model.routeKey,metrics,university?.area_university_id,course,selectedRouteKey]);
 
   useEffect(()=>{const handler=()=>void reloadDiagnostics(undefined,model.examId);window.addEventListener('conectae:diagnostic-saved',handler);return()=>window.removeEventListener('conectae:diagnostic-saved',handler)},[model.examId]);
 
