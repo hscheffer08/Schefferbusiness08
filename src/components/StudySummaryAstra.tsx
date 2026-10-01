@@ -227,9 +227,11 @@ export default function StudySummaryAstra(){
 
   function openSaved(item:SavedSummary){
     const value=item.summary;
-    if(SUBJECTS.includes(value.subject)){setSubject(value.subject);setCustom('')}else{setSubject('Outra');setCustom(value.subject)}
+    const storedSubject=SUBJECTS.includes(value.subject)?value.subject:'Outra';
+    const storedCustom=storedSubject==='Outra'?value.subject:'';
+    setSubject(storedSubject);setCustom(storedCustom);
     setTopic(value.topic);setFocus(FOCUSES.includes(value.focus)?value.focus:FOCUSES[0]);setMaterial('');setSummary(value);setError('');setProgress('');setCopied(false);
-    try{sessionStorage.setItem(STORAGE,JSON.stringify({subject:value.subject,custom:'',topic:value.topic,focus:value.focus,material:'',summary:value}))}catch{}
+    try{sessionStorage.setItem(STORAGE,JSON.stringify({subject:storedSubject,custom:storedCustom,topic:value.topic,focus:value.focus,material:'',summary:value}))}catch{}
     window.setTimeout(()=>document.getElementById('astra-summary-result')?.scrollIntoView({behavior:'smooth',block:'start'}),80);
   }
 
