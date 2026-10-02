@@ -1,100 +1,33 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdir, readFile, writeFile, rm } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { build } from 'vite';
+import { SEO_PAGES, SITE_ORIGIN } from '../src/lib/seo-pages.ts';
 
-const distDir = join(process.cwd(), 'dist');
-const sourcePath = join(distDir, 'index.html');
-const baseHtml = await readFile(sourcePath, 'utf8');
-const origin = 'https://xn--conecta-pya.app';
-
-const pages = [
-  {
-    path: '/treino-entrevista',
-    title: 'Treino de entrevista Link 2027.1 | Conectaê',
-    description: 'Simule a entrevista da Link 2027.1 com modo de aproximadamente 20 minutos, inglês, Portfolio e análise por voz e vídeo em múltiplos frames.',
-  },
-  {
-    path: '/como-funciona',
-    title: 'Como funciona | Conectaê',
-    description: 'Entenda como o Conectaê transforma seu perfil, suas notas e suas dificuldades em recomendações e um plano de estudo adaptativo.',
-  },
-  {
-    path: '/metodologia',
-    title: 'Metodologia | Conectaê',
-    description: 'Conheça os critérios usados pelo Conectaê no match de faculdades, diagnóstico de dificuldades e personalização do plano de estudos.',
-  },
-  {
-    path: '/faq',
-    title: 'Perguntas frequentes | Conectaê',
-    description: 'Respostas sobre conta, privacidade, plano de estudos, questões, simulados, match de faculdades e funcionamento do Conectaê.',
-  },
-  {
-    path: '/privacidade',
-    title: 'Política de Privacidade | Conectaê',
-    description: 'Saiba como o Conectaê trata, protege e compartilha dados mediante consentimento.',
-  },
-  {
-    path: '/termos',
-    title: 'Termos de Uso | Conectaê',
-    description: 'Consulte os termos de uso da plataforma Conectaê.',
-  },
-];
-
-function escapeAttribute(value) {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('"', '&quot;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;');
-}
-
+const distDir = resolve('dist');
+const baseHtml = await readFile(join(distDir, 'index.html'), 'utf8');
+const temporaryDir = resolve('.seo-build');
+// Render public content at build time. No account, database or AI calls are made.
+await build({ build: { ssr: 'scripts/prerender-entry.tsx', outDir: temporaryDir, emptyOutDir: true, minify: false } });
+const { render } = await import(pathToFileURL(join(temporaryDir, 'prerender-entry.js')).href);
+const escape = value => value.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 function replaceMeta(html, selector, value) {
-  const escaped = escapeAttribute(value);
-  const expression = new RegExp(`(<meta\\s+${selector}\\s+content=")[^"]*("\\s*\\/?>)`, 'i');
-  return html.replace(expression, `$1${escaped}$2`);
+  return html.replace(new RegExp(`(<meta\\s+${selector}\\s+content=")[^"]*("\\s*\\/?>)`, 'i'), (_match, start, end) => `${start}${escape(value)}${end}`);
 }
-
-function renderPage(page) {
-  const canonicalUrl = `${origin}${page.path}`;
-  let html = baseHtml;
-
-  html = html.replace(/<title>[^<]*<\/title>/i, `<title>${page.title}</title>`);
-  html = replaceMeta(html, 'name="description"', page.description);
-  html = replaceMeta(html, 'property="og:url"', canonicalUrl);
-  html = replaceMeta(html, 'property="og:title"', page.title);
-  html = replaceMeta(html, 'property="og:description"', page.description);
-  html = replaceMeta(html, 'name="twitter:title"', page.title);
-  html = replaceMeta(html, 'name="twitter:description"', page.description);
-  html = html.replace(
-    /<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/i,
-    `<link rel="canonical" href="${canonicalUrl}" />`,
-  );
-
-  const webPageJsonLd = JSON.stringify({
-    '@context': 'https://schema.org',
-    '@type': 'WebPage',
-    name: page.title.replace(/ \| Conectaê$/, ''),
-    url: canonicalUrl,
-    description: page.description,
-    inLanguage: 'pt-BR',
-    isPartOf: {
-      '@type': 'WebSite',
-      name: 'Conectaê',
-      url: `${origin}/`,
-    },
-  });
-
-  html = html.replace(
-    '</head>',
-    `    <script type="application/ld+json">${webPageJsonLd}</script>\n  </head>`,
-  );
-
-  return html;
-}
-
-for (const page of pages) {
-  const targetDir = join(distDir, page.path.slice(1));
+for (const page of SEO_PAGES) {
+  const url = `${SITE_ORIGIN}${page.path}`;
+  let html = baseHtml.replace(/<title>[^<]*<\/title>/i, `<title>${escape(page.title)}</title>`);
+  for (const [selector, value] of [['name="description"', page.description], ['property="og:url"', url], ['property="og:title"', page.title], ['property="og:description"', page.description], ['name="twitter:title"', page.title], ['name="twitter:description"', page.description]]) html = replaceMeta(html, selector, value);
+  html = html.replace(/<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/i, `<link rel="canonical" href="${url}"/>`);
+  const schema = JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', '@id': `${url}#webpage`, name: page.heading, url, description: page.description, inLanguage: 'pt-BR', isPartOf: { '@id': `${SITE_ORIGIN}/#website` } }).replaceAll('<', '\\u003c');
+  html = html.replace('</head>', `<script type="application/ld+json">${schema}</script></head>`);
+  html = html.replace('<div id="root"></div>', `<div id="root">${render(page)}</div>`);
+  const targetDir = page.path === '/' ? distDir : join(distDir, page.path.slice(1));
   await mkdir(targetDir, { recursive: true });
-  await writeFile(join(targetDir, 'index.html'), renderPage(page), 'utf8');
+  await writeFile(join(targetDir, 'index.html'), html);
 }
-
-console.log(`Generated ${pages.length} route-specific HTML shells.`);
+// Canonical public URLs only. Omit invented modification dates.
+const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${SEO_PAGES.map(page => `  <url><loc>${SITE_ORIGIN}${page.path}</loc></url>`).join('\n')}\n</urlset>\n`;
+await writeFile(join(distDir, 'sitemap.xml'), sitemap);
+await rm(temporaryDir, { recursive: true, force: true });
+console.log(`Prerendered ${SEO_PAGES.length} public pages and generated canonical sitemap.`);

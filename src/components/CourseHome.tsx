@@ -11,14 +11,7 @@ import {
   Target,
 } from 'lucide-react';
 
-function navigateWith(params: Record<string, string | null>) {
-  const url = new URL(window.location.href);
-  Object.entries(params).forEach(([key, value]) => {
-    if (value === null) url.searchParams.delete(key);
-    else url.searchParams.set(key, value);
-  });
-  window.location.assign(`${url.pathname}${url.search}${url.hash}`);
-}
+import { SEO_PAGES } from '../lib/seo-pages';
 
 const benefits = [
   { icon: Target, title: 'Plano sob medida', text: 'Metas semanais construídas a partir da sua prova, nota e rotina.' },
@@ -28,11 +21,6 @@ const benefits = [
 ];
 
 export default function CourseHome() {
-  const openCourse = () => navigateWith({ planner: 'aprovacao', experience: null });
-  const openCollegeTools = () => navigateWith({ experience: 'faculdades', planner: null });
-  const openOfficialBank = () => navigateWith({ experience: 'vestibulares-oficiais', planner: null });
-  const openInterview = () => window.location.assign('/treino-entrevista');
-
   return (
     <div className="min-h-screen overflow-hidden bg-[#f6f8ff] font-['Plus_Jakarta_Sans'] text-[#101a36]">
       <div className="pointer-events-none fixed inset-0" aria-hidden="true">
@@ -51,10 +39,10 @@ export default function CourseHome() {
           </button>
 
           <nav className="hidden items-center gap-4 text-sm font-bold text-[#596681] lg:flex" aria-label="Navegação principal">
-            <button onClick={openCourse} className="text-[#172344]">Curso</button>
-            <button onClick={openOfficialBank} className="hover:text-[#3155e7]">Questões</button>
-            <button onClick={openInterview} className="rounded-full bg-[#3155e7] px-3 py-1.5 text-white shadow-sm hover:bg-[#2747c9]">Entrevistas com IA</button>
-            <button onClick={openCollegeTools} className="hover:text-[#3155e7]">Cursos e faculdades</button>
+            <a href="/planejador-admissao" className="text-[#172344]">Curso</a>
+            <a href="/vestibulares-oficiais" className="hover:text-[#3155e7]">Questões</a>
+            <a href="/treino-entrevista" className="rounded-full bg-[#3155e7] px-3 py-1.5 text-white shadow-sm hover:bg-[#2747c9]">Entrevistas com IA</a>
+            <a href="/faculdades" className="hover:text-[#3155e7]">Cursos e faculdades</a>
           </nav>
 
           <div id="home-account-controls" className="relative flex shrink-0 items-center justify-end" />
@@ -69,22 +57,22 @@ export default function CourseHome() {
             </div>
 
             <h1 className="mt-6 max-w-3xl text-4xl font-black leading-[1.02] tracking-[-.052em] sm:text-5xl md:text-6xl">
-              Um plano claro para chegar à sua <span className="text-[#3155e7]">aprovação.</span>
+              Conectaê: estude com <span className="text-[#3155e7]">inteligência artificial.</span>
             </h1>
             <p className="mt-6 max-w-xl text-base leading-7 text-[#596681] md:text-lg">
-              Escolha sua meta. O Conectaê organiza o que estudar, quais questões fazer e quando revisar — tudo em uma rotina que se adapta ao seu desempenho.
+              O Conectaê (Conectae) reúne plano adaptativo, questões, simulados, redação e resumos com IA para ENEM e vestibulares. Escolha sua meta e organize uma rotina que se adapta ao seu desempenho.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <button onClick={openCourse} className="group inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#3155e7] px-6 text-base font-black text-white shadow-[0_14px_34px_rgba(49,85,231,.25)] hover:-translate-y-0.5 hover:bg-[#2747c9]">
+              <a href="/planejador-admissao" className="group inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#3155e7] px-6 text-base font-black text-white shadow-[0_14px_34px_rgba(49,85,231,.25)] hover:-translate-y-0.5 hover:bg-[#2747c9]">
                 Montar meu plano <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-              </button>
-              <button onClick={openInterview} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-[#9eafff] bg-[#eef1ff] px-6 text-sm font-black text-[#3155e7] shadow-sm hover:-translate-y-0.5 hover:bg-[#e2e8ff]">
+              </a>
+              <a href="/treino-entrevista" className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-[#9eafff] bg-[#eef1ff] px-6 text-sm font-black text-[#3155e7] shadow-sm hover:-translate-y-0.5 hover:bg-[#e2e8ff]">
                 <MessageSquareText className="h-5 w-5" /> Treinar entrevista com IA
-              </button>
-              <button onClick={openCollegeTools} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-[#d7deee] bg-white px-6 text-sm font-extrabold text-[#273552] shadow-sm hover:border-[#9eafff] hover:text-[#3155e7]">
+              </a>
+              <a href="/faculdades" className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-[#d7deee] bg-white px-6 text-sm font-extrabold text-[#273552] shadow-sm hover:border-[#9eafff] hover:text-[#3155e7]">
                 <Compass className="h-5 w-5" /> Ainda estou escolhendo
-              </button>
+              </a>
             </div>
 
             <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-[#66738c]">
@@ -129,23 +117,23 @@ export default function CourseHome() {
                 ))}
               </div>
 
-              <button onClick={openCourse} className="mt-5 flex w-full items-center justify-between rounded-2xl bg-[#172344] px-4 py-4 text-left text-white hover:bg-[#3155e7]">
+              <a href="/planejador-admissao" className="mt-5 flex w-full items-center justify-between rounded-2xl bg-[#172344] px-4 py-4 text-left text-white hover:bg-[#3155e7]">
                 <span><span className="block text-xs font-bold text-white/60">PRÓXIMO PASSO</span><span className="mt-0.5 block font-black">Criar meu plano</span></span>
                 <ArrowRight className="h-5 w-5" />
-              </button>
+              </a>
             </div>
           </div>
         </section>
 
         <section className="mx-auto max-w-6xl px-5 pb-14 md:px-8 md:pb-20">
-          <button onClick={openInterview} className="group grid w-full gap-5 overflow-hidden rounded-[28px] bg-[#172344] p-6 text-left text-white shadow-[0_18px_50px_rgba(23,35,68,.18)] transition hover:-translate-y-1 hover:bg-[#20335f] md:grid-cols-[1fr_auto] md:items-center md:p-8">
+          <a href="/treino-entrevista" className="group grid w-full gap-5 overflow-hidden rounded-[28px] bg-[#172344] p-6 text-left text-white shadow-[0_18px_50px_rgba(23,35,68,.18)] transition hover:-translate-y-1 hover:bg-[#20335f] md:grid-cols-[1fr_auto] md:items-center md:p-8">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-black text-[#b8c8ff]"><Sparkles className="h-4 w-4" /> NOVO · ENTREVISTA COM IA</div>
               <h2 className="mt-4 text-2xl font-black tracking-[-.035em] md:text-4xl">Treine por voz e receba uma análise completa.</h2>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-white/70 md:text-base">Simule entrevistas da Link School of Business, grave sua resposta e receba feedback sobre conteúdo, clareza, ritmo, pausas, dicção, entonação e como melhorar.</p>
             </div>
             <span className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-white px-5 text-sm font-black text-[#172344] transition group-hover:translate-x-1">Abrir treino <ArrowRight className="h-4 w-4" /></span>
-          </button>
+          </a>
         </section>
 
         <section className="border-y border-[#e0e5f1] bg-white/75">
@@ -159,18 +147,18 @@ export default function CourseHome() {
             </div>
 
             <div className="mt-9 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <button onClick={openCourse} className="group rounded-[24px] bg-[#3155e7] p-6 text-left text-white shadow-[0_16px_36px_rgba(49,85,231,.2)] hover:-translate-y-1 hover:bg-[#2747c9]">
+              <a href="/planejador-admissao" className="group rounded-[24px] bg-[#3155e7] p-6 text-left text-white shadow-[0_16px_36px_rgba(49,85,231,.2)] hover:-translate-y-1 hover:bg-[#2747c9]">
                 <Target className="h-7 w-7" /><h3 className="mt-8 text-xl font-black">Plano de aprovação</h3><p className="mt-2 text-sm leading-6 text-white/75">Para quem já sabe onde quer chegar e precisa organizar a execução.</p><span className="mt-6 inline-flex items-center gap-2 text-sm font-black">Começar <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></span>
-              </button>
-              <button onClick={openInterview} className="group rounded-[24px] border border-[#9eafff] bg-[#eef1ff] p-6 text-left shadow-sm hover:-translate-y-1 hover:border-[#3155e7]">
+              </a>
+              <a href="/treino-entrevista" className="group rounded-[24px] border border-[#9eafff] bg-[#eef1ff] p-6 text-left shadow-sm hover:-translate-y-1 hover:border-[#3155e7]">
                 <MessageSquareText className="h-7 w-7 text-[#3155e7]" /><h3 className="mt-8 text-xl font-black text-[#172344]">Entrevista com IA</h3><p className="mt-2 text-sm leading-6 text-[#66738c]">Treine por voz ou texto e veja exatamente o que melhorar antes da entrevista.</p><span className="mt-6 inline-flex items-center gap-2 text-sm font-black text-[#3155e7]">Treinar agora <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></span>
-              </button>
-              <button onClick={openOfficialBank} className="group rounded-[24px] border border-[#dbe2f0] bg-[#f8f9fd] p-6 text-left hover:-translate-y-1 hover:border-[#aebcff]">
+              </a>
+              <a href="/vestibulares-oficiais" className="group rounded-[24px] border border-[#dbe2f0] bg-[#f8f9fd] p-6 text-left hover:-translate-y-1 hover:border-[#aebcff]">
                 <BookOpenCheck className="h-7 w-7 text-[#3155e7]" /><h3 className="mt-8 text-xl font-black">Questões oficiais</h3><p className="mt-2 text-sm leading-6 text-[#66738c]">Pratique por prova, edição e matéria com a fonte sempre visível.</p><span className="mt-6 inline-flex items-center gap-2 text-sm font-black text-[#3155e7]">Abrir banco <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></span>
-              </button>
-              <button onClick={openCollegeTools} className="group rounded-[24px] border border-[#dbe2f0] bg-[#f8f9fd] p-6 text-left hover:-translate-y-1 hover:border-[#aebcff]">
+              </a>
+              <a href="/faculdades" className="group rounded-[24px] border border-[#dbe2f0] bg-[#f8f9fd] p-6 text-left hover:-translate-y-1 hover:border-[#aebcff]">
                 <Compass className="h-7 w-7 text-[#6c57e8]" /><h3 className="mt-8 text-xl font-black">Descobrir opções</h3><p className="mt-2 text-sm leading-6 text-[#66738c]">Explore cursos, compare faculdades e faça o teste vocacional.</p><span className="mt-6 inline-flex items-center gap-2 text-sm font-black text-[#6c57e8]">Explorar <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></span>
-              </button>
+              </a>
             </div>
           </div>
         </section>
@@ -192,15 +180,21 @@ export default function CourseHome() {
             </div>
           </div>
         </section>
+        <section className="mx-auto max-w-6xl px-5 pb-14 md:px-8">
+          <h2 className="text-2xl font-black text-[#172344]">Explore sua preparação</h2>
+          <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {SEO_PAGES.filter(page => page.landing).map(page => <li key={page.path}><a href={page.path} className="font-semibold text-[#3155e7] underline underline-offset-4">{page.heading}</a></li>)}
+          </ul>
+        </section>
       </main>
 
       <footer className="relative z-10 border-t border-[#e0e5f1] bg-white/60 px-5 py-6">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 text-sm text-[#66738c] sm:flex-row">
-          <span className="font-black text-[#172344]">Conectaê</span>
+          <span className="font-black text-[#172344]">Conectaê (Conectae)</span>
           <div className="flex flex-wrap justify-center gap-5 font-semibold">
-            <button onClick={openOfficialBank} className="hover:text-[#3155e7]">Questões</button>
-            <button onClick={openInterview} className="inline-flex items-center gap-1.5 hover:text-[#3155e7]"><MessageSquareText className="h-4 w-4" /> Entrevistas</button>
-            <button onClick={openCollegeTools} className="inline-flex items-center gap-1.5 hover:text-[#3155e7]"><FileText className="h-4 w-4" /> Faculdades</button>
+            <a href="/vestibulares-oficiais" className="hover:text-[#3155e7]">Questões</a>
+            <a href="/treino-entrevista" className="inline-flex items-center gap-1.5 hover:text-[#3155e7]"><MessageSquareText className="h-4 w-4" /> Entrevistas</a>
+            <a href="/faculdades" className="inline-flex items-center gap-1.5 hover:text-[#3155e7]"><FileText className="h-4 w-4" /> Faculdades</a>
           </div>
         </div>
       </footer>

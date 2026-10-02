@@ -39,6 +39,74 @@
       "destination": "/termos/index.html"
     },
     {
+      "source": "/enem",
+      "destination": "/enem/index.html"
+    },
+    {
+      "source": "/medicina",
+      "destination": "/medicina/index.html"
+    },
+    {
+      "source": "/insper",
+      "destination": "/insper/index.html"
+    },
+    {
+      "source": "/fgv",
+      "destination": "/fgv/index.html"
+    },
+    {
+      "source": "/fuvest",
+      "destination": "/fuvest/index.html"
+    },
+    {
+      "source": "/resumos-com-ia",
+      "destination": "/resumos-com-ia/index.html"
+    },
+    {
+      "source": "/redacao-enem",
+      "destination": "/redacao-enem/index.html"
+    },
+    {
+      "source": "/banco-de-questoes",
+      "destination": "/banco-de-questoes/index.html"
+    },
+    {
+      "source": "/teste-vocacional",
+      "destination": "/teste-vocacional/index.html"
+    },
+    {
+      "source": "/planejador-admissao",
+      "destination": "/planejador-admissao/index.html"
+    },
+    {
+      "source": "/vestibulares-oficiais",
+      "destination": "/vestibulares-oficiais/index.html"
+    },
+    {
+      "source": "/faculdades",
+      "destination": "/faculdades/index.html"
+    },
+    {
+      "source": "/vocacional",
+      "destination": "/vocacional/index.html"
+    },
+    {
+      "source": "/match-faculdades",
+      "destination": "/match-faculdades/index.html"
+    },
+    {
+      "source": "/curso-biologia",
+      "destination": "/curso-biologia/index.html"
+    },
+    {
+      "source": "/curso-redacao",
+      "destination": "/curso-redacao/index.html"
+    },
+    {
+      "source": "/cursos-particulares",
+      "destination": "/cursos-particulares/index.html"
+    },
+    {
       "source": "/((?!assets/|api/).*)",
       "destination": "/index.html"
     }

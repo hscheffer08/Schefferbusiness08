@@ -25,8 +25,8 @@ const ToolFallback=()=> <div className="grid min-h-[240px] place-items-center te
 
 function Gate({ onBack }: { onBack: () => void }) {
   const { user, loading } = useAuth();
-  const [view,setView]=useState<MainView>('inicio');
-  const [trainingView,setTrainingView]=useState<TrainingView>('hub');
+  const [view,setView]=useState<MainView>(()=>new URLSearchParams(window.location.search).get('treino')==='resumos'?'treinar':'inicio');
+  const [trainingView,setTrainingView]=useState<TrainingView>(()=>new URLSearchParams(window.location.search).get('treino')==='resumos'?'resumos':'hub');
   const [moreView,setMoreView]=useState<MoreView>('hub');
   const [plannerTab,setPlannerTab]=useState<'Hoje'|'Plano'|'Questões'|'Prova'>('Plano');
   const [plannerFocus,setPlannerFocus]=useState<PlannerFocus>(null);

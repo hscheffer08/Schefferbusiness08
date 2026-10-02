@@ -25,10 +25,10 @@ export default function InfoPages({ page, onBack }: InfoPagesProps) {
       </div>
 
       <header className="relative z-10 flex items-center justify-between px-6 py-6 md:px-12">
-        <button onClick={onBack} className="flex items-center gap-2 text-ink-400 hover:text-ink-100 transition-colors text-sm font-medium">
+        <a href="/" onClick={onBack} className="flex items-center gap-2 text-ink-400 hover:text-ink-100 transition-colors text-sm font-medium">
           <ArrowLeft className="w-4 h-4" />
           Voltar
-        </button>
+        </a>
         <div className="flex items-center gap-2">
           {config.icon}
           <span className="font-bold tracking-tight">{config.title}</span>
