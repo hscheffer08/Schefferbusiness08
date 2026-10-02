@@ -102,31 +102,40 @@ export default function StudySummaryAstra(){
   async function request(token:string,payload:Record<string,unknown>){
     let lastError='Não foi possível gerar esta parte do resumo.';
     let activeToken=token;
-    for(let attempt=0;attempt<3;attempt++){
+    const maxAttempts=2;
+
+    for(let attempt=0;attempt<maxAttempts;attempt++){
+      let response:Response;
       try{
-        const response=await fetch('/api/study-summary',{
+        response=await fetch('/api/study-summary',{
           method:'POST',
           headers:{'Content-Type':'application/json',Authorization:'Bearer '+activeToken},
           body:JSON.stringify({...payload,compact:attempt>0}),
-          signal:AbortSignal.timeout(attempt>0?95_000:115_000)
+          signal:AbortSignal.timeout(attempt>0?85_000:100_000)
         });
-        let data:ApiResponse={};
-        try{data=await response.json() as ApiResponse}catch{}
-        if(response.ok)return data;
-        lastError=data.error||lastError;
-        if(response.status===401&&attempt<2){
-          const refreshed=await ensureFreshSession(true);
-          if(refreshed?.access_token){
-            activeToken=refreshed.access_token;
-            await wait(250);
-            continue;
-          }
-        }
-        if(![429,500,502,503,504].includes(response.status)||attempt===2)throw new Error(lastError);
       }catch(e){
         lastError=e instanceof Error?e.message:lastError;
-        if(attempt===2||/sessão|Entre na sua conta/i.test(lastError))throw new Error(lastError);
+        if(attempt===maxAttempts-1)throw new Error(lastError);
+        await wait(900*(attempt+1));
+        continue;
       }
+
+      let data:ApiResponse={};
+      try{data=await response.json() as ApiResponse}catch{}
+      if(response.ok)return data;
+      lastError=data.error||lastError;
+
+      if(response.status===401&&attempt<maxAttempts-1){
+        const refreshed=await ensureFreshSession(true);
+        if(refreshed?.access_token){
+          activeToken=refreshed.access_token;
+          await wait(250);
+          continue;
+        }
+      }
+
+      const retryable=[429,503,504].includes(response.status);
+      if(!retryable||attempt===maxAttempts-1)throw new Error(lastError);
       await wait(900*(attempt+1));
     }
     throw new Error(lastError);
@@ -137,12 +146,12 @@ export default function StudySummaryAstra(){
     setBusy(true);setError('');setProgress('Montando a estrutura completa…');setCopied(false);setSummary(null);
     try{
       const session=await ensureFreshSession();
-      if(!session?.access_token)throw new Error('Entre na sua conta para usar o Astra.');
+      if(!session?.access_token)throw new Error('Entre na sua conta para usar a IA do Conectaê.');
       const token=session.access_token;
       const base={subject:chosen,topic:topic.trim(),focus,material:material.trim()};
 
       const outlineData=await request(token,{...base,phase:'outline'});
-      if(!outlineData.outline?.sections?.length)throw new Error(outlineData.error||'O Astra não conseguiu planejar o resumo.');
+      if(!outlineData.outline?.sections?.length)throw new Error(outlineData.error||'A IA do Conectaê não conseguiu planejar o resumo.');
       const outline=outlineData.outline;
       const plans=outline.sections;
       const sections:Array<Section>=new Array(plans.length);
@@ -165,7 +174,7 @@ export default function StudySummaryAstra(){
           if(!sectionData.section)throw new Error(sectionData.error||'Uma parte do resumo não foi concluída.');
           sections[index]=sectionData.section;
           completed++;
-          setProgress('Astra escreveu '+completed+' de '+plans.length+' partes. Continuando…');
+          setProgress('IA escreveu '+completed+' de '+plans.length+' partes. Continuando…');
         }
       }
 
@@ -232,7 +241,7 @@ export default function StudySummaryAstra(){
     setSubject(storedSubject);setCustom(storedCustom);
     setTopic(value.topic);setFocus(FOCUSES.includes(value.focus)?value.focus:FOCUSES[0]);setMaterial('');setSummary(value);setError('');setProgress('');setCopied(false);
     try{sessionStorage.setItem(STORAGE,JSON.stringify({subject:storedSubject,custom:storedCustom,topic:value.topic,focus:value.focus,material:'',summary:value}))}catch{}
-    window.setTimeout(()=>document.getElementById('astra-summary-result')?.scrollIntoView({behavior:'smooth',block:'start'}),80);
+    window.setTimeout(()=>document.getElementById('ai-summary-result')?.scrollIntoView({behavior:'smooth',block:'start'}),80);
   }
 
   async function sharePdf(value:Summary,id:string){
@@ -240,7 +249,7 @@ export default function StudySummaryAstra(){
     try{
       const file=createStudySummaryPdfFile(value);
       const canNativeShare=typeof navigator.share==='function'&&(!navigator.canShare||navigator.canShare({files:[file]}));
-      if(canNativeShare)await navigator.share({title:value.title,text:`Resumo do Astra: ${value.subject} · ${value.topic}`,files:[file]});
+      if(canNativeShare)await navigator.share({title:value.title,text:`Resumo do Conectaê: ${value.subject} · ${value.topic}`,files:[file]});
       else downloadStudySummaryPdf(value);
     }catch(shareError){
       if(shareError instanceof Error&&shareError.name==='AbortError')return;
@@ -270,9 +279,9 @@ export default function StudySummaryAstra(){
   return <div className="space-y-5">
     <section className="overflow-hidden rounded-[28px] border border-[#234576] bg-[#06152f]">
       <div className="border-b border-[#173765] bg-[radial-gradient(circle_at_85%_0%,rgba(36,108,255,.25),transparent_38%),#071a38] p-6 md:p-8">
-        <div className="inline-flex items-center gap-2 rounded-full border border-[#31588e] bg-[#0b2856] px-3 py-1.5 text-[11px] font-black uppercase tracking-[.12em] text-[#a9c7ef]"><Sparkles className="h-4 w-4"/>Resumos com Astra</div>
+        <div className="inline-flex items-center gap-2 rounded-full border border-[#31588e] bg-[#0b2856] px-3 py-1.5 text-[11px] font-black uppercase tracking-[.12em] text-[#a9c7ef]"><Sparkles className="h-4 w-4"/>Resumos com IA</div>
         <h1 className="mt-4 max-w-3xl text-3xl font-black tracking-[-.04em] md:text-5xl">Entenda a matéria em uma sequência que faz sentido.</h1>
-        <p className="mt-4 max-w-3xl text-sm leading-7 text-[#a9bddc] md:text-base">O Astra divide automaticamente resumos grandes em partes menores, aprofunda cada uma e junta tudo no final. Assim, o tamanho do conteúdo não fica preso ao limite de uma única resposta.</p>
+        <p className="mt-4 max-w-3xl text-sm leading-7 text-[#a9bddc] md:text-base">A IA do Conectaê divide automaticamente resumos grandes em partes menores, aprofunda cada uma e junta tudo no final, mantendo o conteúdo completo sem depender de uma única resposta.</p>
       </div>
 
       {!!savedSummaries.length&&<div className="border-b border-[#173765] bg-[#041027] p-5 md:p-7">
@@ -298,16 +307,16 @@ export default function StudySummaryAstra(){
         </label>
 
         <div className="lg:col-span-2">
-          <div className="flex justify-between gap-3"><div><div className="text-xs font-black uppercase tracking-[.12em] text-[#8eb7ff]">Seu material <span className="text-[#7891b4]">(opcional)</span></div><p className="mt-1 text-xs leading-relaxed text-[#7891b4]">Cole anotações ou texto da aula. O Astra usa como base e corrige inconsistências evidentes.</p></div><span className="text-[10px] font-bold text-[#607a9f]">{material.length}/60000</span></div>
+          <div className="flex justify-between gap-3"><div><div className="text-xs font-black uppercase tracking-[.12em] text-[#8eb7ff]">Seu material <span className="text-[#7891b4]">(opcional)</span></div><p className="mt-1 text-xs leading-relaxed text-[#7891b4]">Cole anotações ou texto da aula. A IA usa como base e corrige inconsistências evidentes.</p></div><span className="text-[10px] font-bold text-[#607a9f]">{material.length}/60000</span></div>
           <textarea value={material} onChange={e=>setMaterial(e.target.value)} maxLength={60000} rows={8} placeholder="Cole aqui o material que precisa entrar no resumo..." className="mt-2 w-full resize-y rounded-2xl border border-[#234576] bg-[#031027] p-4 text-sm leading-6 text-white outline-none placeholder:text-[#607a9f] focus:border-[#72a5ff]"/>
         </div>
 
         {error&&<p className="lg:col-span-2 rounded-xl border border-rose-400/25 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">{error}</p>}
-        <div className="lg:col-span-2"><button onClick={generate} disabled={!canGenerate} className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#246cff] px-5 font-black disabled:opacity-45">{busy?<><Loader2 className="h-5 w-5 animate-spin"/>Astra está montando o resumo completo…</>:<><BrainCircuit className="h-5 w-5"/>Gerar resumo perfeito</>}</button>{busy&&<p className="mt-3 text-center text-xs text-[#7891b4]">{progress||'Organizando o conteúdo em partes menores para não estourar o limite.'}</p>}</div>
+        <div className="lg:col-span-2"><button onClick={generate} disabled={!canGenerate} className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#246cff] px-5 font-black disabled:opacity-45">{busy?<><Loader2 className="h-5 w-5 animate-spin"/>A IA está montando o resumo completo…</>:<><BrainCircuit className="h-5 w-5"/>Gerar resumo perfeito</>}</button>{busy&&<p className="mt-3 text-center text-xs text-[#7891b4]">{progress||'Organizando o conteúdo em partes menores para não estourar o limite.'}</p>}</div>
       </div>
     </section>
 
-    {summary&&<article id="astra-summary-result" className="scroll-mt-24 space-y-5">
+    {summary&&<article id="ai-summary-result" className="scroll-mt-24 space-y-5">
       <section className="rounded-[28px] border border-[#31588e] bg-[#071a38] p-6 md:p-8">
         <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between"><div><div className="text-[11px] font-black uppercase tracking-[.14em] text-[#72a5ff]">{summary.subject} · {summary.focus}</div><h2 className="mt-2 max-w-3xl text-3xl font-black tracking-[-.04em] md:text-4xl">{summary.title}</h2><p className="mt-4 max-w-4xl whitespace-pre-line text-sm leading-7 text-[#b5c8e3]">{summary.orientation}</p></div><div className="flex flex-wrap gap-2"><button onClick={()=>downloadStudySummaryPdf(summary)} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#246cff] px-4 text-xs font-black"><Download className="h-4 w-4"/>Baixar PDF</button><button onClick={()=>void sharePdf(summary,'current')} disabled={sharingId==='current'} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#72a5ff]/45 bg-[#0b2856] px-4 text-xs font-black disabled:opacity-50">{sharingId==='current'?<Loader2 className="h-4 w-4 animate-spin"/>:<Share2 className="h-4 w-4"/>}Compartilhar</button><button onClick={copy} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#31588e] bg-[#0b2856] px-4 text-xs font-black">{copied?<CheckCircle2 className="h-4 w-4 text-emerald-300"/>:<Clipboard className="h-4 w-4"/>}{copied?'Copiado':'Copiar'}</button><button onClick={reset} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#234576] px-4 text-xs font-black text-[#b5c8e3]"><RotateCcw className="h-4 w-4"/>Novo</button></div></div>
         <div className="mt-6 rounded-2xl border border-[#234576] bg-[#031027] p-5"><div className="flex items-center gap-2 font-black"><BookOpenCheck className="h-5 w-5 text-[#72a5ff]"/>Visão geral</div><p className="mt-3 whitespace-pre-line text-sm leading-7 text-[#c4d4ea]">{summary.introduction}</p></div>
