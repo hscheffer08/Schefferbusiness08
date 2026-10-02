@@ -254,8 +254,8 @@ async function runText(args: {
 
 function parseSectionText(raw: string) {
   const text = String(raw || '').trim().replace(/^\s*EXPLICAÇÃO\s*:\s*/i, '');
-  const keyMarker = /\n\s*PONTOS[- ]CHAVE\s*:\s*/i;
-  const connectionMarker = /\n\s*CONEX(?:ÕES|OES)\s*:\s*/i;
+  const keyMarker = /\n\s*(?:#{1,6}\s*)?(?:\*\*)?PONTOS[- ]CHAVE(?:\*\*)?\s*:\s*/i;
+  const connectionMarker = /\n\s*(?:#{1,6}\s*)?(?:\*\*)?CONEX(?:ÕES|OES)(?:\*\*)?\s*:\s*/i;
   const keyMatch = keyMarker.exec(text);
   const connectionMatch = connectionMarker.exec(text);
   const markers = [keyMatch?.index, connectionMatch?.index].filter((value): value is number => typeof value === 'number');
@@ -287,7 +287,7 @@ function parseSectionText(raw: string) {
 }
 
 export default async function handler(req: any, res: any) {
-  if (req.method === 'GET') return send(res, 200, { ok: true, model: MODEL_LABEL, mode: 'chunked-v3' });
+  if (req.method === 'GET') return send(res, 200, { ok: true, model: MODEL_LABEL, mode: 'chunked-v4' });
   if (req.method !== 'POST') return send(res, 405, { error: 'Método não permitido.' });
 
   try {
@@ -511,7 +511,7 @@ export default async function handler(req: any, res: any) {
     return send(res, 400, { error: 'Etapa de geração inválida.' });
   } catch (error: any) {
     console.error('study-summary failed', error?.message || error);
-    if (error?.name === 'GeneratedJsonError') return send(res, 502, { error: 'A IA do Conectaê devolveu uma parte incompleta. O Conectaê vai tentar novamente automaticamente.' });
+    if (error?.name === 'GeneratedJsonError') return send(res, 502, { error: 'A IA do Conectaê devolveu uma parte incompleta. Tente novamente.' });
     if (timeoutLike(error)) return send(res, 504, { error: 'Esta parte levou mais tempo que o esperado. O Conectaê vai tentar novamente automaticamente.' });
     return send(res, 500, { error: 'Não foi possível gerar esta parte do resumo agora. Tente novamente em instantes.' });
   }
