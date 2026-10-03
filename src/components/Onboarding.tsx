@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { ArrowRight, GraduationCap, Loader2 } from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { trackEvent } from '@/lib/analytics';
+import BrandMark from '@/components/BrandMark';
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -82,9 +83,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       </div>
 
       <header className="relative z-10 flex items-center gap-2.5 px-6 py-6 md:px-12">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center shadow-lg shadow-brand-500/20">
-          <GraduationCap className="w-5 h-5 text-ink-950" strokeWidth={2.5} />
-        </div>
+        <BrandMark className="w-10 h-10 shrink-0" />
         <span className="font-bold text-lg tracking-tight">
           Conecta<span className="text-brand-400">ê</span>
         </span>
