@@ -1,7 +1,8 @@
-import { ArrowRight, Sparkles, GraduationCap, Compass, Trophy, BookOpen, FlaskConical, HelpCircle, Shield, FileText, Zap, Clock, LockKeyhole } from 'lucide-react';
+import { ArrowRight, Sparkles, Compass, Trophy, BookOpen, FlaskConical, HelpCircle, Shield, FileText, Zap, Clock, LockKeyhole } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { trackEvent, initSessionId } from '@/lib/analytics';
 import { useEffect } from 'react';
+import BrandMark from '@/components/BrandMark';
 import type { CountryCode, QuizMode } from '@/types';
 
 interface HomeProps {
@@ -33,9 +34,7 @@ export default function Home({ onStart, onProfile, onAuth, country, universityCo
 
       <nav className="relative z-10 flex items-center justify-between px-6 py-6 md:px-12">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center shadow-lg shadow-brand-500/20">
-            <GraduationCap className="w-5 h-5 text-ink-950" strokeWidth={2.5} />
-          </div>
+          <BrandMark className="w-10 h-10 shrink-0" />
           <span className="font-bold text-lg tracking-tight">Conecta<span className="text-brand-400">ê</span></span>
         </div>
         <div className="flex items-center gap-3">
@@ -126,7 +125,7 @@ export default function Home({ onStart, onProfile, onAuth, country, universityCo
       </main>
 
       <footer className="relative z-10 border-t border-ink-800/50 px-6 py-8 md:px-12">
-        <div className="max-w-5xl mx-auto"><div className="flex flex-col sm:flex-row items-center justify-between gap-4"><div className="flex items-center gap-2.5"><div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center"><GraduationCap className="w-4 h-4 text-ink-950" strokeWidth={2.5} /></div><span className="font-bold text-sm tracking-tight">Conectaê</span></div><div className="flex flex-wrap items-center justify-center gap-4 text-xs text-ink-500"><button onClick={() => onNavigate('howitworks')} className="flex items-center gap-1 hover:text-ink-300 transition-colors"><BookOpen className="w-3.5 h-3.5" /> Como funciona</button><button onClick={() => onNavigate('methodology')} className="flex items-center gap-1 hover:text-ink-300 transition-colors"><FlaskConical className="w-3.5 h-3.5" /> Metodologia</button><button onClick={() => onNavigate('faq')} className="flex items-center gap-1 hover:text-ink-300 transition-colors"><HelpCircle className="w-3.5 h-3.5" /> FAQ</button><button onClick={() => onNavigate('privacy')} className="flex items-center gap-1 hover:text-ink-300 transition-colors"><Shield className="w-3.5 h-3.5" /> Privacidade</button><button onClick={() => onNavigate('terms')} className="flex items-center gap-1 hover:text-ink-300 transition-colors"><FileText className="w-3.5 h-3.5" /> Termos</button></div></div><p className="text-center text-xs text-ink-600 mt-4">Conectaê mede compatibilidade de perfil, não chance de aprovação. Feito para estudantes brasileiros.</p></div>
+        <div className="max-w-5xl mx-auto"><div className="flex flex-col sm:flex-row items-center justify-between gap-4"><div className="flex items-center gap-2.5"><BrandMark className="w-7 h-7 shrink-0" /><span className="font-bold text-sm tracking-tight">Conectaê</span></div><div className="flex flex-wrap items-center justify-center gap-4 text-xs text-ink-500"><button onClick={() => onNavigate('howitworks')} className="flex items-center gap-1 hover:text-ink-300 transition-colors"><BookOpen className="w-3.5 h-3.5" /> Como funciona</button><button onClick={() => onNavigate('methodology')} className="flex items-center gap-1 hover:text-ink-300 transition-colors"><FlaskConical className="w-3.5 h-3.5" /> Metodologia</button><button onClick={() => onNavigate('faq')} className="flex items-center gap-1 hover:text-ink-300 transition-colors"><HelpCircle className="w-3.5 h-3.5" /> FAQ</button><button onClick={() => onNavigate('privacy')} className="flex items-center gap-1 hover:text-ink-300 transition-colors"><Shield className="w-3.5 h-3.5" /> Privacidade</button><button onClick={() => onNavigate('terms')} className="flex items-center gap-1 hover:text-ink-300 transition-colors"><FileText className="w-3.5 h-3.5" /> Termos</button></div></div><p className="text-center text-xs text-ink-600 mt-4">Conectaê mede compatibilidade de perfil, não chance de aprovação. Feito para estudantes brasileiros.</p></div>
       </footer>
     </div>
   );
