@@ -229,7 +229,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
       if(userData.user){
         signedIn=true;
         const[{data:pref},{data:examAttempts}]=await Promise.all([
-          supabase.from('student_exam_preferences').select('current_scores,weekly_hours,difficulty_topics,selected_university_id,selected_route_key,course_label').eq('user_id',userData.user.id).eq('exam_id',model.examId).maybeSingle(),
+          supabase.from('student_exam_preferences').select('current_scores,weekly_hours,difficulty_topics').eq('user_id',userData.user.id).eq('exam_id',model.examId).maybeSingle(),
           supabase.from('student_practice_attempts').select('exam_id,area,skill_name,correct,created_at').eq('user_id',userData.user.id).eq('exam_id',model.examId).order('created_at',{ascending:false}).limit(400),
         ]);
         if(university&&university.area_university_id>0){
@@ -238,18 +238,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
           if(Number.isFinite(Number(routeData?.target_override)))routeTarget=Number(routeData?.target_override);
         }
         setAttempts((examAttempts??[]) as Attempt[]);
-        const prefMatchesRoute=Boolean(
-          pref?.current_scores&&typeof pref.current_scores==='object'&&
-          (
-            (!university||university.area_university_id<=0) ||
-            (
-              Number(pref.selected_university_id)===Number(university.area_university_id) &&
-              String(pref.selected_route_key??'primary')===String(model.routeKey??selectedRouteKey??'primary') &&
-              String(pref.course_label??course)===course
-            )
-          )
-        );
-        if(!Object.keys(saved).length&&prefMatchesRoute)saved=pref.current_scores as Record<string,number>;
+        if(!Object.keys(saved).length&&(!university||university.area_university_id<=0)&&pref?.current_scores&&typeof pref.current_scores==='object')saved=pref.current_scores as Record<string,number>;
         if(pref?.weekly_hours){setWeeklyHours(Number(pref.weekly_hours));setAppliedWeeklyHours(Number(pref.weekly_hours))}
         if(pref?.difficulty_topics&&typeof pref.difficulty_topics==='object')setDifficultyTopics(pref.difficulty_topics as DifficultySelection);else setDifficultyTopics({});
         await reloadDiagnostics(userData.user.id,model.examId);
