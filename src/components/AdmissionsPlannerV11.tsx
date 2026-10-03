@@ -52,8 +52,8 @@ function matchQuestionArea(area:string,key:string){
 }
 
 function goalFor(metric:ExamMetric,model:ExamModel,dataGoal?:number){
-  if(Number.isFinite(metric.goal))return clamp(Number(metric.goal),0,metric.max);
   if(Number.isFinite(dataGoal))return clamp(Number(dataGoal),0,metric.max);
+  if(Number.isFinite(metric.goal))return clamp(Number(metric.goal),0,metric.max);
   if(isEnemScoringModel(model)){
     const fallback:Record<string,number>={Linguagens:700,Humanas:720,Natureza:760,'Matemática':790,'Redação':880};
     return fallback[metric.key]??Math.round(metric.max*.8);
@@ -286,9 +286,19 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
       if(!first)return goals;
       const historicalMax=Number(activeCutoff.max_value||90);
       goals['1ª fase']=Math.ceil(Number(activeCutoff.target_value)/Math.max(1,historicalMax)*first.max);
+      return goals;
+    }
+    const overallMax=Number(model.overall?.max);
+    const hasExplicitMetricGoals=metrics.some(metric=>Number.isFinite(metric.goal));
+    if(model.scoreProfile==='component'&&Number.isFinite(overallMax)&&overallMax>0&&(targetOverride!==null||!hasExplicitMetricGoals)){
+      const ratio=clamp(Number(effectiveTarget)/overallMax,0,1);
+      for(const metric of metrics){
+        const raw=metric.max*ratio;
+        goals[metric.key]=clamp(metric.unit==='acertos'?Math.max(1,Math.ceil(raw)):Math.round(raw*10)/10,0,metric.max);
+      }
     }
     return goals;
-  },[activeCutoff,effectiveTarget,model.examId,metrics]);
+  },[activeCutoff,effectiveTarget,model,metrics,targetOverride]);
 
   const diagnosis:Priority[]=useMemo(()=>{
     const averageWeight=metrics.reduce((sum,metric)=>sum+(metric.weight&&metric.weight>0?metric.weight:1),0)/Math.max(1,metrics.length);
