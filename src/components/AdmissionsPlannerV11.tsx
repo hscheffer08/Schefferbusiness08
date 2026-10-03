@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ArrowLeft, BookOpen, CalendarDays, CheckCircle2, ExternalLink, Home, Loader2, Minus, PlayCircle, Plus, Save, Sparkles, Target, Trophy, Video, X, XCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { calculateExamScore, getExamModel, isSupportedInstitutionCourse, mergeRemoteExamModel, normalizeStoredScores, type ExamId, type ExamMetric, type RemoteExamModelRow } from '@/lib/exam-models';
+import { calculateExamScore, getExamModel, isEnemScoringModel, isSupportedInstitutionCourse, mergeRemoteExamModel, normalizeStoredScores, type ExamMetric, type ExamModel, type RemoteExamModelRow } from '@/lib/exam-models';
 import { buildRoadmap } from '@/lib/admissions-roadmap-balanced';
 import { isSupplementalQuestion, mergePracticeQuestions } from '@/lib/supplemental-practice-questions';
 import WeeklyPlanExperience from '@/components/WeeklyPlanExperience';
@@ -41,13 +41,18 @@ function matchQuestionArea(area:string,key:string){
   return false;
 }
 
-function goalFor(metric:ExamMetric,examId:ExamId,dataGoal?:number){
+function goalFor(metric:ExamMetric,model:ExamModel,dataGoal?:number){
   if(Number.isFinite(metric.goal))return clamp(Number(metric.goal),0,metric.max);
   if(Number.isFinite(dataGoal))return clamp(Number(dataGoal),0,metric.max);
-  if(examId==='enem'){
+  if(isEnemScoringModel(model)){
     const fallback:Record<string,number>={Linguagens:700,Humanas:720,Natureza:760,'Matemática':790,'Redação':880};
     return fallback[metric.key]??Math.round(metric.max*.8);
   }
+  if(model.scoreProfile==='component'){
+    const pct=metric.unit==='desempenho'?.8:metric.key==='Redação'?.8:.78;
+    return Math.max(metric.unit==='acertos'?1:0,Math.round(metric.max*pct));
+  }
+  const examId=model.examId;
   if(examId==='cmmg'){
     if(metric.key==='Redação')return Math.round(metric.max*.8);
     const pct:Record<string,number>={'Língua Portuguesa':.78,'Literatura':.75,'Inglês':.78,'Biologia':.82,'Física':.75,'Química':.8,'Matemática':.8,'Linguagens':.8,'Conhecimentos Gerais':.75,'Humanas':.75};
@@ -72,8 +77,7 @@ function goalFor(metric:ExamMetric,examId:ExamId,dataGoal?:number){
     const target:Record<string,number>={'Matemática':75,'Business Case':82,'Escrita':80,'Oral':80,'Portfólio':78,'Entrevista':80};
     return target[metric.key]??78;
   }
-  const exhaustive:never=examId;
-  throw new Error(`Meta não configurada para ${exhaustive}`);
+  return Math.max(metric.unit==='acertos'?1:0,Math.round(metric.max*.8));
 }
 
 function enemGoalsFromCutoff(cutoff:number){
@@ -266,7 +270,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   const dataGoals=useMemo<Record<string,number>>(()=>{
     const goals:Record<string,number>={};
     if(!Number.isFinite(Number(effectiveTarget)))return goals;
-    if(model.examId==='enem')return {...goals,...enemGoalsFromCutoff(Number(effectiveTarget))};
+    if(isEnemScoringModel(model))return {...goals,...enemGoalsFromCutoff(Number(effectiveTarget))};
     if(model.examId==='fuvest'&&activeCutoff){
       const first=metrics.find(m=>m.key==='1ª fase');
       if(!first)return goals;
@@ -280,7 +284,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
     const averageWeight=metrics.reduce((sum,metric)=>sum+(metric.weight&&metric.weight>0?metric.weight:1),0)/Math.max(1,metrics.length);
     return metrics.map(metric=>{
       const current=appliedValues[metric.key]??metric.defaultValue;
-      const goal=goalFor(metric,model.examId,dataGoals[metric.key]);
+      const goal=goalFor(metric,model,dataGoals[metric.key]);
       const studyKey=metric.studyArea??metric.key;
       const relevant=attempts.filter(a=>a.exam_id===model.examId&&matchQuestionArea(a.area,studyKey)&&a.correct!==null).slice(0,40);
       const accuracy=relevant.length?relevant.filter(x=>x.correct).length/relevant.length:null;
@@ -332,8 +336,11 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   const openAreaQuestions=(focus:string)=>{const pool=allowedQuestions.filter(q=>matchQuestionArea(q.area,focus));const next=pool[0];if(next){setQuestionArea(next.area);setTab('questoes');openQuestion(next)}else setTab('questoes')};
   const checkQuestion=async()=>{if(!activeQuestion||!selectedOption)return;const ok=selectedOption===activeQuestion.correct_option;setPracticeResult(ok);if(simulationQueue.length&&ok)setSimulationScore(s=>s+1);const attempt:Attempt={exam_id:model.examId,area:activeQuestion.area,skill_name:activeQuestion.skill_name,correct:ok,created_at:new Date().toISOString()};setAttempts(v=>[attempt,...v].slice(0,400));const saveGuestAttempt=()=>{try{const current=JSON.parse(localStorage.getItem(GUEST_ATTEMPTS_KEY)||'[]');const rows=Array.isArray(current)?current:[];localStorage.setItem(GUEST_ATTEMPTS_KEY,JSON.stringify([attempt,...rows].slice(0,400)))}catch{/* local persistence is best effort */}};try{if(!supabase){saveGuestAttempt();return}const{data}=await supabase.auth.getUser();if(!data.user){saveGuestAttempt();return}if(isSupplementalQuestion(activeQuestion.id)){await supabase.from('student_skill_diagnostics').insert({user_id:data.user.id,exam_id:model.examId,skill_code:null,area:activeQuestion.area,question_text:activeQuestion.prompt,correct:ok,confidence:1,error_type:ok?null:'questao_autoral',diagnosis:{source:'conectae_autoral_v2',skill_name:activeQuestion.skill_name,selected_option:selectedOption,correct_option:activeQuestion.correct_option}})}else{await supabase.from('student_practice_attempts').insert({user_id:data.user.id,exam_id:model.examId,question_id:activeQuestion.id,area:activeQuestion.area,skill_name:activeQuestion.skill_name,selected_option:selectedOption,correct:ok,duration_seconds:questionStartedAt?Math.max(1,Math.round((Date.now()-questionStartedAt)/1000)):null})}if(!ok)window.dispatchEvent(new CustomEvent('conectae:diagnostic-saved',{detail:{examId:model.examId,source:'practice_error'}}))}catch{setMessage('A resposta foi corrigida e entrou no plano atual, mas não foi possível sincronizar o histórico.')}};
   const tabs:[Tab,string,ReactNode][]=[['hoje','Hoje',<Home size={18}/>],['plano','Plano',<CalendarDays size={18}/>],['questoes','Questões',<BookOpen size={18}/>],['prova','Prova',<Trophy size={18}/>]];
-  const miniSimulationSize=model.examId==='fgv'?15:model.examId==='insper'?30:model.examId==='ibmec'||model.examId==='einstein'?25:20;
-  const fullSimulationSize=model.examId==='fgv'?25:model.examId==='insper'?60:model.examId==='ibmec'||model.examId==='einstein'?50:30;
+  const objectiveQuestionCount=Math.round(metrics.filter(metric=>metric.unit==='acertos').reduce((sum,metric)=>sum+metric.max,0));
+  const fallbackMini=model.examId==='fgv'?15:model.examId==='insper'?30:model.examId==='ibmec'||model.examId==='einstein'?25:20;
+  const fallbackFull=model.examId==='fgv'?25:model.examId==='insper'?60:model.examId==='ibmec'||model.examId==='einstein'?50:30;
+  const fullSimulationSize=Math.max(1,Math.round(model.fullSimulationSize??(model.roadmapMode==='balanced'&&objectiveQuestionCount>0?objectiveQuestionCount:fallbackFull)));
+  const miniSimulationSize=Math.max(1,Math.min(fullSimulationSize,Math.round(model.miniSimulationSize??(model.roadmapMode==='balanced'?Math.min(30,Math.ceil(fullSimulationSize/2)):fallbackMini))));
 
   if(loading)return <div className="plan6" style={{display:'grid',placeItems:'center'}}><Loader2 className="animate-spin"/></div>;
 
@@ -367,7 +374,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
               <span style={{fontSize:11,opacity:.7}}>{targetOverride!==null?'meta personalizada':model.target?.value?'referência verificada/planejada':activeCutoff?'última referência disponível':'opcional'}</span>
             </div>
           </div>
-          {metrics.map(m=>{const current=values[m.key]??m.defaultValue;const step=m.max>=1000?.1:1;const goal=goalFor(m,model.examId,dataGoals[m.key]);const missing=Math.max(0,goal-current);return <div className="plan6-statline" key={m.key}><div><div className="plan6-statname">{m.label}</div><div className="plan6-statmeta">Agora <b>{current.toLocaleString('pt-BR',{maximumFractionDigits:1})}</b> de {m.max} • meta de estudo {goal.toLocaleString('pt-BR',{maximumFractionDigits:1})}{m.weight&&m.weight!==1?` • peso ${m.weight}`:''}{Number.isFinite(m.minimum)?` • mínimo ${m.minimum}`:''}</div><div className="plan6-score-control"><button type="button" onClick={()=>updateScore(m,current-step)}><Minus size={16}/></button><input className="plan6-slider" type="range" min="0" max={m.max} step={m.max>=1000?1:step} value={current} onChange={e=>updateScore(m,Number(e.target.value))}/><input className="plan6-score-number" type="number" min="0" max={m.max} step={step} value={current} onChange={e=>updateScore(m,Number(e.target.value||0))}/><button type="button" onClick={()=>updateScore(m,current+step)}><Plus size={16}/></button></div></div><div className="plan6-statvalue">{missing.toLocaleString('pt-BR',{maximumFractionDigits:1})} faltam</div></div>})}
+          {metrics.map(m=>{const current=values[m.key]??m.defaultValue;const step=m.max>=1000?.1:1;const goal=goalFor(m,model,dataGoals[m.key]);const missing=Math.max(0,goal-current);return <div className="plan6-statline" key={m.key}><div><div className="plan6-statname">{m.label}</div><div className="plan6-statmeta">Agora <b>{current.toLocaleString('pt-BR',{maximumFractionDigits:1})}</b> de {m.max} • meta de estudo {goal.toLocaleString('pt-BR',{maximumFractionDigits:1})}{m.weight&&m.weight!==1?` • peso ${m.weight}`:''}{Number.isFinite(m.minimum)?` • mínimo ${m.minimum}`:''}</div><div className="plan6-score-control"><button type="button" onClick={()=>updateScore(m,current-step)}><Minus size={16}/></button><input className="plan6-slider" type="range" min="0" max={m.max} step={m.max>=1000?1:step} value={current} onChange={e=>updateScore(m,Number(e.target.value))}/><input className="plan6-score-number" type="number" min="0" max={m.max} step={step} value={current} onChange={e=>updateScore(m,Number(e.target.value||0))}/><button type="button" onClick={()=>updateScore(m,current+step)}><Plus size={16}/></button></div></div><div className="plan6-statvalue">{missing.toLocaleString('pt-BR',{maximumFractionDigits:1})} faltam</div></div>})}
           <div className="plan6-actions" style={{marginTop:18}}><button className="plan6-btn primary" disabled={saving} onClick={save}><Save size={15}/>Salvar notas e atualizar meu plano</button></div>
         </section>
       </div>}

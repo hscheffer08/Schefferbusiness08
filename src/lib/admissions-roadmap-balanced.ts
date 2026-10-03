@@ -1,5 +1,5 @@
 import { getExamSkillCatalog, topicKey, type DifficultySelection } from './exam-skill-catalog.ts';
-import type { ExamId } from './exam-models.ts';
+import type { ExamModel } from './exam-models.ts';
 import {
   buildRoadmap as buildBaseRoadmap,
   getMilestones,
@@ -53,8 +53,21 @@ function matchArea(area: string, key: string) {
   return false;
 }
 
-function eligibleForMix(examId: ExamId, week: BaseRoadmapWeek, priority: RoadmapPriority) {
+function eligibleForMix(model: ExamModel, week: BaseRoadmapWeek, priority: RoadmapPriority) {
   const key = norm(keyOf(priority));
+  const custom = model.roadmapPhases?.find(phase => phase.label === week.phase);
+  if (custom?.includeMetrics?.length) {
+    return custom.includeMetrics.some(metric => {
+      const wanted = norm(metric);
+      return key === wanted || key.includes(wanted) || wanted.includes(key);
+    });
+  }
+  if (custom?.excludeMetrics?.length && custom.excludeMetrics.some(metric => {
+    const blocked = norm(metric);
+    return key === blocked || key.includes(blocked) || blocked.includes(key);
+  })) return false;
+  if (model.roadmapMode === 'balanced') return true;
+  const examId = model.examId;
   if (examId === 'enem') {
     return week.start >= '2026-11-09' ? ['natureza', 'matematica'].includes(key) : ['linguagens', 'humanas', 'natureza', 'matematica', 'redacao'].includes(key);
   }
@@ -203,7 +216,7 @@ export function buildRoadmap(args: BuildArgs) {
   const usage = new Map<string, number>();
   let previousPrimary = '';
   const weeks: RoadmapWeek[] = base.weeks.map((week, weekIndex) => {
-    let candidates = args.priorities.filter(p => eligibleForMix(args.model.examId, week, p)).map(p => scoreSignals(args, p, catalog));
+    let candidates = args.priorities.filter(p => eligibleForMix(args.model, week, p)).map(p => scoreSignals(args, p, catalog));
     if (!candidates.length) candidates = args.priorities.map(p => scoreSignals(args, p, catalog));
     const selected = chooseMix(candidates, usage, previousPrimary);
     if (!selected.length) return { ...week, focusMix: [], balanceSummary: 'Sem prioridades suficientes para distribuir.' };
