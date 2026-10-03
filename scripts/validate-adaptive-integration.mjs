@@ -1,5 +1,5 @@
 import { buildRoadmap, getMilestones } from '../src/lib/admissions-roadmap-balanced.ts';
-import { getExamModel, getSupportedPlannerCourseMatrix, isSupportedInstitutionCourse, SITE_PLANNER_COURSES } from '../src/lib/exam-models.ts';
+import { getExamModel, getSupportedPlannerCourseMatrix, isSupportedInstitutionCourse, mergeRemoteExamModel, SITE_PLANNER_COURSES } from '../src/lib/exam-models.ts';
 import { getExamSkillCatalog, topicKey } from '../src/lib/exam-skill-catalog.ts';
 
 const assert=(name,ok,detail='')=>{
@@ -58,6 +58,46 @@ if(mathSubject&&chosenTopic){
 const photo=buildRoadmap({model,course:'Medicina',priorities,weeklyHours:9,questions,diagnostics:[{area:'Matemática',skill:'Trigonometria'}],today});
 assert('photo/manual diagnostic reaches the weekly roadmap',photo.weeks.some(w=>w.focusMix.some(f=>f.topic==='Trigonometria')||w.topic==='Trigonometria'));
 assert('diagnostic influence is visible in focus reasoning',photo.weeks.some(w=>w.focusMix.some(f=>f.reason.includes('diagnóstico'))));
+
+const institutionalBase=getExamModel('ENEM — plano geral','Medicina');
+const institutionalModel=mergeRemoteExamModel(institutionalBase,{
+  university_name:'Teste Medicina',
+  course_label:'Medicina',
+  exam_id:'institutional_test',
+  route_key:'primary',
+  route_label:'Vestibular próprio',
+  practice_exam_id:'enem',
+  source_confidence:'test',
+  structure_verified:false,
+  model:{
+    scoreProfile:'component',
+    roadmapMode:'balanced',
+    title:'Teste Medicina',
+    structure:'Modelo institucional sem próxima data oficial.',
+    components:[
+      {key:'Linguagens',label:'Linguagens',max:100,defaultValue:60,unit:'desempenho',studyArea:'Linguagens'},
+      {key:'Natureza',label:'Natureza',max:100,defaultValue:60,unit:'desempenho',studyArea:'Natureza'},
+      {key:'Matemática',label:'Matemática',max:100,defaultValue:60,unit:'desempenho',studyArea:'Matemática'},
+    ],
+    allowedQuestionAreas:['Linguagens','Natureza','Matemática'],
+  },
+});
+const institutionalPriorities=institutionalModel.metrics.map(metric=>({
+  metric,current:metric.defaultValue,goal:80,missing:20,score:.3,accuracy:.65,
+}));
+const institutionalQuestions=['Linguagens','Natureza','Matemática'].flatMap((area,i)=>
+  Array.from({length:8},(_,j)=>({id:900000+i*100+j,exam_id:'enem',area,skill_name:`${area} teste`,prompt:'Questão teste',difficulty:3}))
+);
+const institutionalRoadmap=buildRoadmap({
+  model:institutionalModel,course:'Medicina',priorities:institutionalPriorities,weeklyHours:9,
+  questions:institutionalQuestions,today:new Date('2026-12-20T12:00:00-03:00'),
+});
+assert('institutional model without official next date never inherits ENEM dates',
+  institutionalRoadmap.milestones.length===1&&institutionalRoadmap.milestones[0].label.includes('12 semanas'),
+  institutionalRoadmap.milestones.map(m=>`${m.date}:${m.label}`).join(' | '));
+assert('institutional model without official next date still builds future weeks',
+  institutionalRoadmap.weeks.length>0&&institutionalRoadmap.finalDate>'2026-12-20',
+  `weeks=${institutionalRoadmap.weeks.length}, final=${institutionalRoadmap.finalDate}`);
 
 const coverageDate=new Date('2026-09-26T12:00:00-03:00');
 const matrix=getSupportedPlannerCourseMatrix();
