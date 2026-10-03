@@ -10,6 +10,7 @@ import {
   Sparkles,
   Target,
 } from 'lucide-react';
+import BrandMark from './BrandMark';
 
 interface Props {
   onBack: () => void;
@@ -40,9 +41,7 @@ export default function DiscoveryHub({ onBack, onOpenVocational, onOpenColleges,
             <ArrowLeft className="h-4 w-4" /> Início
           </button>
           <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-300 to-[#246cff] shadow-lg shadow-cyan-400/10">
-              <GraduationCap className="h-4.5 w-4.5 text-[#06101f]" />
-            </span>
+            <BrandMark className="h-9 w-9 shrink-0" />
             <div className="leading-none">
               <div className="font-black tracking-tight">Conecta<span className="text-cyan-200">ê</span></div>
               <div className="mt-1 text-[9px] font-black uppercase tracking-[.18em] text-[#687f9f]">Descoberta</div>
