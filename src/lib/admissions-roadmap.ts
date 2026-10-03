@@ -181,7 +181,9 @@ export function buildRoadmap(args:{model:ExamModel;course:string;priorities:Road
   const{model,course,priorities,questions}=args;const difficultyTopics=args.difficultyTopics??{};const diagnostics=args.diagnostics??[];const catalog=getExamSkillCatalog(model.examId,course);
   const difficultyFor=(focus:string)=>catalog.subjects.flatMap(s=>s.topics.map(topic=>({subject:s.subject,area:s.area,topic,level:difficultyTopics[topicKey(s.subject,topic)]??0}))).filter(x=>x.level>0&&(matchArea(x.area,focus)||matchArea(x.subject,focus))).sort((a,b)=>b.level-a.level);
   const diagnosticFor=(focus:string)=>diagnostics.filter(d=>matchArea(d.area,focus));const weeklyHours=Math.max(3,Math.min(30,Math.round(args.weeklyHours)));const rawToday=args.today??new Date();const startToday=new Date(rawToday.getFullYear(),rawToday.getMonth(),rawToday.getDate(),12);
-  const configuredMilestones=model.milestones?.length?model.milestones:getMilestones(model.examId,course);
+  const configuredMilestones=model.roadmapMode==='balanced'
+    ?(model.milestones??[])
+    :(model.milestones?.length?model.milestones:getMilestones(model.examId,course));
   const hasFutureConfiguredMilestone=configuredMilestones.some(m=>date(m.date).getTime()>=startToday.getTime());
   const planningHorizon=new Date(startToday.getTime()+12*7*day);
   const milestones=model.roadmapMode==='balanced'&&!hasFutureConfiguredMilestone

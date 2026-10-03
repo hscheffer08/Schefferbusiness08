@@ -238,7 +238,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
           if(Number.isFinite(Number(routeData?.target_override)))routeTarget=Number(routeData?.target_override);
         }
         setAttempts((examAttempts??[]) as Attempt[]);
-        if(!Object.keys(saved).length&&pref?.current_scores&&typeof pref.current_scores==='object')saved=pref.current_scores as Record<string,number>;
+        if(!Object.keys(saved).length&&(!university||university.area_university_id<=0)&&pref?.current_scores&&typeof pref.current_scores==='object')saved=pref.current_scores as Record<string,number>;
         if(pref?.weekly_hours){setWeeklyHours(Number(pref.weekly_hours));setAppliedWeeklyHours(Number(pref.weekly_hours))}
         if(pref?.difficulty_topics&&typeof pref.difficulty_topics==='object')setDifficultyTopics(pref.difficulty_topics as DifficultySelection);else setDifficultyTopics({});
         await reloadDiagnostics(userData.user.id,model.examId);
