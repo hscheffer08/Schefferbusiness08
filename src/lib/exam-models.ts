@@ -24,6 +24,24 @@ export type ExamTarget = {
   confidence?: string;
 };
 
+export type ExamMilestone = {
+  label: string;
+  date: string;
+  note: string;
+};
+
+export type ExamRoadmapPhase = {
+  key?: string;
+  label: string;
+  start?: string;
+  end?: string;
+  includeMetrics?: string[];
+  excludeMetrics?: string[];
+  mockLabel?: string;
+  miniMockQuestions?: number;
+  fullMockQuestions?: number;
+};
+
 export type RemoteExamModelRow = {
   university_name: string;
   course_label: string;
@@ -56,6 +74,12 @@ export type ExamModel = {
   notes?: string;
   overall?: { method: 'weighted_average' | 'weighted_sum' | 'sum' | 'mean' | 'percentage'; max?: number };
   target?: ExamTarget;
+  scoreProfile?: 'enem_1000' | 'component';
+  roadmapMode?: 'core' | 'balanced';
+  milestones?: ExamMilestone[];
+  roadmapPhases?: ExamRoadmapPhase[];
+  miniSimulationSize?: number;
+  fullSimulationSize?: number;
 };
 
 const ENEM_METRICS: ExamMetric[] = [
@@ -279,6 +303,37 @@ export function mergeRemoteExamModel(base: ExamModel, row?: RemoteExamModelRow |
     confidence: rawTarget?.confidence ? String(rawTarget.confidence) : undefined,
   } : base.target;
 
+  const rawMilestones = Array.isArray(raw.milestones) ? raw.milestones as Array<Record<string, unknown>> : [];
+  const milestones: ExamMilestone[] | undefined = rawMilestones.length ? rawMilestones
+    .filter(item => item.label && item.date)
+    .map(item => ({ label:String(item.label), date:String(item.date), note:item.note ? String(item.note) : '' })) : base.milestones;
+
+  const rawPhases = Array.isArray(raw.roadmapPhases ?? raw.roadmap_phases)
+    ? (raw.roadmapPhases ?? raw.roadmap_phases) as Array<Record<string, unknown>>
+    : [];
+  const roadmapPhases: ExamRoadmapPhase[] | undefined = rawPhases.length ? rawPhases
+    .filter(item => item.label)
+    .map(item => ({
+      key:item.key ? String(item.key) : undefined,
+      label:String(item.label),
+      start:item.start ? String(item.start) : undefined,
+      end:item.end ? String(item.end) : undefined,
+      includeMetrics:Array.isArray(item.includeMetrics ?? item.include_metrics) ? (item.includeMetrics ?? item.include_metrics as unknown[]).map(String) : undefined,
+      excludeMetrics:Array.isArray(item.excludeMetrics ?? item.exclude_metrics) ? (item.excludeMetrics ?? item.exclude_metrics as unknown[]).map(String) : undefined,
+      mockLabel:item.mockLabel || item.mock_label ? String(item.mockLabel ?? item.mock_label) : undefined,
+      miniMockQuestions:Number.isFinite(Number(item.miniMockQuestions ?? item.mini_mock_questions)) ? Number(item.miniMockQuestions ?? item.mini_mock_questions) : undefined,
+      fullMockQuestions:Number.isFinite(Number(item.fullMockQuestions ?? item.full_mock_questions)) ? Number(item.fullMockQuestions ?? item.full_mock_questions) : undefined,
+    })) : base.roadmapPhases;
+
+  const scoreProfileRaw = String(raw.scoreProfile ?? raw.score_profile ?? base.scoreProfile ?? '');
+  const scoreProfile: ExamModel['scoreProfile'] = scoreProfileRaw === 'enem_1000' || scoreProfileRaw === 'component'
+    ? scoreProfileRaw
+    : base.scoreProfile;
+  const roadmapModeRaw = String(raw.roadmapMode ?? raw.roadmap_mode ?? base.roadmapMode ?? '');
+  const roadmapMode: ExamModel['roadmapMode'] = roadmapModeRaw === 'core' || roadmapModeRaw === 'balanced'
+    ? roadmapModeRaw
+    : base.roadmapMode;
+
   const practiceExamId = asCoreExamId(row.practice_exam_id, base.examId);
   const rawAllowed=raw.allowedQuestionAreas??raw.allowed_question_areas;
   const allowedQuestionAreas = Array.isArray(rawAllowed)
@@ -303,7 +358,19 @@ export function mergeRemoteExamModel(base: ExamModel, row?: RemoteExamModelRow |
     allowedQuestionAreas,
     overall,
     target,
+    scoreProfile,
+    roadmapMode,
+    milestones,
+    roadmapPhases,
+    miniSimulationSize:Number.isFinite(Number(raw.miniSimulationSize ?? raw.mini_simulation_size)) ? Number(raw.miniSimulationSize ?? raw.mini_simulation_size) : base.miniSimulationSize,
+    fullSimulationSize:Number.isFinite(Number(raw.fullSimulationSize ?? raw.full_simulation_size)) ? Number(raw.fullSimulationSize ?? raw.full_simulation_size) : base.fullSimulationSize,
   };
+}
+
+export function isEnemScoringModel(model: ExamModel) {
+  if (model.scoreProfile) return model.scoreProfile === 'enem_1000';
+  return model.admissionExamId === 'enem'
+    || (model.examId === 'enem' && model.metrics.length === 5 && model.metrics.every(metric => metric.max === 1000));
 }
 
 export function calculateExamScore(model: ExamModel, values: Record<string, number>) {
@@ -492,6 +559,8 @@ export function getExamModel(university: string, course: string): ExamModel {
     allowedQuestionAreas: ['Linguagens', 'Humanas', 'Natureza', 'Matemática', 'Redação'],
     officialSource: ufmg ? 'https://www.ufmg.br/sisu/' : 'https://www.gov.br/inep/pt-br/areas-de-atuacao/avaliacao-e-exames-educacionais/enem',
     overall: { method: 'weighted_average' as const, max: 1000 },
+    scoreProfile: 'enem_1000',
+    roadmapMode: 'core',
   };
 }
 
