@@ -40,7 +40,7 @@ const RAW = [
   ...EXTRA_ACADEMIC_AREAS,
   ['Humanidades e Jurídico','Direito','Leitura, argumentação, instituições, normas, negociação e resolução de conflitos.',['USP','FGV Direito SP','PUC-SP','Mackenzie','UFMG','UnB','UFRJ','UFPR']],
   ['Saúde e Ciências Humanas','Psicologia','Comportamento, cuidado, escuta, evidências e desenvolvimento humano.',['USP','PUC-SP','Mackenzie','UFMG','UnB','UFRJ','UFSC','PUC-Rio']],
-  ['Saúde','Medicina, Enfermagem, Odontologia, Fisioterapia e Nutrição','Ciências da vida, cuidado, prática clínica, responsabilidade e contato humano.',['USP','UNIFESP','UFMG','UFRJ','UNICAMP','UFRGS','UFPR','Faculdade Israelita de Ciências da Saúde Albert Einstein']],
+  ['Saúde','Medicina','Formação médica com ciências da vida, raciocínio clínico, cuidado, prática assistencial, pesquisa e alta responsabilidade profissional.',['USP','UNIFESP','UFMG','UFRJ','UNICAMP','UFRGS','UFPR','Faculdade Israelita de Ciências da Saúde Albert Einstein']],
   ['Negócios e Gestão','Administração','Estratégia, liderança, mercado, execução, empreendedorismo e tomada de decisão.',['Insper','FGV EAESP','ESPM','Mackenzie','PUC-SP','Inteli','Link School of Business','Ibmec']],
   ['Saúde, Biológicas e Agro','Medicina Veterinária','Saúde animal, ciências biológicas, campo, produção e saúde pública.',['USP','UNESP','UFMG','UFRGS','UFPR','UFLA','UFV','PUCPR']],
   ['Saúde e Química','Farmácia','Medicamentos, química, laboratório, segurança, qualidade e cuidado.',['USP','UFMG','UFRGS','UFPR','UNESP','UNICAMP','UFRJ','UFSC']],
@@ -63,6 +63,41 @@ const RAW = [
   ['Engenharia e Tecnologia','Engenharia Elétrica','Sistemas elétricos, eletrônica, automação, matemática e tecnologia.',['USP','UNICAMP','UFMG','UFRJ','UFRGS','UFSC','ITA','PUC-Rio']],
 ] as const;
 
+const MEDICINE_FALLBACK: Record<string, { differentiators:string[]; highFit:string }> = {
+  'USP': {
+    differentiators:['Hospital das Clínicas e Hospital Universitário','pesquisa e extensão','ampla exposição a cenários clínicos e SUS'],
+    highFit:'Perfil que busca alta densidade acadêmica, pesquisa e grande diversidade de cenários clínicos e hospitalares.',
+  },
+  'UNIFESP': {
+    differentiators:['base científica sólida','integração entre assistência e pesquisa','formação da Escola Paulista de Medicina'],
+    highFit:'Perfil que busca formação científica forte e integração entre assistência, pesquisa clínica, básica e epidemiológica.',
+  },
+  'UFMG': {
+    differentiators:['inserção precoce em cenários de prática','integração com a rede pública de saúde','diversidade de cenários assistenciais'],
+    highFit:'Perfil que valoriza formação pública, contato precoce com serviços de saúde e prática clínica diversificada.',
+  },
+  'UFRJ': {
+    differentiators:['formação pública em Medicina','forte ambiente universitário e científico','integração com serviços de saúde'],
+    highFit:'Perfil que busca universidade pública, formação médica ampla e ambiente acadêmico de pesquisa e assistência.',
+  },
+  'UNICAMP': {
+    differentiators:['formação pública em Medicina','integração entre ensino, pesquisa e assistência','ambiente universitário de alta intensidade acadêmica'],
+    highFit:'Perfil que busca rigor acadêmico, pesquisa e formação clínica integrada em universidade pública.',
+  },
+  'UFRGS': {
+    differentiators:['formação pública em Medicina','integração acadêmica e assistencial','ambiente universitário com pesquisa'],
+    highFit:'Perfil que busca formação pública sólida, ambiente científico e prática médica integrada.',
+  },
+  'UFPR': {
+    differentiators:['formação pública em Medicina','estrutura universitária ampla','integração entre ensino e prática assistencial'],
+    highFit:'Perfil que busca Medicina em universidade pública, formação sólida e contato com diferentes cenários de cuidado.',
+  },
+  'Faculdade Israelita de Ciências da Saúde Albert Einstein': {
+    differentiators:['Centro de Simulação Realística','treinamento prático estruturado','formação inserida no ecossistema assistencial Einstein'],
+    highFit:'Perfil que valoriza simulação realística, treinamento prático e ambiente hospitalar de alta complexidade.',
+  },
+};
+
 export const ACADEMIC_AREAS: AcademicArea[] = RAW.map(([name,courses,description,names]) => {
   const id = slug(name);
   return {
@@ -72,8 +107,12 @@ export const ACADEMIC_AREAS: AcademicArea[] = RAW.map(([name,courses,description
       name: universityName,
       course: courses,
       location: 'Brasil',
-      differentiators: index % 3 === 0 ? ['rigor acadêmico','pesquisa e profundidade','rede de alumni'] : index % 3 === 1 ? ['proximidade com mercado','aprendizagem aplicada','empregabilidade'] : ['formação abrangente','projetos e interdisciplinaridade','experiência universitária'],
-      highFit: index % 2 === 0 ? 'Perfil que valoriza profundidade, autonomia intelectual e formação sólida.' : 'Perfil que valoriza aplicação prática, projetos, mercado e contato profissional.',
+      differentiators: courses === 'Medicina'
+        ? (MEDICINE_FALLBACK[universityName]?.differentiators ?? ['formação médica','prática clínica','ciências da saúde'])
+        : index % 3 === 0 ? ['rigor acadêmico','pesquisa e profundidade','rede de alumni'] : index % 3 === 1 ? ['proximidade com mercado','aprendizagem aplicada','empregabilidade'] : ['formação abrangente','projetos e interdisciplinaridade','experiência universitária'],
+      highFit: courses === 'Medicina'
+        ? (MEDICINE_FALLBACK[universityName]?.highFit ?? 'Perfil que busca formação médica sólida, prática clínica e contato com diferentes cenários de saúde.')
+        : index % 2 === 0 ? 'Perfil que valoriza profundidade, autonomia intelectual e formação sólida.' : 'Perfil que valoriza aplicação prática, projetos, mercado e contato profissional.',
       matchProfile: profile(`${name}-${universityName}`, index),
     }))
   };
