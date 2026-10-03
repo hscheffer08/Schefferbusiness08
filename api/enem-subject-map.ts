@@ -35,11 +35,11 @@ async function runModel(prompt:string,sourceUrl:string){
   const errors:string[]=[];
   if(process.env.GOOGLE_GENERATIVE_AI_API_KEY){
     for(const direct of ['gemini-2.5-flash-lite','gemini-2.5-flash'] as const){
-      try{const out=await generateOnce(google(direct),{prompt,sourceUrl,timeoutMs:70000});if(String(out.text||'').trim())return out.text;errors.push(`direct/${direct}: vazio`)}catch(error:any){errors.push(`direct/${direct}: ${String(error?.message||error).slice(0,180)}`)}
+      try{const out=await generateOnce(google(direct),{prompt,sourceUrl,timeoutMs:70000});const text=String(out.text||'').trim();if(text){parseJson(text);return text}errors.push(`direct/${direct}: vazio`)}catch(error:any){errors.push(`direct/${direct}: ${String(error?.message||error).slice(0,180)}`)}
     }
   }
   for(const model of GATEWAY_MODELS){
-    try{const out=await generateOnce(model,{prompt,sourceUrl,timeoutMs:70000},true);if(String(out.text||'').trim())return out.text;errors.push(`${model}: vazio`)}catch(error:any){errors.push(`${model}: ${String(error?.message||error).slice(0,180)}`)}
+    try{const out=await generateOnce(model,{prompt,sourceUrl,timeoutMs:70000},true);const text=String(out.text||'').trim();if(text){parseJson(text);return text}errors.push(`${model}: vazio`)}catch(error:any){errors.push(`${model}: ${String(error?.message||error).slice(0,180)}`)}
   }
   throw new Error(errors.join(' | '));
 }
