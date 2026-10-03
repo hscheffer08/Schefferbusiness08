@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 import { SEO_PAGES } from '../lib/seo-pages';
+import BrandMark from './BrandMark';
 
 const benefits = [
   { icon: Target, title: 'Plano sob medida', text: 'Metas semanais construídas a partir da sua prova, nota e rotina.' },
@@ -31,10 +32,7 @@ export default function CourseHome() {
       <header className="relative z-20 border-b border-[#dfe5f4] bg-white/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-5 px-5 py-4 md:px-8">
           <button onClick={() => window.location.assign('/')} className="flex items-center gap-3 text-left" aria-label="Ir para o início">
-            <span className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-[#3155e7] text-white shadow-[0_8px_24px_rgba(49,85,231,.24)]">
-              <span className="text-[22px] font-black leading-none tracking-[-.12em]">C</span>
-              <span className="absolute bottom-[7px] right-[6px] h-1.5 w-1.5 rounded-full bg-[#a9b7ff]" aria-hidden="true" />
-            </span>
+            <BrandMark className="h-10 w-10 shrink-0" />
             <span className="text-lg font-black tracking-[-.035em]">Conecta<span className="text-[#3155e7]">ê</span></span>
           </button>
 
