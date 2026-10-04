@@ -1,0 +1,262 @@
+[
+  {
+    "university_name": "Centro Universitário de Brasília (CEUB)",
+    "course_label": "Medicina",
+    "exam_id": "ceub_2027",
+    "route_key": "primary",
+    "practice_exam_id": "enem",
+    "model": {
+      "title": "Vestibular Medicina CEUB 2027.1",
+      "overall": {
+        "max": 100,
+        "method": "weighted_sum"
+      },
+      "structure": "01/11/2026, 14h–18h, fase única: 54 objetivas + Redação. Objetivas: Português 7, Inglês 7, História 6, Geografia 6, Biologia 7, Química 7, Física 7 e Matemática 7. A nota objetiva é (acertos × 70) ÷ 54, até 70 pontos; Redação vale até 30; total máximo 100.",
+      "components": [
+        {
+          "key": "Português",
+          "max": 7,
+          "unit": "acertos",
+          "label": "Português · 7 questões",
+          "weight": 1.2962962962962963,
+          "studyArea": "Linguagens",
+          "defaultValue": 4
+        },
+        {
+          "key": "Inglês",
+          "max": 7,
+          "unit": "acertos",
+          "label": "Inglês · 7 questões",
+          "weight": 1.2962962962962963,
+          "studyArea": "Linguagens",
+          "defaultValue": 4
+        },
+        {
+          "key": "História",
+          "max": 6,
+          "unit": "acertos",
+          "label": "História · 6 questões",
+          "weight": 1.2962962962962963,
+          "studyArea": "Humanas",
+          "defaultValue": 4
+        },
+        {
+          "key": "Geografia",
+          "max": 6,
+          "unit": "acertos",
+          "label": "Geografia · 6 questões",
+          "weight": 1.2962962962962963,
+          "studyArea": "Humanas",
+          "defaultValue": 4
+        },
+        {
+          "key": "Biologia",
+          "max": 7,
+          "unit": "acertos",
+          "label": "Biologia · 7 questões",
+          "weight": 1.2962962962962963,
+          "studyArea": "Biologia",
+          "defaultValue": 4
+        },
+        {
+          "key": "Química",
+          "max": 7,
+          "unit": "acertos",
+          "label": "Química · 7 questões",
+          "weight": 1.2962962962962963,
+          "studyArea": "Química",
+          "defaultValue": 4
+        },
+        {
+          "key": "Física",
+          "max": 7,
+          "unit": "acertos",
+          "label": "Física · 7 questões",
+          "weight": 1.2962962962962963,
+          "studyArea": "Física",
+          "defaultValue": 4
+        },
+        {
+          "key": "Matemática",
+          "max": 7,
+          "unit": "acertos",
+          "label": "Matemática · 7 questões",
+          "weight": 1.2962962962962963,
+          "studyArea": "Matemática",
+          "defaultValue": 4
+        },
+        {
+          "key": "Redação",
+          "max": 30,
+          "unit": "pontos",
+          "label": "Redação · até 30 pontos",
+          "weight": 1,
+          "minimum": 0.1,
+          "studyArea": "Redação",
+          "defaultValue": 19
+        }
+      ],
+      "milestones": [
+        {
+          "date": "2026-11-01",
+          "note": "14h–18h · 54 objetivas + redação",
+          "label": "Vestibular Medicina CEUB 2027.1"
+        }
+      ],
+      "roadmapMode": "balanced",
+      "scoreProfile": "component",
+      "roadmapPhases": [
+        {
+          "label": "CEUB · fase única",
+          "mockLabel": "Simulado CEUB: 54 objetivas + redação",
+          "fullMockQuestions": 54,
+          "miniMockQuestions": 27
+        }
+      ],
+      "scoreInputHelp": "Informe os acertos por disciplina e a nota da Redação de 0 a 30. O cálculo converte automaticamente os 54 acertos para a escala oficial de 70 pontos.",
+      "fullSimulationSize": 54,
+      "miniSimulationSize": 27,
+      "allowedQuestionAreas": [
+        "Linguagens",
+        "Português",
+        "Inglês",
+        "Humanas",
+        "História",
+        "Geografia",
+        "Natureza",
+        "Biologia",
+        "Química",
+        "Física",
+        "Matemática",
+        "Redação"
+      ]
+    }
+  },
+  {
+    "university_name": "Faculdade Ciências Médicas de Minas Gerais",
+    "course_label": "Medicina",
+    "exam_id": "cmmg",
+    "route_key": "primary",
+    "practice_exam_id": "cmmg",
+    "model": {
+      "type": "vestibular",
+      "title": "Vestibular FCM-MG 2027.1 — Medicina",
+      "overall": {
+        "max": 200,
+        "method": "weighted_sum"
+      },
+      "essay_max": 80,
+      "structure": "Prova presencial em 18/10/2026, às 9h, com duração máxima de 5 horas. O modelo de pontuação usa 60 questões objetivas — Português 8, Literatura 4, Inglês 12, Biologia 14, Física 4, Química 8 e Matemática 10 — com peso 2 por acerto, além de Redação valendo até 80 pontos. Total máximo: 200 pontos. Obra literária: Campo Geral, de João Guimarães Rosa.",
+      "components": [
+        {
+          "key": "Língua Portuguesa",
+          "max": 8,
+          "unit": "acertos",
+          "label": "Português",
+          "weight": 2,
+          "studyArea": "Linguagens",
+          "defaultValue": 5
+        },
+        {
+          "key": "Literatura",
+          "max": 4,
+          "unit": "acertos",
+          "label": "Literatura",
+          "weight": 2,
+          "studyArea": "Linguagens",
+          "defaultValue": 2
+        },
+        {
+          "key": "Inglês",
+          "max": 12,
+          "unit": "acertos",
+          "label": "Inglês",
+          "weight": 2,
+          "studyArea": "Linguagens",
+          "defaultValue": 7
+        },
+        {
+          "key": "Biologia",
+          "max": 14,
+          "unit": "acertos",
+          "label": "Biologia",
+          "weight": 2,
+          "studyArea": "Biologia",
+          "defaultValue": 9
+        },
+        {
+          "key": "Física",
+          "max": 4,
+          "unit": "acertos",
+          "label": "Física",
+          "weight": 2,
+          "studyArea": "Física",
+          "defaultValue": 2
+        },
+        {
+          "key": "Química",
+          "max": 8,
+          "unit": "acertos",
+          "label": "Química",
+          "weight": 2,
+          "studyArea": "Química",
+          "defaultValue": 5
+        },
+        {
+          "key": "Matemática",
+          "max": 10,
+          "unit": "acertos",
+          "label": "Matemática",
+          "weight": 2,
+          "studyArea": "Matemática",
+          "defaultValue": 6
+        },
+        {
+          "key": "Redação",
+          "max": 80,
+          "unit": "pontos",
+          "label": "Redação",
+          "weight": 1,
+          "studyArea": "Redação",
+          "defaultValue": 52
+        }
+      ],
+      "cycleLabel": "2027/1",
+      "milestones": [
+        {
+          "date": "2026-10-18",
+          "note": "prova presencial às 9h; duração máxima de 5h",
+          "label": "Vestibular Medicina FCM-MG 2027.1"
+        }
+      ],
+      "roadmapMode": "core",
+      "scoreProfile": "component",
+      "total_points": 200,
+      "roadmapPhases": [
+        {
+          "end": "2026-10-18",
+          "label": "FCM-MG · Medicina 2027.1",
+          "mockLabel": "Simulado FCM-MG: 60 objetivas + redação",
+          "fullMockQuestions": 60,
+          "miniMockQuestions": 30
+        }
+      ],
+      "scoreInputHelp": "Informe seus acertos em cada disciplina objetiva e sua nota de Redação. Cada acerto objetivo tem peso 2; a Redação vale até 80 pontos; total máximo 200.",
+      "objective_total": 60,
+      "fullSimulationSize": 60,
+      "miniSimulationSize": 30,
+      "allowedQuestionAreas": [
+        "Língua Portuguesa",
+        "Literatura",
+        "Inglês",
+        "Linguagens",
+        "Biologia",
+        "Física",
+        "Química",
+        "Natureza",
+        "Matemática",
+        "Redação"
+      ]
+    }
+  }
+]

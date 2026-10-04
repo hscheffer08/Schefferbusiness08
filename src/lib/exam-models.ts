@@ -256,7 +256,7 @@ function asCoreExamId(value: unknown, fallback: ExamId): ExamId {
 }
 
 function numberOr(value: unknown, fallback: number) {
-  const n = Number(value);
+  const n = value == null || value === '' ? NaN : Number(value);
   return Number.isFinite(n) ? n : fallback;
 }
 
@@ -265,11 +265,11 @@ export function mergeRemoteExamModel(base: ExamModel, row?: RemoteExamModelRow |
   const raw = row.model && typeof row.model === 'object' ? row.model as Record<string, unknown> : {};
   const rawComponents = Array.isArray(raw.components) ? raw.components as Array<Record<string, unknown>> : [];
   const metrics: ExamMetric[] = rawComponents.length ? rawComponents.map((component, index) => {
-    const baseMetric = base.metrics.find(metric => metric.key === component.key) ?? base.metrics[index];
+    const baseMetric = base.metrics.find(metric => metric.key === component.key);
     const unitRaw = String(component.unit ?? baseMetric?.unit ?? 'pontos');
     const unit: ExamMetric['unit'] = unitRaw === 'acertos' || unitRaw === 'desempenho' ? unitRaw : 'pontos';
     const max = Math.max(1, numberOr(component.max, baseMetric?.max ?? 100));
-    const rawDefault = numberOr(component.defaultValue ?? component.default_value, baseMetric?.defaultValue ?? Math.round(max * .65));
+    const rawDefault = numberOr(component.defaultValue ?? component.default_value, baseMetric?.max === max ? baseMetric.defaultValue : Math.round(max * .65));
     return {
       key: String(component.key ?? baseMetric?.key ?? `Componente ${index + 1}`),
       label: String(component.label ?? component.key ?? baseMetric?.label ?? `Componente ${index + 1}`),
@@ -277,9 +277,9 @@ export function mergeRemoteExamModel(base: ExamModel, row?: RemoteExamModelRow |
       defaultValue: Math.max(0, Math.min(max, rawDefault)),
       unit,
       phase: component.phase ? String(component.phase) : baseMetric?.phase,
-      weight: Number.isFinite(Number(component.weight)) ? Number(component.weight) : baseMetric?.weight,
-      minimum: Number.isFinite(Number(component.minimum ?? component.min)) ? Number(component.minimum ?? component.min) : undefined,
-      goal: Number.isFinite(Number(component.goal)) ? Number(component.goal) : undefined,
+      weight: Number.isFinite(numberOr(component.weight, NaN)) ? Number(component.weight) : baseMetric?.weight,
+      minimum: Number.isFinite(numberOr(component.minimum ?? component.min, NaN)) ? Number(component.minimum ?? component.min) : undefined,
+      goal: Number.isFinite(numberOr(component.goal, NaN)) ? Number(component.goal) : undefined,
       studyArea: component.studyArea || component.study_area ? String(component.studyArea ?? component.study_area) : baseMetric?.studyArea,
     };
   }) : base.metrics;
@@ -287,16 +287,16 @@ export function mergeRemoteExamModel(base: ExamModel, row?: RemoteExamModelRow |
   const rawOverall = raw.overall && typeof raw.overall === 'object' ? raw.overall as Record<string, unknown> : null;
   const methodRaw = String(rawOverall?.method ?? '');
   const overall = ['weighted_average','weighted_sum','sum','mean','percentage'].includes(methodRaw)
-    ? { method: methodRaw as NonNullable<ExamModel['overall']>['method'], max: Number.isFinite(Number(rawOverall?.max)) ? Number(rawOverall?.max) : undefined }
+    ? { method: methodRaw as NonNullable<ExamModel['overall']>['method'], max: Number.isFinite(numberOr(rawOverall?.max, NaN)) ? Number(rawOverall?.max) : undefined }
     : base.overall;
 
   const rawTarget = raw.target && typeof raw.target === 'object' ? raw.target as Record<string, unknown> : null;
-  const targetValue = Number(rawTarget?.value);
+  const targetValue = numberOr(rawTarget?.value, NaN);
   const target = Number.isFinite(targetValue) ? {
     value: targetValue,
-    max: Number.isFinite(Number(rawTarget?.max)) ? Number(rawTarget?.max) : undefined,
+    max: Number.isFinite(numberOr(rawTarget?.max, NaN)) ? Number(rawTarget?.max) : undefined,
     kind: rawTarget?.kind ? String(rawTarget.kind) : undefined,
-    year: Number.isFinite(Number(rawTarget?.year)) ? Number(rawTarget?.year) : undefined,
+    year: Number.isFinite(numberOr(rawTarget?.year, NaN)) ? Number(rawTarget?.year) : undefined,
     modality: rawTarget?.modality ? String(rawTarget.modality) : undefined,
     label: rawTarget?.label ? String(rawTarget.label) : undefined,
     sourceUrl: rawTarget?.sourceUrl || rawTarget?.source_url ? String(rawTarget.sourceUrl ?? rawTarget.source_url) : undefined,
@@ -395,13 +395,13 @@ export function calculateExamScore(model: ExamModel, values: Record<string, numb
   return rows.reduce((sum, row) => sum + row.value, 0) / rows.length;
 }
 
-export function normalizeStoredScores(model: ExamModel, stored: Record<string, number> | null | undefined) {
+export function normalizeStoredScores(model: ExamModel, stored: Record<string, number> | null | undefined, migrateLegacy = true) {
   const source = stored && typeof stored === 'object' ? stored : {};
   const next: Record<string, number> = {};
   for (const metric of model.metrics) {
-    const raw = Number(source[metric.key]);
-    const legacyEnemAcertos = model.examId === 'enem' && metric.key !== 'Redação' && metric.max === 1000 && Number.isFinite(raw) && raw >= 0 && raw <= 45;
-    next[metric.key] = Number.isFinite(raw) && !legacyEnemAcertos
+    const raw = numberOr(source[metric.key], NaN);
+    const legacyEnemAcertos = migrateLegacy && model.examId === 'enem' && metric.key !== 'Redação' && metric.max === 1000 && Number.isFinite(raw) && raw >= 0 && raw <= 45;
+    next[metric.key] = Number.isFinite(raw) && raw >= 0 && raw <= metric.max && !legacyEnemAcertos
       ? Math.max(0, Math.min(metric.max, raw))
       : metric.defaultValue;
   }

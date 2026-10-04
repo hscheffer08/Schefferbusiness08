@@ -1,3 +1,5 @@
+import { goalFor, enemGoalsFromCutoff, componentGoals } from '@/lib/planner-goals';
+import { sameStudySubject } from '@/lib/study-area-match';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ArrowLeft, BookOpen, CalendarDays, CheckCircle2, ExternalLink, Home, Loader2, Minus, PlayCircle, Plus, Save, Sparkles, Target, Trophy, Video, X, XCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -36,6 +38,8 @@ const confidenceLabel=(value?:string|null)=>({
 }[String(value??'')]??'modelo nativo verificado pelo Conectaê');
 
 function matchQuestionArea(area:string,key:string){
+  const exact = sameStudySubject(area, key); if (exact !== undefined) return exact;
+
   const a=normalize(area),k=normalize(key.replace('2ª fase — ','').replace('2a fase — ',''));
   if(a===k||a.includes(k)||k.includes(a))return true;
   if(k==='natureza')return ['natureza','biologia','fisica','quimica'].some(x=>a.includes(x));
@@ -49,54 +53,6 @@ function matchQuestionArea(area:string,key:string){
   if(k==='escrita')return a.includes('business case')||a.includes('sprint')||a.includes('escrita');
   if(k==='matematica'&&(a.includes('sprint')||a.includes('matematica')))return true;
   return false;
-}
-
-function goalFor(metric:ExamMetric,model:ExamModel,dataGoal?:number){
-  if(Number.isFinite(dataGoal))return clamp(Number(dataGoal),0,metric.max);
-  if(Number.isFinite(metric.goal))return clamp(Number(metric.goal),0,metric.max);
-  if(isEnemScoringModel(model)){
-    const fallback:Record<string,number>={Linguagens:700,Humanas:720,Natureza:760,'Matemática':790,'Redação':880};
-    return fallback[metric.key]??Math.round(metric.max*.8);
-  }
-  if(model.scoreProfile==='component'){
-    const pct=metric.unit==='desempenho'?.8:metric.key==='Redação'?.8:.78;
-    return Math.max(metric.unit==='acertos'?1:0,Math.round(metric.max*pct));
-  }
-  const examId=model.examId;
-  if(examId==='cmmg'){
-    if(metric.key==='Redação')return Math.round(metric.max*.8);
-    const pct:Record<string,number>={'Língua Portuguesa':.78,'Literatura':.75,'Inglês':.78,'Biologia':.82,'Física':.75,'Química':.8,'Matemática':.8,'Linguagens':.8,'Conhecimentos Gerais':.75,'Humanas':.75};
-    return Math.max(1,Math.round(metric.max*(pct[metric.key]??.78)));
-  }
-  if(examId==='insper')return metric.key==='Redação'?75:12;
-  if(examId==='fgv')return Math.max(1,Math.round(metric.max*.8));
-  if(examId==='ibmec'){
-    const pct:Record<string,number>={Linguagens:.78,'Matemática':.8,Humanas:.76,'Redação':.78,'Dinâmica':.8};
-    return Math.max(1,Math.round(metric.max*(pct[metric.key]??.78)));
-  }
-  if(examId==='einstein'){
-    const pct:Record<string,number>={Linguagens:.8,Humanas:.8,Natureza:.82,'Matemática':.82,Dissertativas:.8,'Redação':.82,MME:.8};
-    return Math.max(1,Math.round(metric.max*(pct[metric.key]??.8)));
-  }
-  if(examId==='fuvest'){
-    if(metric.key==='1ª fase')return Math.round(metric.max*.8);
-    if(metric.key==='Português'||metric.key==='Redação')return 36;
-    return 72;
-  }
-  if(examId==='link'){
-    const target:Record<string,number>={'Matemática':75,'Business Case':82,'Escrita':80,'Oral':80,'Portfólio':78,'Entrevista':80};
-    return target[metric.key]??78;
-  }
-  return Math.max(metric.unit==='acertos'?1:0,Math.round(metric.max*.8));
-}
-
-function enemGoalsFromCutoff(cutoff:number){
-  if(cutoff>=815)return {Linguagens:740,Humanas:760,Natureza:820,'Matemática':850,'Redação':930};
-  if(cutoff>=800)return {Linguagens:720,Humanas:740,Natureza:800,'Matemática':830,'Redação':910};
-  if(cutoff>=780)return {Linguagens:700,Humanas:720,Natureza:770,'Matemática':810,'Redação':890};
-  if(cutoff>=760)return {Linguagens:680,Humanas:700,Natureza:750,'Matemática':790,'Redação':870};
-  if(cutoff>=740)return {Linguagens:660,Humanas:680,Natureza:730,'Matemática':770,'Redação':850};
-  return {Linguagens:640,Humanas:660,Natureza:700,'Matemática':740,'Redação':820};
 }
 
 function recoveryAction(type:string|null,area:string,skill:string){
@@ -122,8 +78,8 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   const[diagnostics,setDiagnostics]=useState<SkillDiagnostic[]>([]);
   const[selectedArea,setSelectedArea]=useState('');
   const[selectedUniversity,setSelectedUniversity]=useState('');
-  const[values,setValues]=useState<Record<string,number>>({});
-  const[appliedValues,setAppliedValues]=useState<Record<string,number>>({});
+  const[storedValues,setValues]=useState<Record<string,number>>({});
+  const[storedAppliedValues,setAppliedValues]=useState<Record<string,number>>({});
   const[weeklyHours,setWeeklyHours]=useState(9);
   const[appliedWeeklyHours,setAppliedWeeklyHours]=useState(9);
   const[dirty,setDirty]=useState(false);
@@ -142,7 +98,8 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   const[cutoffs,setCutoffs]=useState<AdmissionCutoff[]>([]);
   const[examModelRows,setExamModelRows]=useState<RemoteExamModelRow[]>([]);
   const[selectedRouteKey,setSelectedRouteKey]=useState('primary');
-  const[targetOverride,setTargetOverride]=useState<number|null>(null);
+  const[storedTargetOverride,setTargetOverride]=useState<number|null>(null);
+  const[loadedScoreKey,setLoadedScoreKey]=useState('');
   const[difficultyTopics,setDifficultyTopics]=useState<DifficultySelection>({});
 
   const reloadDiagnostics=async(userId?:string,examId?:string)=>{
@@ -218,6 +175,12 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   const metrics=model.metrics;
   const scoreStorageKey=useMemo(()=>`conectae:exam-values:${model.examId}:${university?.university_name??'sem-faculdade'}:${course}:${model.routeKey??selectedRouteKey}`,[model.examId,model.routeKey,university?.university_name,course,selectedRouteKey]);
 
+  const scoreStateKey=`${scoreStorageKey}:${JSON.stringify(metrics)}`;
+  const scoresReady=loadedScoreKey===scoreStateKey;
+  const values=useMemo(()=>normalizeStoredScores(model,scoresReady?storedValues:{},false),[model,scoresReady,storedValues]);
+  const appliedValues=useMemo(()=>normalizeStoredScores(model,scoresReady?storedAppliedValues:{},false),[model,scoresReady,storedAppliedValues]);
+  const targetOverride=scoresReady?storedTargetOverride:null;
+
   useEffect(()=>{let alive=true;(async()=>{
     if(!supabase){setQuestions(mergePracticeQuestions([]) as Question[]);return}
     const[first,second]=await Promise.all([
@@ -229,7 +192,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
     setQuestions(mergePracticeQuestions(remote) as Question[]);
   })();return()=>{alive=false}},[model.examId]);
 
-  useEffect(()=>{(async()=>{
+  useEffect(()=>{let alive=true;setMessage('');(async()=>{
     let stored:Record<string,number>={};try{stored=JSON.parse(localStorage.getItem(scoreStorageKey)||'{}')}catch{stored={}}
     let saved:Record<string,number>={};
     let signedIn=false;
@@ -245,8 +208,9 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
         if(university&&university.area_university_id>0){
           const{data:routeData}=await supabase.from('student_exam_route_scores').select('current_scores,target_override').eq('user_id',userData.user.id).eq('area_university_id',university.area_university_id).eq('course_label',course).eq('route_key',model.routeKey??selectedRouteKey).maybeSingle();
           if(routeData?.current_scores&&typeof routeData.current_scores==='object')saved=routeData.current_scores as Record<string,number>;
-          if(Number.isFinite(Number(routeData?.target_override)))routeTarget=Number(routeData?.target_override);
+          if(routeData?.target_override!=null&&Number.isFinite(Number(routeData.target_override))&&Number(routeData.target_override)>0)routeTarget=Number(routeData.target_override);
         }
+        if(!alive)return;
         setAttempts((examAttempts??[]) as Attempt[]);
         if(!Object.keys(saved).length&&(!university||university.area_university_id<=0)&&(!pref?.selected_university_id||Number(pref.selected_university_id)<=0)&&pref?.current_scores&&typeof pref.current_scores==='object')saved=pref.current_scores as Record<string,number>;
         if(pref?.weekly_hours){setWeeklyHours(Number(pref.weekly_hours));setAppliedWeeklyHours(Number(pref.weekly_hours))}
@@ -254,6 +218,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
         await reloadDiagnostics(userData.user.id,model.examId);
       }
     }
+    if(!alive)return;
     if(!signedIn){
       try{
         const localAttempts=JSON.parse(localStorage.getItem(GUEST_ATTEMPTS_KEY)||'[]');
@@ -261,8 +226,8 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
       }catch{setAttempts([])}
     }
     if(routeTarget===null){const rawTarget=localStorage.getItem(`${scoreStorageKey}:target`);const localTarget=rawTarget===null?NaN:Number(rawTarget);routeTarget=Number.isFinite(localTarget)&&localTarget>0?localTarget:null}
-    const next=normalizeStoredScores(model,{...stored,...saved});setValues(next);setAppliedValues(next);setTargetOverride(routeTarget);setDirty(false);setQuestionArea('Todas');setActiveQuestion(null);setSelectedOption('');setPracticeResult(null);localStorage.setItem('conectae:active-exam',model.examId);
-  })()},[scoreStorageKey,model.examId,model.routeKey,metrics,university?.area_university_id,course,selectedRouteKey]);
+    const next=normalizeStoredScores(model,{...stored,...saved},false);setValues(next);setAppliedValues(next);setTargetOverride(routeTarget);setLoadedScoreKey(scoreStateKey);setDirty(false);setQuestionArea('Todas');setActiveQuestion(null);setSelectedOption('');setPracticeResult(null);localStorage.setItem('conectae:active-exam',model.examId);
+  })().catch(()=>{if(alive)setMessage('Não foi possível carregar suas notas. Reabra o plano para tentar novamente.')});return()=>{alive=false}},[scoreStateKey,scoreStorageKey,model.examId,model.routeKey,metrics,university?.area_university_id,course,selectedRouteKey]);
 
   useEffect(()=>{const handler=()=>void reloadDiagnostics(undefined,model.examId);window.addEventListener('conectae:diagnostic-saved',handler);return()=>window.removeEventListener('conectae:diagnostic-saved',handler)},[model.examId]);
 
@@ -279,7 +244,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   const effectiveTarget=targetOverride??model.target?.value??(activeCutoff?Number(activeCutoff.target_value):null);
   const dataGoals=useMemo<Record<string,number>>(()=>{
     const goals:Record<string,number>={};
-    if(!Number.isFinite(Number(effectiveTarget)))return goals;
+    if(effectiveTarget===null||!Number.isFinite(Number(effectiveTarget))||Number(effectiveTarget)<=0)return goals;
     if(isEnemScoringModel(model))return {...goals,...enemGoalsFromCutoff(Number(effectiveTarget))};
     if(model.examId==='fuvest'&&activeCutoff){
       const first=metrics.find(m=>m.key==='1ª fase');
@@ -288,15 +253,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
       goals['1ª fase']=Math.ceil(Number(activeCutoff.target_value)/Math.max(1,historicalMax)*first.max);
       return goals;
     }
-    const overallMax=Number(model.overall?.max);
-    const hasExplicitMetricGoals=metrics.some(metric=>Number.isFinite(metric.goal));
-    if(model.scoreProfile==='component'&&Number.isFinite(overallMax)&&overallMax>0&&(targetOverride!==null||!hasExplicitMetricGoals)){
-      const ratio=clamp(Number(effectiveTarget)/overallMax,0,1);
-      for(const metric of metrics){
-        const raw=metric.max*ratio;
-        goals[metric.key]=clamp(metric.unit==='acertos'?Math.max(1,Math.ceil(raw)):Math.round(raw*10)/10,0,metric.max);
-      }
-    }
+    Object.assign(goals,componentGoals(model,effectiveTarget,targetOverride!==null));
     return goals;
   },[activeCutoff,effectiveTarget,model,metrics,targetOverride]);
 
@@ -328,8 +285,9 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   const roadmap=useMemo(()=>buildRoadmap({model,course,priorities,weeklyHours:appliedWeeklyHours,questions:allowedQuestions,difficultyTopics,diagnostics:relevantDiagnostics.map(d=>({area:d.area,skill:d.diagnosis?.skill_name||d.skill_code||d.area}))}),[model,course,priorities,appliedWeeklyHours,allowedQuestions,difficultyTopics,relevantDiagnostics]);
 
   const currentOverall=useMemo(()=>calculateExamScore(model,values),[model,values]);
-  const updateScore=(m:ExamMetric,n:number)=>{const precision=m.max>=1000?10:1;const clean=Math.round(clamp(Number.isFinite(n)?n:0,0,m.max)*precision)/precision;setValues(v=>({...v,[m.key]:clean}));setDirty(true)};
+  const updateScore=(m:ExamMetric,n:number)=>{if(!scoresReady)return;const precision=m.max>=1000?10:1;const clean=Math.round(clamp(Number.isFinite(n)?n:0,0,m.max)*precision)/precision;setValues(v=>({...v,[m.key]:clean}));setDirty(true)};
   const save=async()=>{
+    if(!scoresReady)return;
     setSaving(true);setMessage('');
     try{
       localStorage.setItem(scoreStorageKey,JSON.stringify(values));
@@ -373,7 +331,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
         <div id="course-target-course" className="plan6-field"><label>Curso</label><select value={selectedArea} onChange={e=>{setSelectedArea(e.target.value);setDirty(true)}}>{areas.map(a=><option key={a.area_id} value={a.area_id}>{a.courses||a.name}</option>)}</select></div>
         <div id="course-target-university" className="plan6-field"><label>Faculdade</label><select value={selectedUniversity} onChange={e=>{setSelectedUniversity(e.target.value);setDirty(true)}}>{filteredUniversities.map(u=><option key={u.area_university_id} value={u.area_university_id}>{u.university_name}</option>)}</select></div>
         {routeOptions.length>1&&<div className="plan6-field"><label>Forma de ingresso</label><select value={model.routeKey??selectedRouteKey} onChange={e=>{setSelectedRouteKey(e.target.value);setDirty(true)}}>{routeOptions.map(row=><option key={row.route_key||'primary'} value={row.route_key||'primary'}>{row.route_label||row.route_key||'Processo principal'}</option>)}</select></div>}
-        <button className="plan6-save" disabled={saving} onClick={save}>{saving?<Loader2 size={16} className="animate-spin"/>:<Save size={16}/>}Salvar curso, faculdade e atualizar plano</button>
+        <button className="plan6-save" disabled={saving||!scoresReady} onClick={save}>{saving?<Loader2 size={16} className="animate-spin"/>:<Save size={16}/>}Salvar curso, faculdade e atualizar plano</button>
       </section>
       {dirty&&<div className="plan6-message">Alterações ainda não aplicadas. Ao salvar, o plano passará a usar <b>{weeklyHours}h/semana ({weeklyHours*60} min)</b> junto com suas novas notas e dificuldades.</div>}
       {message&&<div className="plan6-message">{message}</div>}
@@ -391,12 +349,12 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
             <p>{effectiveTarget!==null?<>Meta usada no plano: <b>{Number(effectiveTarget).toLocaleString('pt-BR',{maximumFractionDigits:1})}</b>{model.target?.year?` · referência ${model.target.year}`:activeCutoff?` · referência ${activeCutoff.year} ${activeCutoff.modality}`:''}.</>:<>Ainda não há corte oficial atual estruturado para esta rota. O plano usa metas por componente e você pode informar uma meta geral abaixo.</>}</p>
             <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',marginTop:10}}>
               <label style={{fontSize:12,fontWeight:800}}>Meta geral</label>
-              <input className="plan6-score-number" style={{width:110}} type="number" min="0" max={model.overall?.max??1000} step="0.1" value={targetOverride??''} placeholder={String(model.target?.value??activeCutoff?.target_value??'')} onChange={e=>{const raw=e.target.value;setTargetOverride(raw===''?null:Number(raw));setDirty(true)}}/>
+              <input className="plan6-score-number" style={{width:110}} type="number" min="0" max={model.overall?.max??1000} step="0.1" value={targetOverride??''} placeholder={String(model.target?.value??activeCutoff?.target_value??'')} onChange={e=>{const raw=e.target.value;setTargetOverride(raw===''||!Number.isFinite(Number(raw))||Number(raw)<=0?null:clamp(Number(raw),0,model.overall?.max??1000));setDirty(true)}}/>
               <span style={{fontSize:11,opacity:.7}}>{targetOverride!==null?'meta personalizada':model.target?.value?'referência verificada/planejada':activeCutoff?'última referência disponível':'opcional'}</span>
             </div>
           </div>
-          {metrics.map(m=>{const current=values[m.key]??m.defaultValue;const step=m.max>=1000?.1:1;const goal=goalFor(m,model,dataGoals[m.key]);const missing=Math.max(0,goal-current);return <div className="plan6-statline" key={m.key}><div><div className="plan6-statname">{m.label}</div><div className="plan6-statmeta">Agora <b>{current.toLocaleString('pt-BR',{maximumFractionDigits:1})}</b> de {m.max} • meta de estudo {goal.toLocaleString('pt-BR',{maximumFractionDigits:1})}{m.weight&&m.weight!==1?` • peso ${m.weight}`:''}{Number.isFinite(m.minimum)?` • mínimo ${m.minimum}`:''}</div><div className="plan6-score-control"><button type="button" onClick={()=>updateScore(m,current-step)}><Minus size={16}/></button><input className="plan6-slider" type="range" min="0" max={m.max} step={m.max>=1000?1:step} value={current} onChange={e=>updateScore(m,Number(e.target.value))}/><input className="plan6-score-number" type="number" min="0" max={m.max} step={step} value={current} onChange={e=>updateScore(m,Number(e.target.value||0))}/><button type="button" onClick={()=>updateScore(m,current+step)}><Plus size={16}/></button></div></div><div className="plan6-statvalue">{missing.toLocaleString('pt-BR',{maximumFractionDigits:1})} faltam</div></div>})}
-          <div className="plan6-actions" style={{marginTop:18}}><button className="plan6-btn primary" disabled={saving} onClick={save}><Save size={15}/>Salvar notas e atualizar meu plano</button></div>
+          {metrics.map(m=>{const current=values[m.key]??m.defaultValue;const step=m.max>=1000?.1:1;const goal=goalFor(m,model,dataGoals[m.key]);const missing=Math.max(0,goal-current);return <div className="plan6-statline" key={m.key}><div><div className="plan6-statname">{m.label}</div><div className="plan6-statmeta">Agora <b>{current.toLocaleString('pt-BR',{maximumFractionDigits:1})}</b> de {m.max} • meta de estudo {goal.toLocaleString('pt-BR',{maximumFractionDigits:1})}{m.weight&&m.weight!==1?` • peso ${m.weight.toLocaleString('pt-BR',{maximumFractionDigits:3})}`:''}{Number.isFinite(m.minimum)?` • mínimo ${m.minimum}`:''}</div><div className="plan6-score-control"><button type="button" onClick={()=>updateScore(m,current-step)}><Minus size={16}/></button><input className="plan6-slider" type="range" min="0" max={m.max} step={m.max>=1000?1:step} value={current} onChange={e=>updateScore(m,Number(e.target.value))}/><input className="plan6-score-number" type="number" min="0" max={m.max} step={step} value={current} onChange={e=>updateScore(m,Number(e.target.value||0))}/><button type="button" onClick={()=>updateScore(m,current+step)}><Plus size={16}/></button></div></div><div className="plan6-statvalue">{missing.toLocaleString('pt-BR',{maximumFractionDigits:1})} faltam</div></div>})}
+          <div className="plan6-actions" style={{marginTop:18}}><button className="plan6-btn primary" disabled={saving||!scoresReady} onClick={save}><Save size={15}/>Salvar notas e atualizar meu plano</button></div>
         </section>
       </div>}
 

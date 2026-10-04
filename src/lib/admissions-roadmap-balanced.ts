@@ -1,8 +1,10 @@
+import { sameStudySubject } from '@/lib/study-area-match';
 import { getExamSkillCatalog, topicKey, type DifficultySelection } from './exam-skill-catalog.ts';
 import type { ExamModel } from './exam-models.ts';
 import {
   buildRoadmap as buildBaseRoadmap,
   getMilestones,
+  roadmapLesson,
   type ExamMilestone,
   type RoadmapPriority,
   type RoadmapQuestion,
@@ -37,6 +39,8 @@ const min10 = (value: number) => Math.max(10, Math.round(value / 10) * 10);
 const keyOf = (p: RoadmapPriority) => p.metric.key.replace('2ª fase — ', '').replace('2a fase — ', '');
 
 function matchArea(area: string, key: string) {
+  const exact = sameStudySubject(area, key); if (exact !== undefined) return exact;
+
   const a = norm(area), k = norm(key);
   if (!a || !k) return false;
   if (a === k || a.includes(k) || k.includes(a)) return true;
@@ -275,6 +279,9 @@ export function buildRoadmap(args: BuildArgs) {
     ];
     return {
       ...week,
+      ...roadmapLesson(focusMix[0].key, focusMix[0].topic, args.model, args.course),
+      checkpoint: `Concluir os blocos de ${focusMix.map(f => f.label).join(', ')} e registrar o resultado de ${week.mockExam} para recalibrar a próxima semana.`,
+      activities: sessionPlan.map(s => `${s.label}: ${s.task} (${s.minutes} min)`),
       focusKey: focusMix[0].key,
       focusLabel: `${focusMix[0].label} (foco) + equilíbrio em ${focusMix.slice(1).map(f => f.label).join(' + ')}`,
       topic: focusMix[0].topic,
