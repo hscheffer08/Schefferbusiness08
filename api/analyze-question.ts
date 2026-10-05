@@ -11,7 +11,8 @@
 // Taxonomia, origin_hint, needs_better_photo.
 // Perfis: enem: fuvest: cmmg: insper: link:
 
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+type VercelRequest = any;
+type VercelResponse = any;
 
 const EXAM_PROFILES: Record<string, string> = {
   'enem:': 'ENEM — Exame Nacional do Ensino Médio. Taxonomia oficial do INEP. Áreas: Linguagens, Humanas, Natureza, Matemática, Redação.',
