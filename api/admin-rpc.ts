@@ -1,4 +1,5 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+type VercelRequest = any;
+type VercelResponse = any;
 
 const ALLOWED_RPCS = new Set([
   'get_admin_sessions',
