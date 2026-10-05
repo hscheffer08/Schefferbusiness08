@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1600" viewBox="0 0 900 1600">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff7fb"/><stop offset="0.52" stop-color="#f4f2ff"/><stop offset="1" stop-color="#eaf3ff"/></linearGradient>
+    <filter id="shadow"><feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#24324c" flood-opacity=".12"/></filter>
+  </defs>
+  <rect width="900" height="1600" rx="44" fill="url(#bg)"/>
+  <circle cx="815" cy="92" r="80" fill="#2563eb" opacity=".10"/>
+  <circle cx="78" cy="1475" r="110" fill="#b2146b" opacity=".08"/>
+  <text x="62" y="86" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="800" fill="#2563eb">REVISÃO VISUAL • BIOLOGIA</text>
+  <text x="62" y="145" font-family="Arial, Helvetica, sans-serif" font-size="54" font-weight="900" fill="#111936">Eletroforese em gel</text><text x="62" y="190" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="600" fill="#596681">Separa fragmentos de DNA de acordo com tamanho e carga</text><text x="62" y="219" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="600" fill="#596681">elétrica usando um campo elétrico e uma matriz de agarose.</text><g filter="url(#shadow)">
+      <rect x="52" y="297" width="796" height="154" rx="26" fill="#ffffff" stroke="#dce3f4" stroke-width="2"/>
+    </g>
+    <circle cx="92" cy="345" r="24" fill="#2563eb"/>
+    <text x="92" y="353" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="900" fill="white">1</text>
+    <text x="132" y="353" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="900" fill="#111936">Princípio</text><text x="76" y="395" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">O DNA tem carga negativa por causa dos fosfatos e migra em</text><text x="76" y="426" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">direção ao polo positivo (ânodo).</text><g filter="url(#shadow)">
+      <rect x="52" y="475" width="796" height="185" rx="26" fill="#ffffff" stroke="#dce3f4" stroke-width="2"/>
+    </g>
+    <circle cx="92" cy="523" r="24" fill="#b2146b"/>
+    <text x="92" y="531" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="900" fill="white">2</text>
+    <text x="132" y="531" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="900" fill="#111936">Como o gel separa</text><text x="76" y="573" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">A agarose funciona como uma peneira molecular: fragmentos</text><text x="76" y="604" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">menores atravessam os poros mais rápido e percorrem maior</text><text x="76" y="635" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">distância.</text><g filter="url(#shadow)">
+      <rect x="52" y="684" width="796" height="185" rx="26" fill="#ffffff" stroke="#dce3f4" stroke-width="2"/>
+    </g>
+    <circle cx="92" cy="732" r="24" fill="#2563eb"/>
+    <text x="92" y="740" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="900" fill="white">3</text>
+    <text x="132" y="740" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="900" fill="#111936">Materiais-chave</text><text x="76" y="782" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">Gel de agarose, tampão TAE/TBE, amostras com corante de</text><text x="76" y="813" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">carregamento, marcador de tamanho (DNA ladder), fonte de</text><text x="76" y="844" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">tensão e agente de coloração.</text><g filter="url(#shadow)">
+      <rect x="52" y="893" width="796" height="185" rx="26" fill="#ffffff" stroke="#dce3f4" stroke-width="2"/>
+    </g>
+    <circle cx="92" cy="941" r="24" fill="#b2146b"/>
+    <text x="92" y="949" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="900" fill="white">4</text>
+    <text x="132" y="949" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="900" fill="#111936">Leitura das bandas</text><text x="76" y="991" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">Cada banda representa fragmentos de tamanho semelhante.</text><text x="76" y="1022" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">Quanto mais distante do poço, menor tende a ser o</text><text x="76" y="1053" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">fragmento.</text><g filter="url(#shadow)">
+      <rect x="52" y="1102" width="796" height="185" rx="26" fill="#ffffff" stroke="#dce3f4" stroke-width="2"/>
+    </g>
+    <circle cx="92" cy="1150" r="24" fill="#2563eb"/>
+    <text x="92" y="1158" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="900" fill="white">5</text>
+    <text x="132" y="1158" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="900" fill="#111936">O que influencia</text><text x="76" y="1200" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">Concentração de agarose, voltagem, tempo de corrida,</text><text x="76" y="1231" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">tampão, tamanho e forma do DNA. Usada para conferir PCR,</text><text x="76" y="1262" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">genotipagem e análise de fragmentos.</text><rect x="52" y="1319" width="796" height="62" rx="20" fill="#111936"/>
+  <text x="450" y="1359" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#ffffff">Material reorganizado a partir dos visuais enviados • @cissaensina</text>
+  </svg>

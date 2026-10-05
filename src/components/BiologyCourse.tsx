@@ -47,7 +47,7 @@ type QuickStudySet = {
 const quickStudySets: QuickStudySet[] = [
   {
     id: 'genetica',
-    title: 'Genética',
+    title: 'Genética — fundamentos',
     description: 'Uma revisão visual de DNA, expressão gênica, mutações, Mendel, probabilidade, padrões de dominância, ligação gênica e heranças especiais.',
     pages: [
       { title: 'DNA, gene, cromossomo e genoma', image: '/biology/quick-study/genetica/01-gene-dna-cromossomo-genoma.jpeg', alt: 'Resumo visual sobre DNA, gene, cromossomo e genoma.' },
@@ -65,6 +65,28 @@ const quickStudySets: QuickStudySet[] = [
       { title: 'Pleiotropia', image: '/biology/quick-study/genetica/13-pleiotropia.avif', alt: 'Resumo visual sobre pleiotropia e os múltiplos efeitos de um único gene.' },
       { title: 'Alelos letais', image: '/biology/quick-study/genetica/14-alelos-letais.avif', alt: 'Resumo visual sobre alelos letais e alterações nas proporções mendelianas.' },
       { title: 'Codominância', image: '/biology/quick-study/genetica/15-codominancia.avif', alt: 'Resumo visual sobre codominância e expressão simultânea dos alelos no heterozigoto.' },
+    ],
+  },
+
+  {
+    id: 'molecular-aplicada',
+    title: 'Técnicas e regulação molecular',
+    description: 'PCR, eletroforese em gel e epigenética: três revisões visuais para entender como o DNA é amplificado, separado e regulado.',
+    pages: [
+      { title: 'PCR: como amplificar o DNA', image: '/biology/quick-study/molecular/01-pcr.svg', alt: 'Resumo visual sobre PCR, componentes da reação e ciclos de amplificação.' },
+      { title: 'Eletroforese em gel', image: '/biology/quick-study/molecular/02-eletroforese.svg', alt: 'Resumo visual sobre eletroforese em gel e separação de fragmentos de DNA.' },
+      { title: 'Epigenética', image: '/biology/quick-study/molecular/03-epigenetica.svg', alt: 'Resumo visual sobre epigenética, cromatina e mecanismos de regulação gênica.' },
+    ],
+  },
+  {
+    id: 'populacoes-heranca',
+    title: 'Populações e padrões de herança',
+    description: 'Hardy-Weinberg, deriva genética, herança mitocondrial e heredogramas organizados em uma sequência que vai da população à família.',
+    pages: [
+      { title: 'Equilíbrio de Hardy-Weinberg', image: '/biology/quick-study/populacoes-heranca/01-hardy-weinberg.svg', alt: 'Resumo visual sobre equilíbrio de Hardy-Weinberg e frequências alélicas e genotípicas.' },
+      { title: 'Deriva genética', image: '/biology/quick-study/populacoes-heranca/02-deriva-genetica.svg', alt: 'Resumo visual sobre deriva genética, efeito fundador e gargalo populacional.' },
+      { title: 'Herança mitocondrial', image: '/biology/quick-study/populacoes-heranca/03-heranca-mitocondrial.svg', alt: 'Resumo visual sobre DNA mitocondrial e padrão de transmissão materna.' },
+      { title: 'Como analisar um heredograma', image: '/biology/quick-study/populacoes-heranca/04-heredograma.svg', alt: 'Resumo visual sobre símbolos e padrões de herança em heredogramas.' },
     ],
   },
 ];
@@ -473,7 +495,7 @@ export default function BiologyCourse() {
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-[#b2146b]">Estudo rápido</p>
                 <h2 className="mt-2 text-2xl font-black tracking-[-0.03em] sm:text-3xl">Revisões visuais para bater o olho e lembrar.</h2>
-                <p className="mt-2 text-sm leading-relaxed text-[#69758f]">Abra um tema e passe pelas páginas em poucos minutos.</p>
+                <p className="mt-2 text-sm leading-relaxed text-[#69758f]">Escolha uma trilha e passe pelas páginas em poucos minutos. Os materiais novos ficam agrupados por lógica de estudo.</p>
               </div>
               <Sparkles className="hidden h-8 w-8 shrink-0 text-[#b2146b] sm:block" />
             </div>
