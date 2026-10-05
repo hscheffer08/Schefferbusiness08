@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1600" viewBox="0 0 900 1600">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff7fb"/><stop offset="0.52" stop-color="#f4f2ff"/><stop offset="1" stop-color="#eaf3ff"/></linearGradient>
+    <filter id="shadow"><feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#24324c" flood-opacity=".12"/></filter>
+  </defs>
+  <rect width="900" height="1600" rx="44" fill="url(#bg)"/>
+  <circle cx="815" cy="92" r="80" fill="#ea580c" opacity=".10"/>
+  <circle cx="78" cy="1475" r="110" fill="#b2146b" opacity=".08"/>
+  <text x="62" y="86" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="800" fill="#ea580c">REVISÃO VISUAL • BIOLOGIA</text>
+  <text x="62" y="145" font-family="Arial, Helvetica, sans-serif" font-size="54" font-weight="900" fill="#111936">Deriva genética</text><text x="62" y="190" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="600" fill="#596681">Mudança aleatória nas frequências dos alelos causada pelo</text><text x="62" y="219" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="600" fill="#596681">acaso, sem depender de o alelo ser vantajoso ou</text><text x="62" y="248" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="600" fill="#596681">desvantajoso.</text><g filter="url(#shadow)">
+      <rect x="52" y="323" width="796" height="185" rx="26" fill="#ffffff" stroke="#dce3f4" stroke-width="2"/>
+    </g>
+    <circle cx="92" cy="371" r="24" fill="#ea580c"/>
+    <text x="92" y="379" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="900" fill="white">1</text>
+    <text x="132" y="379" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="900" fill="#111936">Quando é mais forte</text><text x="76" y="421" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">Tem maior impacto em populações pequenas, nas quais poucos</text><text x="76" y="452" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">eventos de sobrevivência e reprodução alteram muito a</text><text x="76" y="483" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">geração seguinte.</text><g filter="url(#shadow)">
+      <rect x="52" y="532" width="796" height="185" rx="26" fill="#ffffff" stroke="#dce3f4" stroke-width="2"/>
+    </g>
+    <circle cx="92" cy="580" r="24" fill="#b2146b"/>
+    <text x="92" y="588" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="900" fill="white">2</text>
+    <text x="132" y="588" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="900" fill="#111936">Efeito fundador</text><text x="76" y="630" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">Um pequeno grupo coloniza uma nova área. Por acaso, leva</text><text x="76" y="661" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">apenas parte da diversidade genética da população</text><text x="76" y="692" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">original.</text><g filter="url(#shadow)">
+      <rect x="52" y="741" width="796" height="185" rx="26" fill="#ffffff" stroke="#dce3f4" stroke-width="2"/>
+    </g>
+    <circle cx="92" cy="789" r="24" fill="#ea580c"/>
+    <text x="92" y="797" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="900" fill="white">3</text>
+    <text x="132" y="797" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="900" fill="#111936">Gargalo populacional</text><text x="76" y="839" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">Uma população sofre redução drástica por evento aleatório,</text><text x="76" y="870" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">como incêndio, seca ou epidemia. Os sobreviventes não</text><text x="76" y="901" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">representam toda a diversidade anterior.</text><g filter="url(#shadow)">
+      <rect x="52" y="950" width="796" height="154" rx="26" fill="#ffffff" stroke="#dce3f4" stroke-width="2"/>
+    </g>
+    <circle cx="92" cy="998" r="24" fill="#b2146b"/>
+    <text x="92" y="1006" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="900" fill="white">4</text>
+    <text x="132" y="1006" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="900" fill="#111936">Consequências</text><text x="76" y="1048" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">Perda ou fixação de alelos, menor variabilidade genética e</text><text x="76" y="1079" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">maior vulnerabilidade a mudanças ambientais e doenças.</text><g filter="url(#shadow)">
+      <rect x="52" y="1128" width="796" height="185" rx="26" fill="#ffffff" stroke="#dce3f4" stroke-width="2"/>
+    </g>
+    <circle cx="92" cy="1176" r="24" fill="#ea580c"/>
+    <text x="92" y="1184" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="900" fill="white">5</text>
+    <text x="132" y="1184" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="900" fill="#111936">Não confunda</text><text x="76" y="1226" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">Seleção natural é não aleatória em relação ao sucesso</text><text x="76" y="1257" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">reprodutivo; deriva genética é aleatória. As duas forças</text><text x="76" y="1288" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#465470">podem atuar ao mesmo tempo.</text><rect x="52" y="1345" width="796" height="62" rx="20" fill="#111936"/>
+  <text x="450" y="1385" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#ffffff">Material reorganizado a partir dos visuais enviados • @cissaensina</text>
+  </svg>
