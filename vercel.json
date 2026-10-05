@@ -13,27 +13,16 @@
       "maxDuration": 180
     },
     "api/locate-official-question-page.ts": {
-      "includeFiles": [
-        "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
-        "node_modules/@napi-rs/canvas/**/*"
-      ]
+      "includeFiles": "node_modules/{pdfjs-dist/legacy/build/pdf.worker.mjs,@napi-rs/canvas/**}"
     },
     "api/extract-official-question.ts": {
-      "includeFiles": [
-        "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
-        "node_modules/@napi-rs/canvas/**/*"
-      ]
+      "includeFiles": "node_modules/{pdfjs-dist/legacy/build/pdf.worker.mjs,@napi-rs/canvas/**}"
     },
     "api/proxy-official-pdf.ts": {
-      "includeFiles": [
-        "node_modules/@napi-rs/canvas/**/*"
-      ]
+      "includeFiles": "node_modules/@napi-rs/canvas/**"
     },
     "api/render-official-pdf-page.ts": {
-      "includeFiles": [
-        "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
-        "node_modules/@napi-rs/canvas/**/*"
-      ]
+      "includeFiles": "node_modules/{pdfjs-dist/legacy/build/pdf.worker.mjs,@napi-rs/canvas/**}"
     }
   },
   "rewrites": [
