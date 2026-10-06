@@ -94,15 +94,19 @@ REGRAS:
   let analysis: any = null;
 
   try {
-    const gatewayUrl = process.env.AI_GATEWAY_URL || process.env.OPENAI_API_KEY;
-    const model = process.env.AI_VISION_MODEL || 'gpt-5.6-luna';
+    const configuredGatewayUrl = String(process.env.AI_GATEWAY_URL || '').trim().replace(/\/+$/, '');
+    const gatewayKey = String(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || '').trim();
+    const openAiKey = String(process.env.OPENAI_API_KEY || '').trim();
+    const apiKey = gatewayKey || openAiKey;
+    const baseUrl = configuredGatewayUrl || (gatewayKey ? 'https://ai-gateway.vercel.sh/v1' : 'https://api.openai.com/v1');
+    const model = process.env.AI_VISION_MODEL || (gatewayKey ? 'openai/gpt-5.6-luna' : 'gpt-5.6-luna');
 
-    if (gatewayUrl) {
-      const openaiRes = await fetch(`${process.env.AI_GATEWAY_URL || 'https://api.openai.com/v1'}/chat/completions`, {
+    if (apiKey) {
+      const openaiRes = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${gatewayUrl}`,
+          'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
           model,
