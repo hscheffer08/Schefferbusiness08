@@ -1,5 +1,5 @@
 import { generateText } from 'ai';
-import { enforceRateLimit } from './_rate-limit.ts';
+import { enforceRateLimit } from './_rate-limit.js';
 
 const MODEL = 'openai/gpt-5.6-luna';
 const FALLBACK_MODELS = ['google/gemini-3.6-flash', 'openai/gpt-5.4-mini'];
