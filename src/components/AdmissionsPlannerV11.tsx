@@ -138,24 +138,24 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
     const user=userData.user;
     if(user){
       const{data:pref}=await supabase.from('student_exam_preferences').select('*').eq('user_id',user.id).order('updated_at',{ascending:false}).limit(1).maybeSingle();
-      const desiredArea=pref?.selected_area_id&&cleanAreas.some(x=>x.area_id===pref.selected_area_id)?pref.selected_area_id:cleanAreas[0]?.area_id??'';
+      const desiredArea=pref?.selected_area_id&&cleanAreas.some(x=>x.area_id===pref.selected_area_id)?pref.selected_area_id:'';
       setSelectedArea(desiredArea);
       const allowed=cleanUniversities.filter(x=>x.area_id===desiredArea);
       const savedLocal=guest.selectedArea===desiredArea&&guest.selectedUniversity&&allowed.some(x=>String(x.area_university_id)===String(guest.selectedUniversity))?String(guest.selectedUniversity):'';
-      const desiredUniversity=pref?.selected_university_id&&allowed.some(x=>x.area_university_id===pref.selected_university_id)?String(pref.selected_university_id):savedLocal||String(allowed[0]?.area_university_id??'');
+      const desiredUniversity=pref?.selected_university_id&&allowed.some(x=>x.area_university_id===pref.selected_university_id)?String(pref.selected_university_id):savedLocal;
       setSelectedUniversity(desiredUniversity);
       setSelectedRouteKey(String(pref?.selected_route_key??guest.selectedRouteKey??'primary'));
       const wh=Number(pref?.weekly_hours??guest.weeklyHours??9);setWeeklyHours(wh);setAppliedWeeklyHours(wh);
       if(guest.difficultyTopics&&typeof guest.difficultyTopics==='object')setDifficultyTopics(guest.difficultyTopics);
     }else{
-      const first=cleanAreas[0]?.area_id??'';
+      const first='';
       const desiredArea=guest.selectedArea&&cleanAreas.some(x=>x.area_id===guest.selectedArea)?guest.selectedArea:first;
       setSelectedArea(desiredArea);
       const allowed=cleanUniversities.filter(x=>x.area_id===desiredArea);
-      const desiredUniversity=guest.selectedUniversity&&allowed.some(x=>String(x.area_university_id)===String(guest.selectedUniversity))?String(guest.selectedUniversity):String(allowed[0]?.area_university_id??'');
+      const desiredUniversity=guest.selectedUniversity&&allowed.some(x=>String(x.area_university_id)===String(guest.selectedUniversity))?String(guest.selectedUniversity):'';
       setSelectedUniversity(desiredUniversity);
       setSelectedRouteKey(String(guest.selectedRouteKey??'primary'));
-      const localHours=Number(guest.weeklyHours||localStorage.getItem('conectae:weekly-hours')||9);
+      const localHours=Number(localStorage.getItem('conectae:weekly-hours')||guest.weeklyHours||9);
       if(Number.isFinite(localHours)){setWeeklyHours(localHours);setAppliedWeeklyHours(localHours)}
       if(guest.difficultyTopics&&typeof guest.difficultyTopics==='object')setDifficultyTopics(guest.difficultyTopics);
     }
@@ -163,7 +163,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   })();return()=>{alive=false}},[]);
 
   const filteredUniversities=useMemo(()=>universities.filter(u=>u.area_id===selectedArea),[universities,selectedArea]);
-  useEffect(()=>{if(filteredUniversities.length&&!filteredUniversities.some(u=>String(u.area_university_id)===selectedUniversity))setSelectedUniversity(String(filteredUniversities[0].area_university_id))},[filteredUniversities,selectedUniversity]);
+  useEffect(()=>{if(selectedUniversity&&!filteredUniversities.some(u=>String(u.area_university_id)===selectedUniversity))setSelectedUniversity('')},[filteredUniversities,selectedUniversity]);
   const university=filteredUniversities.find(u=>String(u.area_university_id)===selectedUniversity)??null;
   const area=areas.find(a=>a.area_id===selectedArea)??null;
   const course=university?.course_label||area?.courses||area?.name||'Curso';
@@ -171,7 +171,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   useEffect(()=>{if(!routeOptions.length){if(selectedRouteKey!=='primary')setSelectedRouteKey('primary');return}if(routeOptions.some(row=>(row.route_key||'primary')===selectedRouteKey))return;const preferred=routeOptions.find(row=>(row.route_key||'primary')==='primary')??routeOptions[0];setSelectedRouteKey(preferred.route_key||'primary')},[routeOptions,selectedRouteKey]);
   const activeRemoteModel=useMemo(()=>routeOptions.find(row=>(row.route_key||'primary')===selectedRouteKey)??routeOptions.find(row=>(row.route_key||'primary')==='primary')??routeOptions[0]??null,[routeOptions,selectedRouteKey]);
   const baseModel=useMemo(()=>getExamModel(university?.university_name??GENERIC_ENEM_UNIVERSITY,course),[university?.university_name,course]);
-  const model=useMemo(()=>mergeRemoteExamModel(baseModel,activeRemoteModel),[baseModel,activeRemoteModel]);
+  const model=useMemo(()=>{const merged=mergeRemoteExamModel(baseModel,activeRemoteModel);return {...merged,metrics:merged.metrics.map(metric=>({...metric,defaultValue:0}))}},[baseModel,activeRemoteModel]);
   const metrics=model.metrics;
   const scoreStorageKey=useMemo(()=>`conectae:exam-values:${model.examId}:${university?.university_name??'sem-faculdade'}:${course}:${model.routeKey??selectedRouteKey}`,[model.examId,model.routeKey,university?.university_name,course,selectedRouteKey]);
 
@@ -287,13 +287,13 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   const currentOverall=useMemo(()=>calculateExamScore(model,values),[model,values]);
   const updateScore=(m:ExamMetric,n:number)=>{if(!scoresReady)return;const precision=m.max>=1000?10:1;const clean=Math.round(clamp(Number.isFinite(n)?n:0,0,m.max)*precision)/precision;setValues(v=>({...v,[m.key]:clean}));setDirty(true)};
   const save=async()=>{
-    if(!scoresReady)return;
+    if(!scoresReady||!area||!university)return;
     setSaving(true);setMessage('');
     try{
       localStorage.setItem(scoreStorageKey,JSON.stringify(values));
       if(targetOverride!==null)localStorage.setItem(`${scoreStorageKey}:target`,String(targetOverride));else localStorage.removeItem(`${scoreStorageKey}:target`);
       localStorage.setItem('conectae:weekly-hours',String(weeklyHours));
-      localStorage.setItem(GUEST_PREF_KEY,JSON.stringify({selectedArea,selectedUniversity,selectedRouteKey:model.routeKey??selectedRouteKey,weeklyHours,difficultyTopics}));
+      localStorage.setItem(GUEST_PREF_KEY,JSON.stringify({selectedArea,selectedUniversity,courseLabel:course,universityName:university.university_name,selectedRouteKey:model.routeKey??selectedRouteKey,weeklyHours,difficultyTopics}));
       setAppliedValues({...values});setAppliedWeeklyHours(weeklyHours);setDirty(false);
       if(!supabase){setMessage(`Plano recalculado e salvo neste dispositivo com ${weeklyHours}h por semana. Crie uma conta para sincronizar seu progresso.`);setTab('plano');return}
       const{data}=await supabase.auth.getUser();
@@ -323,10 +323,12 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
 
   if(loading)return <div className="plan6" style={{display:'grid',placeItems:'center'}}><Loader2 className="animate-spin"/></div>;
 
+  if(!area||!university)return <div className="plan6"><main className="plan6-shell" style={{paddingTop:24}}><h1>Escolha seu objetivo</h1><p>Selecione o curso e a faculdade para começar seu plano.</p><section className="plan6-selectors"><div className="plan6-field"><label htmlFor="initial-course">Curso</label><select id="initial-course" value={selectedArea} onChange={e=>{setSelectedArea(e.target.value);setSelectedUniversity('')}}><option value="">Escolha seu curso</option>{areas.map(a=><option key={a.area_id} value={a.area_id}>{a.courses||a.name}</option>)}</select></div><div className="plan6-field"><label htmlFor="initial-university">Faculdade</label><select id="initial-university" disabled={!area} value={selectedUniversity} onChange={e=>{setSelectedUniversity(e.target.value);setTab('hoje')}}><option value="">Escolha sua faculdade</option>{filteredUniversities.map(u=><option key={u.area_university_id} value={u.area_university_id}>{u.university_name}</option>)}</select></div></section><button className="plan6-btn" onClick={onBack}>Voltar</button></main></div>;
+
   return <div className="plan6">
     <header className="plan6-top"><div className="plan6-shell plan6-topin"><button className="plan6-back" onClick={onBack}><ArrowLeft size={17}/>Voltar</button><div className="plan6-brand"><span className="plan6-mark">C</span><span>Conectaê</span></div><div className="plan6-kicker plan6-desktop-only">Plano de aprovação</div></div></header>
     <main className="plan6-shell">
-      <section className="plan6-hero"><div><div className="plan6-eyebrow"><Target size={15}/>plano adaptativo salvo</div><h1>Suas notas viram um plano até a prova.</h1><p className="plan6-lead">Edite seus resultados e clique em salvar. Só então o cronograma é recalculado, evitando mudanças acidentais enquanto você ainda está preenchendo.</p></div><aside className="plan6-summary"><strong>{roadmap.daysLeft}</strong><small>dias até a última etapa considerada</small><div className="plan6-progress"><span style={{width:`${readiness}%`}}/></div><div className="plan6-summary-row"><span>{model.title}</span><span><b>{readiness}%</b> prontidão</span></div></aside></section>
+      <section className="plan6-hero"><div><div className="plan6-eyebrow"><Target size={15}/>Seu plano adaptativo</div><h1>Suas notas viram um plano até a prova.</h1><p className="plan6-lead">Edite seus resultados e clique em salvar. Só então o cronograma é recalculado, evitando mudanças acidentais enquanto você ainda está preenchendo.</p></div><aside className="plan6-summary"><strong>{roadmap.daysLeft}</strong><small>dias até a última etapa considerada</small><div className="plan6-progress"><span style={{width:`${readiness}%`}}/></div><div className="plan6-summary-row"><span>{model.title}</span><span><b>{readiness}%</b> prontidão</span></div></aside></section>
       <section id="course-target-settings" className="plan6-selectors">
         <div id="course-target-course" className="plan6-field"><label>Curso</label><select value={selectedArea} onChange={e=>{setSelectedArea(e.target.value);setDirty(true)}}>{areas.map(a=><option key={a.area_id} value={a.area_id}>{a.courses||a.name}</option>)}</select></div>
         <div id="course-target-university" className="plan6-field"><label>Faculdade</label><select value={selectedUniversity} onChange={e=>{setSelectedUniversity(e.target.value);setDirty(true)}}>{filteredUniversities.map(u=><option key={u.area_university_id} value={u.area_university_id}>{u.university_name}</option>)}</select></div>
@@ -338,12 +340,12 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
       <nav className="plan6-tabs">{tabs.map(([id,label])=><button key={id} className={`plan6-tab ${tab===id?'active':''}`} onClick={()=>setTab(id)}>{label}</button>)}</nav>
 
       {tab==='hoje'&&<div className="plan6-grid">
-        <section className="plan6-card span7"><div className="plan6-sectionlabel">Prioridade do plano salvo</div><h2>{top?.metric.label??'Diagnóstico'}</h2><p>{top?.missing?`Faltam ${top.missing} ${top.metric.unit==='acertos'?'acertos':'pontos'} para a meta atual.`:'Meta atual atingida. O plano transfere mais tempo para a próxima prioridade.'}</p><div className="plan6-callout"><strong>Próxima semana</strong><p>{roadmap.weeks[0]?`${roadmap.weeks[0].focusLabel}: ${roadmap.weeks[0].topic}.`:'Cronograma encerrado para este ciclo.'}</p></div></section>
+        <section className="plan6-card span7"><div className="plan6-sectionlabel">Prioridade do plano</div><h2>{top?.metric.label??'Diagnóstico'}</h2><p>{top?.missing?`Faltam ${top.missing} ${top.metric.unit==='acertos'?'acertos':'pontos'} para a meta atual.`:'Meta atual atingida. O plano transfere mais tempo para a próxima prioridade.'}</p><div className="plan6-callout"><strong>Próxima semana</strong><p>{roadmap.weeks[0]?`${roadmap.weeks[0].focusLabel}: ${roadmap.weeks[0].topic}.`:'Cronograma encerrado para este ciclo.'}</p></div></section>
         <section className="plan6-card span5"><div className="plan6-sectionlabel">Seu ritmo</div><h2>{weeklyHours} horas por semana</h2><p>Altere o tempo e salve para recalcular o volume semanal.</p><input className="plan6-slider" type="range" min="3" max="30" step="1" value={weeklyHours} onChange={e=>{setWeeklyHours(Number(e.target.value));setDirty(true)}}/><div className="plan6-hour-scale"><span>3h</span><strong>{weeklyHours}h · {weeklyHours*60} min</strong><span>30h</span></div></section>
         <section id="planner-scores" className="plan6-card span12">
           <div className="plan6-sectionlabel">Suas notas · {model.routeLabel??'processo selecionado'}</div>
           <h2>{course} · {university?.university_name}</h2>
-          <p>{model.scoreInputHelp||'Preencha exatamente as notas no formato mostrado abaixo. O cronograma só muda depois de salvar.'}</p>
+          <p>Campos sem nota salva começam em zero. Preencha suas notas reais antes de salvar e interpretar a prontidão.</p><p>{model.scoreInputHelp||'Preencha exatamente as notas no formato mostrado abaixo. O cronograma só muda depois de salvar.'}</p>
           <div className="plan6-callout blue" style={{marginBottom:18}}>
             <strong>Nota calculada agora: {currentOverall.toLocaleString('pt-BR',{maximumFractionDigits:1})}{model.overall?.max?` / ${model.overall.max}`:''}</strong>
             <p>{effectiveTarget!==null?<>Meta usada no plano: <b>{Number(effectiveTarget).toLocaleString('pt-BR',{maximumFractionDigits:1})}</b>{model.target?.year?` · referência ${model.target.year}`:activeCutoff?` · referência ${activeCutoff.year} ${activeCutoff.modality}`:''}.</>:<>Ainda não há corte oficial atual estruturado para esta rota. O plano usa metas por componente e você pode informar uma meta geral abaixo.</>}</p>

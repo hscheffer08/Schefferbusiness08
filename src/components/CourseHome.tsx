@@ -86,7 +86,7 @@ export default function CourseHome() {
             <div className="relative rounded-[28px] border border-[#d9e0f1] bg-white p-5 shadow-[0_26px_70px_rgba(25,45,95,.12)] md:p-7">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <div className="text-xs font-extrabold uppercase tracking-[.15em] text-[#66738c]">Seu plano da semana</div>
+                  <div className="text-xs font-extrabold uppercase tracking-[.15em] text-[#66738c]">Exemplo de plano semanal</div>
                   <h2 className="mt-2 text-2xl font-black tracking-[-.035em]">Rumo à sua meta</h2>
                 </div>
                 <span className="rounded-xl bg-[#eef1ff] p-2.5 text-[#3155e7]"><Target className="h-5 w-5" /></span>

@@ -34,7 +34,7 @@ function Gate({ onBack }: { onBack: () => void }) {
   useEffect(()=>{
     if(view!=='plano')return;
     let stopped=false; let tries=0;
-    const finishNavigation=()=>{window.setTimeout(()=>{if(stopped)return;const id=plannerFocus==='course'?'course-target-course':plannerFocus==='university'?'course-target-university':plannerFocus==='scores'?'planner-scores':null;const destination=id?document.getElementById(id):null;if(destination){destination.scrollIntoView({behavior:'smooth',block:'start'});destination.classList.remove('course-focus-pulse');void destination.getBoundingClientRect();destination.classList.add('course-focus-pulse');window.setTimeout(()=>destination.classList.remove('course-focus-pulse'),1400);}else{window.scrollTo({top:0,behavior:'smooth'});}},120);};
+    const finishNavigation=()=>{window.setTimeout(()=>{if(stopped)return;const id=plannerFocus==='scores'?'planner-scores':null;const destination=id?document.getElementById(id):null;if(destination){destination.scrollIntoView({behavior:'smooth',block:'start'});destination.classList.remove('course-focus-pulse');void destination.getBoundingClientRect();destination.classList.add('course-focus-pulse');window.setTimeout(()=>destination.classList.remove('course-focus-pulse'),1400);}else{window.scrollTo({top:0,behavior:'smooth'});}},120);};
     const activate=()=>{if(stopped||tries>=50)return;tries+=1;const buttons=Array.from(document.querySelectorAll<HTMLButtonElement>('#curso-planner .plan6-tab'));const target=buttons.find(button=>button.textContent?.trim()===plannerTab);if(target){if(!target.classList.contains('active'))target.click();if(target.classList.contains('active')){finishNavigation();return;}}window.setTimeout(activate,75);};
     activate(); return()=>{stopped=true};
   },[view,plannerTab,plannerFocus]);
@@ -47,7 +47,7 @@ function Gate({ onBack }: { onBack: () => void }) {
     window.location.assign(`${url.pathname}${url.search}${url.hash}`);
   };
   const signOut = async () => { try { await supabase?.auth.signOut(); } finally { window.location.assign('/'); } };
-  const openPlanner=(tab:'Hoje'|'Plano'|'Questões'|'Prova',focus:PlannerFocus=null)=>{setPlannerFocus(focus);setPlannerTab(tab);setView('plano')};
+  const openPlanner=(tab:'Hoje'|'Plano'|'Questões'|'Prova',focus:PlannerFocus=null)=>{setPlannerFocus(focus);setPlannerTab(tab);setView('plano');window.scrollTo({top:0,behavior:'instant'})};
   const openTraining=(next:TrainingView='hub')=>{setTrainingView(next);setView('treinar');window.scrollTo({top:0})};
   const openMore=(next:MoreView='hub')=>{setMoreView(next);setView('mais');window.scrollTo({top:0})};
   const switchMain=(next:MainView)=>{setPlannerFocus(null);if(next==='plano')setPlannerTab('Plano');setView(next);if(next==='treinar')setTrainingView('hub');if(next==='mais')setMoreView('hub');window.scrollTo({top:0,behavior:'smooth'})};
