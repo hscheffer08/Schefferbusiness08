@@ -1,6 +1,7 @@
 import { createCanvas } from '@napi-rs/canvas';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { WorkerMessageHandler } from 'pdfjs-dist/legacy/build/pdf.worker.mjs';
+import { enforceRateLimit } from './_rate-limit.js';
 
 (globalThis as any).pdfjsWorker={WorkerMessageHandler};
 const OFFICIAL_HOSTS=new Set(['download.inep.gov.br','vestibular.cmmg.edu.br','www.fuvest.br','fuvest.br','backend.copeve.ufmg.br']);
@@ -19,6 +20,7 @@ async function fetchPdf(sourceUrl:string){
 async function locate(pdf:any,n:number){for(let p=1;p<=pdf.numPages;p++){const page=await pdf.getPage(p);const content=await page.getTextContent();const all=(content.items||[]).map((x:any)=>String(x?.str||'')).join(' ');if(marker(all,n))return p;}return 0}
 class CanvasFactory{create(width:number,height:number){const canvas:any=createCanvas(Math.ceil(width),Math.ceil(height));return{canvas,context:canvas.getContext('2d')}}reset(target:any,width:number,height:number){target.canvas.width=Math.ceil(width);target.canvas.height=Math.ceil(height)}destroy(target:any){target.canvas.width=0;target.canvas.height=0;target.canvas=null;target.context=null}}
 export default async function handler(req:any,res:any){
+  if (!await enforceRateLimit(req, res, { bucket: 'official-pdf-render', limit: 120, windowSeconds: 60 })) return;
  if(!['GET','HEAD'].includes(req.method))return res.status(405).json({error:'Método não permitido.'});
  const sourceUrl=allowed(req.query?.sourceUrl);let pageNumber=Number(req.query?.page);const questionNumber=Number(req.query?.questionNumber);
  if(!sourceUrl||(!Number.isInteger(pageNumber)&&!Number.isInteger(questionNumber)))return res.status(400).json({error:'Fonte/página/questão inválida.'});
