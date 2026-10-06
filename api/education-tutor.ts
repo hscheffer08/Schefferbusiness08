@@ -27,7 +27,6 @@
  * Perfis: enem: fuvest: cmmg: insper: link: ibmec: einstein:
  */
 
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
 const FALLBACK_SUPABASE_URL = 'https://kmognvgnfisdchzffkgh.supabase.co';
@@ -148,7 +147,7 @@ function aiConfig() {
 }
 
 async function buildSeenQuestionContext(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   userId: string,
   _examId: string,
 ) {
@@ -256,7 +255,7 @@ async function callTutorModel(
   };
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return json(res, 405, { error: 'Método não permitido.' });
 
   const authHeader = cleanText(req.headers.authorization);
