@@ -223,7 +223,6 @@ const questions = [
 
 ];
 
-const BIOLOGY_PASSWORD = 'cursobiologiacissa';
 
   const allLessons = modules.flatMap(module => module.lessons.map(lesson => ({ ...lesson, moduleTitle: module.title })));
   const questionMap: Record<string, number[]> = {
@@ -251,6 +250,7 @@ export default function BiologyCourse() {
   const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem('biology-course-unlocked') === 'true');
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [unlocking, setUnlocking] = useState(false);
   const [query, setQuery] = useState('');
   const [selectedLesson, setSelectedLesson] = useState<string | null>(null);
   const [selectedQuickStudy, setSelectedQuickStudy] = useState<string | null>(null);
@@ -410,13 +410,25 @@ export default function BiologyCourse() {
   }
 
   if (!unlocked) {
-    const unlock = () => {
-      if (password === BIOLOGY_PASSWORD) {
+    const unlock = async () => {
+      if (!password.trim() || unlocking) return;
+      setUnlocking(true);
+      setPasswordError('');
+      try {
+        const response = await fetch('/api/redeem-biology-access', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: password.trim() }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.error || 'Não foi possível validar a senha.');
         sessionStorage.setItem('biology-course-unlocked', 'true');
         setUnlocked(true);
-        setPasswordError('');
-      } else {
-        setPasswordError('Senha incorreta. Tente novamente.');
+        setPassword('');
+      } catch (error) {
+        setPasswordError(error instanceof Error ? error.message : 'Não foi possível validar a senha.');
+      } finally {
+        setUnlocking(false);
       }
     };
 
@@ -428,9 +440,9 @@ export default function BiologyCourse() {
             <p className="text-xs font-black uppercase tracking-[0.16em] text-[#3155e7]">Curso particular</p>
             <h1 className="mt-2 text-3xl font-black tracking-[-0.035em]">Curso de Biologia</h1>
             <p className="mt-2 text-sm leading-relaxed text-[#69758f]">Digite a senha do curso para acessar as aulas, materiais e questões.</p>
-            <input aria-label="Senha do curso" type="password" value={password} onChange={e => { setPassword(e.target.value); setPasswordError(''); }} onKeyDown={e => e.key === 'Enter' && unlock()} placeholder="Senha do curso" autoFocus className="mt-6 w-full rounded-xl border border-[#d7deee] bg-[#f8f9fe] px-4 py-3 font-semibold outline-none focus:border-[#3155e7]" />
+            <input aria-label="Senha do curso" type="password" value={password} onChange={e => { setPassword(e.target.value); setPasswordError(''); }} onKeyDown={e => { if (e.key === 'Enter') void unlock(); }} placeholder="Senha do curso" autoFocus className="mt-6 w-full rounded-xl border border-[#d7deee] bg-[#f8f9fe] px-4 py-3 font-semibold outline-none focus:border-[#3155e7]" />
             {passwordError && <p className="mt-2 text-sm font-bold text-red-600">{passwordError}</p>}
-            <button onClick={unlock} className="mt-4 w-full rounded-xl bg-[#3155e7] px-5 py-3 font-black text-white">Entrar no curso</button>
+            <button onClick={() => void unlock()} disabled={unlocking || !password.trim()} className="mt-4 w-full rounded-xl bg-[#3155e7] px-5 py-3 font-black text-white disabled:opacity-50">{unlocking ? 'Verificando…' : 'Entrar no curso'}</button>
             <button onClick={() => window.location.assign('/cursos-particulares')} className="mt-4 flex w-full items-center justify-center gap-2 text-sm font-extrabold text-[#596681] hover:text-[#3155e7]"><ArrowLeft className="h-4 w-4" /> Voltar</button>
           </section>
         </div>
