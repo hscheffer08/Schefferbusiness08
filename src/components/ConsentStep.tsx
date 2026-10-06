@@ -63,12 +63,7 @@ export default function ConsentStep({ onComplete, onSkip }: ConsentStepProps) {
 
   const canSubmit = () => {
     if (choice === 'no') return true;
-    if (choice === 'yes' && scope) {
-      if (minor) {
-        return guardianName.trim() !== '' && guardianEmail.trim() !== '';
-      }
-      return true;
-    }
+    if (choice === 'yes' && scope) return !minor;
     return false;
   };
 
@@ -94,6 +89,11 @@ export default function ConsentStep({ onComplete, onSkip }: ConsentStepProps) {
     }
 
     if (choice === 'yes' && scope) {
+      if (minor) {
+        setSaving(false);
+        setError('O compartilhamento de perfis de menores está desativado até existir verificação do responsável.');
+        return;
+      }
       trackEvent('consent_accepted', { scope, minor }, null);
       const result = await saveSharingConsent({
         consentStatus: 'accepted',
@@ -176,8 +176,9 @@ export default function ConsentStep({ onComplete, onSkip }: ConsentStepProps) {
           {/* Choice buttons — equal visual weight */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
             <button
-              onClick={() => setChoice('yes')}
-              className={`p-5 rounded-2xl border-2 transition-all text-left ${
+              disabled={minor}
+              onClick={() => { if (!minor) setChoice('yes'); }}
+              className={`p-5 rounded-2xl border-2 transition-all text-left disabled:cursor-not-allowed disabled:opacity-50 ${
                 choice === 'yes'
                   ? 'border-brand-500 bg-brand-500/10'
                   : 'border-ink-700 bg-ink-800/40 hover:border-ink-600'
@@ -249,40 +250,15 @@ export default function ConsentStep({ onComplete, onSkip }: ConsentStepProps) {
                 ))}
               </div>
 
-              {/* Guardian consent for minors */}
-              {minor && scope && (
+              {minor && (
                 <div className="animate-fade-up mt-4 p-5 rounded-2xl bg-amber-500/5 border border-amber-500/20">
-                  <div className="flex items-start gap-2 mb-4">
+                  <div className="flex items-start gap-2">
                     <Lock className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="font-semibold text-ink-200 text-sm mb-1">Autorização de responsável</h4>
+                      <h4 className="font-semibold text-ink-200 text-sm mb-1">Compartilhamento indisponível para menores</h4>
                       <p className="text-xs text-ink-500 leading-relaxed">
-                        Como você é menor de idade, precisamos da autorização de um
-                        responsável legal para compartilhar seu perfil. O compartilhamento só
-                        será ativado após a confirmação do responsável.
+                        O Conectaê não ativa compartilhamento de perfis de menores até que uma verificação real do responsável esteja disponível. Você pode usar todos os recursos mantendo o perfil privado.
                       </p>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-xs text-ink-400 mb-1 block">Nome do responsável</label>
-                      <input
-                        type="text"
-                        value={guardianName}
-                        onChange={(e) => setGuardianName(e.target.value)}
-                        placeholder="Nome completo do responsável"
-                        className="w-full px-3 py-2.5 rounded-lg bg-ink-800 border border-ink-700 text-ink-100 placeholder-ink-600 focus:outline-none focus:border-brand-500 transition-colors text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-ink-400 mb-1 block">E-mail do responsável</label>
-                      <input
-                        type="email"
-                        value={guardianEmail}
-                        onChange={(e) => setGuardianEmail(e.target.value)}
-                        placeholder="email@exemplo.com"
-                        className="w-full px-3 py-2.5 rounded-lg bg-ink-800 border border-ink-700 text-ink-100 placeholder-ink-600 focus:outline-none focus:border-brand-500 transition-colors text-sm"
-                      />
                     </div>
                   </div>
                 </div>
