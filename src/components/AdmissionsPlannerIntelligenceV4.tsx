@@ -144,14 +144,14 @@ export default function AdmissionsPlannerIntelligenceV4({ onBack }:{ onBack:()=>
   const university=filteredUniversities.find(u=>String(u.area_university_id)===selectedUniversity)??null;
   const area=areas.find(a=>a.area_id===selectedArea)??null;
   const course=university?.course_label||area?.courses||area?.name||'Administração';
-  useEffect(()=>{ if(university) setExamId(examFromUniversity(university.university_name)); },[university?.area_university_id]);
+  useEffect(()=>{ if(university) setExamId(examFromUniversity(university.university_name)); },[university]);
 
   useEffect(()=>{ const next=Object.fromEntries(METRICS[examId].map(m=>[m.key,m.defaultValue])); try{Object.assign(next,JSON.parse(localStorage.getItem(`conectae:exam-values:${examId}`)||'{}'));}catch{/*noop*/} setValues(next); },[examId]);
   useEffect(()=>{ if(Object.keys(values).length)localStorage.setItem(`conectae:exam-values:${examId}`,JSON.stringify(values)); },[examId,values]);
 
   useEffect(()=>{ if(loading||!userId||!selectedArea||!selectedUniversity||!university)return; const timer=window.setTimeout(async()=>{
     await supabase?.from('student_exam_preferences').upsert({user_id:userId,exam_id:examId,comfort_areas:comfortAreas,weekly_hours:weeklyHours,selected_area_id:selectedArea,selected_university_id:Number(selectedUniversity),course_label:course,updated_at:new Date().toISOString()},{onConflict:'user_id,exam_id'});
-  },350); return()=>window.clearTimeout(timer); },[loading,userId,examId,comfortAreas,weeklyHours,selectedArea,selectedUniversity,university?.area_university_id,course]);
+  },350); return()=>window.clearTimeout(timer); },[loading,userId,examId,comfortAreas,weeklyHours,selectedArea,selectedUniversity,university,course]);
 
   const profile=profiles.find(p=>p.exam_id===examId)??null;
   const metrics=METRICS[examId]; const examSkills=skills.filter(s=>s.exam_id===examId); const examQuestions=questions.filter(q=>q.exam_id===examId); const examStudy=studyResources.filter(r=>r.exam_id===examId);
