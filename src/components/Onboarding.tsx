@@ -20,7 +20,8 @@ const SCHOOL_YEARS = [
 const AGE_RANGES = [
   'Menos de 15 anos',
   '15-16 anos',
-  '17-18 anos',
+  '17 anos',
+  '18-20 anos',
   '21 ou mais',
 ];
 
