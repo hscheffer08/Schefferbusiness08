@@ -1,7 +1,7 @@
 import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
 import { createClient } from '@supabase/supabase-js';
-import { enforceRateLimit } from './_rate-limit.ts';
+import { enforceRateLimit } from './_rate-limit.js';
 
 const GATEWAY_MODELS=['google/gemini-2.5-flash-lite','openai/gpt-5.4-mini','anthropic/claude-fable-5','google/gemini-2.5-flash'] as const;
 const DEFAULT_SUPABASE_URL='https://kmognvgnfisdchzffkgh.supabase.co';
