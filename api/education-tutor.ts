@@ -64,7 +64,7 @@ type TutorMessage = {
 
 type TutorContext = Record<string, unknown>;
 
-function json(res: VercelResponse, status: number, body: Record<string, unknown>) {
+function json(res: any, status: number, body: Record<string, unknown>) {
   return res.status(status).json(body);
 }
 
