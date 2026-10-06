@@ -16,41 +16,16 @@ function json(status: number, body: Record<string, unknown>) {
 
 function normalizeUsername(value: unknown) {
   return String(value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "_")
-    .replace(/[^a-z0-9._-]/g, "")
-    .replace(/^[._-]+|[._-]+$/g, "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .trim().toLowerCase().replace(/\s+/g, "_")
+    .replace(/[^a-z0-9._-]/g, "").replace(/^[._-]+|[._-]+$/g, "")
     .slice(0, 32);
 }
 
-// Simple in-memory rate limiting per IP. Each entry allows MAX_PER_WINDOW
-// registrations per WINDOW_MS. Entries older than the window are evicted
-// on each request. This is per-edge-function-instance state; Supabase may
-// spin up multiple instances, so this is a best-effort throttle, not a
-// hard guarantee — but it stops casual mass-account creation.
-const MAX_PER_WINDOW = 5;
-const WINDOW_MS = 60_000;
-const registrations = new Map<string, number[]>();
-
-function rateLimited(ip: string): boolean {
-  const now = Date.now();
-  const cutoff = now - WINDOW_MS;
-  const timestamps = (registrations.get(ip) ?? []).filter((t) => t > cutoff);
-  if (timestamps.length >= MAX_PER_WINDOW) {
-    registrations.set(ip, timestamps);
-    return true;
-  }
-  timestamps.push(now);
-  registrations.set(ip, timestamps);
-  if (registrations.size > 500) {
-    for (const [key, times] of registrations) {
-      if (times.every((t) => t <= cutoff)) registrations.delete(key);
-    }
-  }
-  return false;
+async function sha256(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 Deno.serve(async (req: Request) => {
@@ -58,10 +33,29 @@ Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return json(405, { error: "Método não permitido." });
 
   try {
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-    if (rateLimited(ip)) {
-      return json(429, { error: "Muitas contas criadas recentemente deste endereço. Aguarde um minuto e tente novamente." });
-    }
+    const url = Deno.env.get("SUPABASE_URL");
+    const serviceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !serviceRole) return json(500, { error: "Configuração de autenticação indisponível." });
+
+    const admin = createClient(url, serviceRole, { auth: { persistSession: false, autoRefreshToken: false } });
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown";
+    const subjectHash = await sha256(ip + "|" + (req.headers.get("user-agent") || "").slice(0, 120));
+    const cutoff = new Date(Date.now() - 60_000).toISOString();
+
+    const { count, error: rateError } = await admin
+      .from("api_rate_limit_events")
+      .select("id", { head: true, count: "exact" })
+      .eq("bucket", "course-username-register")
+      .eq("subject_hash", subjectHash)
+      .gte("created_at", cutoff);
+    if (rateError) return json(503, { error: "Não foi possível validar o limite de tentativas agora." });
+    if ((count ?? 0) >= 5) return json(429, { error: "Muitas contas criadas recentemente deste endereço. Aguarde um minuto e tente novamente." });
+
+    const { error: rateWriteError } = await admin.from("api_rate_limit_events").insert({
+      bucket: "course-username-register",
+      subject_hash: subjectHash,
+    });
+    if (rateWriteError) return json(503, { error: "Não foi possível validar o limite de tentativas agora." });
 
     const body = await req.json().catch(() => ({}));
     const username = normalizeUsername(body?.username);
@@ -71,24 +65,12 @@ Deno.serve(async (req: Request) => {
     if (password.length < 8) return json(400, { error: "A senha deve ter pelo menos 8 caracteres." });
     if (password.length > 128) return json(400, { error: "A senha é longa demais." });
 
-    const url = Deno.env.get("SUPABASE_URL");
-    const serviceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!url || !serviceRole) return json(500, { error: "Configuração de autenticação indisponível." });
-
-    const admin = createClient(url, serviceRole, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-
     const email = `u_${username}@course.conectae.app`;
     const { data, error } = await admin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: {
-        username,
-        display_name: username,
-        auth_mode: "username",
-      },
+      user_metadata: { username, display_name: username, auth_mode: "username" },
     });
 
     if (error) {
