@@ -8,6 +8,7 @@ let anonSessionId: string | null = null;
 let anonVisitorId: string | null = null;
 let trackingInitialized = false;
 let lastTrackedLocation = '';
+let analyticsWriteWarningShown = false;
 
 function createAnonId(prefix: 'anon' | 'visitor'): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
@@ -113,7 +114,7 @@ export function trackEvent(
   const write = async () => {
     const resolvedUserId = userId === undefined ? await resolveAuthenticatedUserId() : userId;
     try {
-      await client.from('analytics_events').insert({
+      const { error } = await client.from('analytics_events').insert({
         event_type: eventType,
         user_id: resolvedUserId ?? null,
         session_id: sessionId,
@@ -123,8 +124,17 @@ export function trackEvent(
           ...(metadata ?? {}),
         },
       });
-    } catch {
-      // Analytics must never block the product experience.
+      if (error && !analyticsWriteWarningShown) {
+        analyticsWriteWarningShown = true;
+        console.warn('Analytics event could not be recorded', error.message);
+      }
+    } catch (error) {
+      // Analytics must never block the product experience, but one diagnostic
+      // warning makes permission/configuration regressions visible.
+      if (!analyticsWriteWarningShown) {
+        analyticsWriteWarningShown = true;
+        console.warn('Analytics event recording failed', error);
+      }
     }
   };
 
