@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { verifyBiologyAccessToken } from './_biology-access.ts';
+import { verifyBiologyAccessToken } from './_biology-access.js';
 
 function json(res: any, status: number, body: unknown) {
   res.setHeader('Cache-Control', 'private, no-store');
