@@ -30,7 +30,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
-const DAILY_LIMIT: number | null = null;
 const FALLBACK_SUPABASE_URL = 'https://kmognvgnfisdchzffkgh.supabase.co';
 const VERCEL_AI_GATEWAY_URL = 'https://ai-gateway.vercel.sh/v1';
 
@@ -314,7 +313,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (usageError) console.warn('education-tutor usage read failed', usageError.message);
 
-  const questionCount = (usage || []).filter((item: { feature?: string }) => item.feature === 'tutor').length;
   const remainingQuestions: number | null = null;
 
   try {
