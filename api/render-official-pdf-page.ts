@@ -28,7 +28,7 @@ export default async function handler(req:any,res:any){
   if(!pageNumber||pageNumber>pdf.numPages)return res.status(404).json({error:'Página da questão não localizada.'});
   const page=await pdf.getPage(pageNumber);const viewport=page.getViewport({scale:1.65});const factory:any=new CanvasFactory();const target=factory.create(viewport.width,viewport.height);
   target.context.fillStyle='#ffffff';target.context.fillRect(0,0,target.canvas.width,target.canvas.height);
-  await page.render({canvasContext:target.context,viewport,canvasFactory:factory}).promise;const buffer=await target.canvas.encode('jpeg',88);
+  await page.render({canvasContext:target.context,viewport,canvasFactory:factory} as any).promise;const buffer=await target.canvas.encode('jpeg',88);
   res.setHeader('Content-Type','image/jpeg');res.setHeader('X-Official-Source-Page',String(pageNumber));res.setHeader('Cache-Control','public, max-age=86400, s-maxage=31536000, stale-while-revalidate=31536000');if(req.method==='HEAD')return res.status(200).end();return res.status(200).send(Buffer.from(buffer));
  }catch(error:any){console.error('render-official-pdf-page failed',String(error?.message||error));return res.status(502).json({error:'Não consegui renderizar esta página oficial.'});}
 }
