@@ -54,8 +54,6 @@ export default function ConsentStep({ onComplete, onSkip }: ConsentStepProps) {
   const { profile } = useAuth();
   const [choice, setChoice] = useState<'yes' | 'no' | null>(null);
   const [scope, setScope] = useState<ConsentScope | null>(null);
-  const [guardianName, setGuardianName] = useState('');
-  const [guardianEmail, setGuardianEmail] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -99,8 +97,6 @@ export default function ConsentStep({ onComplete, onSkip }: ConsentStepProps) {
         consentStatus: 'accepted',
         consentScope: scope,
         requiresGuardianConsent: minor,
-        guardianName: minor ? guardianName : undefined,
-        guardianEmail: minor ? guardianEmail : undefined,
       });
       setSaving(false);
       if (!result) {
