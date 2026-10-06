@@ -273,7 +273,7 @@ export default async function handler(req: any, res: any) {
     const totalQuestions = fixedQuestionTotal(interviewMode, requestedTotal);
     const maxQuestions = institution === 'link' && interviewMode === 'official' ? LINK_OFFICIAL_MAX_QUESTIONS : totalQuestions;
     const elapsedSeconds = Math.max(0, Math.min(3600, Number(body.elapsedSeconds) || 0));
-    const course = institution === 'link' ? 'Administração (Business)' : (trim(body.course, 100) || 'curso de graduação');
+    const course = 'Administração (Business)';
     const phase = body.phase === 'start' ? 'start' : body.phase === 'report' ? 'report' : 'answer';
     const history = cleanHistory(body.history);
     const candidateContext = cleanCandidateContext(body.candidateContext);
@@ -287,10 +287,8 @@ export default async function handler(req: any, res: any) {
         feedback: null,
         voice: null,
         questionNumber: 1,
-        question: institution === 'espm'
-          ? 'Para começar, como você define inovação e criatividade no contexto das transformações sociais e tecnológicas atuais? Construa uma tese e fundamente-a com pelo menos uma referência ou conceito que você estudou.'
-          : 'Para começar: por que você quer estudar na Link School of Business e qual parte da sua trajetória torna essa escolha coerente com o que você pretende construir?',
-        competency: institution === 'espm' ? 'Articulação conceitual e embasamento teórico' : 'Vontade de estar aqui',
+        question: 'Para começar: por que você quer estudar na Link School of Business e qual parte da sua trajetória torna essa escolha coerente com o que você pretende construir?',
+        competency: 'Vontade de estar aqui',
         language: 'pt',
         questionStyle: 'standard',
         targetMinutes: institution === 'link' && interviewMode === 'official' ? 20 : null,
