@@ -1,4 +1,4 @@
-import { generateText } from 'ai';
+import { generateText, Output } from 'ai';
 import { createClient } from '@supabase/supabase-js';
 
 const MODEL = 'openai/gpt-5.6-luna';
@@ -226,17 +226,42 @@ async function runJson(args: {
   timeoutMs: number;
   compact: boolean;
 }) {
-  const { raw, generated } = await runGeneration(args, true);
   try {
+    const generated: any = await generateText({
+      model: MODEL,
+      system: commonSystem(true),
+      prompt: args.prompt,
+      maxOutputTokens: Math.max(args.maxOutputTokens, args.compact ? 2400 : 3600),
+      maxRetries: 1,
+      abortSignal: AbortSignal.timeout(args.timeoutMs),
+      output: Output.json({ name: args.name }),
+      providerOptions: {
+        openai: { reasoningEffort: 'low' },
+        gateway: {
+          models: ['google/gemini-3.6-flash', 'openai/gpt-5.4-mini'],
+          user: args.userId,
+          tags: ['feature:study-summary', 'model:luna', 'structured:v5'],
+        },
+      },
+    } as any);
+
+    console.info('study-summary structured generation usage', {
+      step: args.name,
+      model: MODEL,
+      finishReason: generated.finishReason || null,
+      usage: generated.usage || null,
+    });
+
+    if (generated.output && typeof generated.output === 'object') return generated.output;
+    const raw = String(generated.text || '').trim();
+    if (!raw) throw new GeneratedJsonError();
     return parseJson(raw);
   } catch (error) {
-    console.error('study-summary json parse failed', {
+    console.error('study-summary structured generation failed', {
       step: args.name,
-      chars: raw.length,
-      finishReason: generated.finishReason || null,
       message: error instanceof Error ? error.message : String(error),
     });
-    throw error;
+    throw error instanceof GeneratedJsonError ? error : new GeneratedJsonError();
   }
 }
 

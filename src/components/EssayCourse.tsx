@@ -28,12 +28,12 @@ export default function EssayCourse() {
   setAccess(false); setError('');
   if (!userId || !supabase) { setChecking(false); return; }
   setChecking(true);
-  void supabase.rpc('has_essay_course_access').then(({ data, error: issue }) => {
+  void supabase.from('essay_course_access').select('user_id').eq('user_id', userId).maybeSingle().then(({ data, error: issue }) => {
    if (!alive) return;
    if (issue) {
     setError('Não foi possível verificar seu acesso. Tente novamente.');
    } else {
-    const allowed = data === true;
+    const allowed = Boolean(data);
     setAccess(allowed);
     if (allowed) window.localStorage.setItem(`essay-course-access:${userId}`, 'granted');
     else window.localStorage.removeItem(`essay-course-access:${userId}`);
@@ -46,9 +46,16 @@ export default function EssayCourse() {
   if (!user || !password.trim() || !supabase) return;
   setBusy(true); setError('');
   try {
-   const { data, error: issue } = await supabase.rpc('redeem_essay_course_access', { p_password: password.trim() });
-   if (issue) throw new Error('Não foi possível validar a senha. Tente novamente.');
-   if (data !== true) throw new Error('Senha incorreta.');
+   const session = await supabase.auth.getSession();
+   const token = session.data.session?.access_token;
+   if (!token) throw new Error('Sua sessão expirou. Entre novamente.');
+   const response = await fetch('/api/redeem-essay-access', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ password: password.trim() }),
+   });
+   const data = await response.json();
+   if (!response.ok) throw new Error(data.error || 'Não foi possível validar a senha. Tente novamente.');
    window.localStorage.setItem(`essay-course-access:${user.id}`, 'granted');
    setPassword('');
    setAccess(true);

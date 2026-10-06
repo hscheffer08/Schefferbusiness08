@@ -3,7 +3,7 @@ import { sameStudySubject } from '@/lib/study-area-match';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ArrowLeft, BookOpen, CalendarDays, CheckCircle2, ExternalLink, Home, Loader2, Minus, PlayCircle, Plus, Save, Sparkles, Target, Trophy, Video, X, XCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { calculateExamScore, getExamModel, isEnemScoringModel, isSupportedInstitutionCourse, mergeRemoteExamModel, normalizeStoredScores, type ExamMetric, type ExamModel, type RemoteExamModelRow } from '@/lib/exam-models';
+import { calculateExamScore, getExamModel, isEnemScoringModel, isSupportedInstitutionCourse, mergeRemoteExamModel, normalizeStoredScores, type ExamMetric, type RemoteExamModelRow } from '@/lib/exam-models';
 import { buildRoadmap } from '@/lib/admissions-roadmap-balanced';
 import { isSupplementalQuestion, mergePracticeQuestions } from '@/lib/supplemental-practice-questions';
 import WeeklyPlanExperience from '@/components/WeeklyPlanExperience';
@@ -227,7 +227,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
     }
     if(routeTarget===null){const rawTarget=localStorage.getItem(`${scoreStorageKey}:target`);const localTarget=rawTarget===null?NaN:Number(rawTarget);routeTarget=Number.isFinite(localTarget)&&localTarget>0?localTarget:null}
     const next=normalizeStoredScores(model,{...stored,...saved},false);setValues(next);setAppliedValues(next);setTargetOverride(routeTarget);setLoadedScoreKey(scoreStateKey);setDirty(false);setQuestionArea('Todas');setActiveQuestion(null);setSelectedOption('');setPracticeResult(null);localStorage.setItem('conectae:active-exam',model.examId);
-  })().catch(()=>{if(alive)setMessage('Não foi possível carregar suas notas. Reabra o plano para tentar novamente.')});return()=>{alive=false}},[scoreStateKey,scoreStorageKey,model.examId,model.routeKey,metrics,university?.area_university_id,course,selectedRouteKey]);
+  })().catch(()=>{if(alive)setMessage('Não foi possível carregar suas notas. Reabra o plano para tentar novamente.')});return()=>{alive=false}},[scoreStateKey,scoreStorageKey,model,metrics,university,course,selectedRouteKey]);
 
   useEffect(()=>{const handler=()=>void reloadDiagnostics(undefined,model.examId);window.addEventListener('conectae:diagnostic-saved',handler);return()=>window.removeEventListener('conectae:diagnostic-saved',handler)},[model.examId]);
 
@@ -273,7 +273,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
       const score=(missing/Math.max(1,metric.max))*performanceMultiplier*weightImpact;
       return{metric,current,goal,missing,score,accuracy,sampleSize,sampleConfidence};
     });
-  },[metrics,appliedValues,attempts,model.examId,dataGoals]);
+  },[metrics,appliedValues,attempts,model,dataGoals]);
   const priorities=useMemo(()=>[...diagnosis].sort((a,b)=>b.score-a.score),[diagnosis]);
   const readiness=Math.round((()=>{
     const rows=diagnosis.map(p=>{const declaredProgress=Math.min(1,p.current/Math.max(1,p.goal));if(p.accuracy==null||p.sampleConfidence<=0){const weight=p.metric.weight&&p.metric.weight>0?p.metric.weight:1;return{progress:declaredProgress,weight}}const measuredProgress=Math.min(1,p.accuracy/.8);const measuredWeight=.35*p.sampleConfidence;const progress=declaredProgress*(1-measuredWeight)+measuredProgress*measuredWeight;const weight=p.metric.weight&&p.metric.weight>0?p.metric.weight:1;return{progress,weight}});

@@ -1,3 +1,4 @@
+import { enforceRateLimit } from './_rate-limit.js';
 const OFFICIAL_HOSTS = new Set([
   'download.inep.gov.br',
   'vestibular.cmmg.edu.br',
@@ -149,6 +150,7 @@ function hasPdfSignature(buffer: Buffer) {
 }
 
 export default async function handler(req: any, res: any) {
+  if (!await enforceRateLimit(req, res, { bucket: 'official-pdf-proxy', limit: 240, windowSeconds: 60 })) return;
   if (!['GET', 'HEAD'].includes(req.method)) return res.status(405).json({ error: 'Método não permitido.' });
   const url = allowed(req.query?.url);
   if (!url) return res.status(400).json({ error: 'Fonte oficial inválida.' });

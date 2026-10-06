@@ -1,6 +1,7 @@
 import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
 import { createClient } from '@supabase/supabase-js';
+import { enforceRateLimit } from './_rate-limit.js';
 
 const GATEWAY_MODELS=['google/gemini-2.5-flash-lite','openai/gpt-5.4-mini','anthropic/claude-fable-5','google/gemini-2.5-flash'] as const;
 const DEFAULT_SUPABASE_URL='https://kmognvgnfisdchzffkgh.supabase.co';
@@ -196,6 +197,7 @@ async function runJson(args:{prompt:string;sourceUrl:string;maxOutputTokens:numb
 }
 
 export default async function handler(req:any,res:any){
+  if (!await enforceRateLimit(req, res, { bucket: 'official-question-extract', limit: 120, windowSeconds: 300 })) return;
   if(!['GET','POST'].includes(req.method))return reply(res,405,{error:'Método não permitido.'});
   try{
     const input=req.method==='GET'?req.query:req.body;

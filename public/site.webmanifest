@@ -8,5 +8,16 @@
   "display": "standalone",
   "background_color": "#020817",
   "theme_color": "#020817",
-  "categories": ["education", "productivity"]
+  "categories": [
+    "education",
+    "productivity"
+  ],
+  "icons": [
+    {
+      "src": "/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }

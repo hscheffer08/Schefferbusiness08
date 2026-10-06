@@ -1,5 +1,6 @@
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { WorkerMessageHandler } from 'pdfjs-dist/legacy/build/pdf.worker.mjs';
+import { enforceRateLimit } from './_rate-limit.js';
 
 // PDF.js uses a fake worker in Node. Vercel may tree-shake the worker file unless
 // it is imported explicitly, so expose the handler before getDocument() runs.
@@ -206,6 +207,7 @@ async function locatePage(sourceUrl: string, questionNumber: number) {
 }
 
 export default async function handler(req: any, res: any) {
+  if (!await enforceRateLimit(req, res, { bucket: 'official-question-locate', limit: 120, windowSeconds: 60 })) return;
   if (!['GET', 'HEAD'].includes(req.method)) return res.status(405).json({ error: 'Método não permitido.' });
   const sourceUrl = allowedUrl(req.query?.sourceUrl);
   const questionNumber = Number(req.query?.questionNumber);

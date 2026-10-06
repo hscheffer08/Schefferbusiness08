@@ -33,16 +33,14 @@ function normalizeProductionOrigin() {
 
 normalizeProductionOrigin();
 
-const publicFallbackUrl = 'https://kmognvgnfisdchzffkgh.supabase.co';
-const publicFallbackAnonKey = 'sb_publishable_2DCxkYOlTKqsVjDxYg5pxg_pf5YqdTA';
 const configuredUrl = normalizeSupabaseUrl(import.meta.env.VITE_SUPABASE_URL);
 const configuredAnonKey = cleanEnv(import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
 const hasPlaceholder = !configuredUrl || /x{4,}|seu-projeto/i.test(configuredUrl);
 const hasPlaceholderKey = !configuredAnonKey || /x{4,}|sua-chave/i.test(configuredAnonKey);
-const url = hasPlaceholder ? publicFallbackUrl : configuredUrl;
-const anonKey = url === publicFallbackUrl || hasPlaceholderKey ? publicFallbackAnonKey : configuredAnonKey;
+const url = hasPlaceholder ? '' : configuredUrl;
+const anonKey = hasPlaceholderKey ? '' : configuredAnonKey;
 
-if (!url || !anonKey) console.error('Supabase configuration is missing. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel.');
+if (!url || !anonKey) console.error('Supabase configuration is missing. Refusing to fall back to the production database. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel.');
 
 const baseClient = url && anonKey
   ? createClient(url, anonKey, {

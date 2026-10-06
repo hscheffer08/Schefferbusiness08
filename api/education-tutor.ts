@@ -27,10 +27,8 @@
  * Perfis: enem: fuvest: cmmg: insper: link: ibmec: einstein:
  */
 
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
-const DAILY_LIMIT: number | null = null;
 const FALLBACK_SUPABASE_URL = 'https://kmognvgnfisdchzffkgh.supabase.co';
 const VERCEL_AI_GATEWAY_URL = 'https://ai-gateway.vercel.sh/v1';
 
@@ -66,7 +64,7 @@ type TutorMessage = {
 
 type TutorContext = Record<string, unknown>;
 
-function json(res: VercelResponse, status: number, body: Record<string, unknown>) {
+function json(res: any, status: number, body: Record<string, unknown>) {
   return res.status(status).json(body);
 }
 
@@ -149,7 +147,7 @@ function aiConfig() {
 }
 
 async function buildSeenQuestionContext(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   userId: string,
   _examId: string,
 ) {
@@ -257,7 +255,7 @@ async function callTutorModel(
   };
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return json(res, 405, { error: 'Método não permitido.' });
 
   const authHeader = cleanText(req.headers.authorization);
@@ -314,7 +312,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (usageError) console.warn('education-tutor usage read failed', usageError.message);
 
-  const questionCount = (usage || []).filter((item: { feature?: string }) => item.feature === 'tutor').length;
   const remainingQuestions: number | null = null;
 
   try {

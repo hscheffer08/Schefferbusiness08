@@ -118,11 +118,11 @@ function FAQ() {
     { q: 'Como o match é calculado?', a: 'Através de um algoritmo determinístico que analisa dezenas de características do seu perfil e as compara com os dados de cada universidade. O resultado é uma porcentagem de compatibilidade de 0 a 100%.' },
     { q: 'O resultado significa que vou ser aprovado?', a: 'Não. O Conectaê mede compatibilidade de perfil, não chance de aprovação. Ele é uma orientação para te ajudar a escolher, não uma garantia.' },
     { q: 'Quais faculdades estão incluídas?', a: 'A plataforma reúne faculdades brasileiras e americanas selecionadas para comparação por perfil, com o banco sendo ampliado continuamente.' },
-    { q: 'Quanto custa?', a: 'O Conectaê será gratuito durante os primeiros meses de lançamento. Depois, o acesso ao match completo custará R$8.' },
+    { q: 'Quanto custa?', a: 'O Conectaê está em período promocional gratuito. Se houver cobrança no futuro, o preço e as condições serão mostrados na plataforma antes da contratação.' },
     { q: 'Por que está gratuito agora?', a: 'Estamos em período de lançamento. Queremos que você experimente e nos ajude a melhorar a ferramenta antes de ativar a cobrança.' },
     { q: 'Minhas informações estão seguras?', a: 'Sim. Seus dados são armazenados com criptografia e protegidos por Row Level Security no Supabase. Cada usuário só acessa seus próprios dados.' },
     { q: 'Posso fazer o teste novamente?', a: 'Sim! Você pode refazer o questionário quantas vezes quiser. Seu histórico de matches fica salvo na sua conta.' },
-    { q: 'Posso excluir minha conta e meus dados?', a: 'Sim. Na sua conta, você pode excluir sua conta a qualquer momento. Todos os seus dados associados serão removidos.' },
+    { q: 'Posso excluir minha conta e meus dados?', a: 'Sim. Na sua conta, você pode excluir sua conta a qualquer momento. Os dados pessoais vinculados à conta são removidos; métricas técnicas agregadas e sem vínculo identificável podem ser mantidas para segurança e medição do serviço.' },
   ];
   return (
     <>
@@ -147,8 +147,9 @@ function Privacy() {
     <>
       <h1 className="text-3xl font-bold tracking-tight mb-6">Política de Privacidade</h1>
       <Section title="Coleta de dados">
-        <p>O Conectaê coleta apenas os dados necessários para calcular seu match de perfil: nome, e-mail, ano escolar, cidade, estado, faixa etária e respostas do questionário.</p>
-        <p>Não vendemos seus dados. O compartilhamento com instituições de ensino só ocorre nas hipóteses descritas abaixo e mediante o consentimento aplicável.</p>
+        <p>O Conectaê coleta dados necessários para prestar e melhorar o serviço, como nome, e-mail, ano escolar, cidade, estado, faixa etária, respostas do questionário, progresso e resultados.</p>
+        <p>Também registramos dados técnicos de uso, como identificadores de sessão/visitante, página acessada, parâmetros da URL, referência de origem, idioma, fuso horário, dispositivo e métricas de desempenho. Esses dados são usados para segurança, diagnóstico e análise do produto.</p>
+        <p>Não vendemos seus dados. O compartilhamento com instituições de ensino só ocorre quando aplicável e mediante autorização específica.</p>
       </Section>
       <Section title="Armazenamento e segurança">
         <p>Seus dados são armazenados no Supabase com criptografia e protegidos por Row Level Security (RLS). Cada usuário só pode acessar seus próprios dados — nenhum usuário pode ver dados de outro.</p>
@@ -164,7 +165,7 @@ function Privacy() {
         <p>Para exercer qualquer desses direitos, basta acessar sua conta ou entrar em contato.</p>
       </Section>
       <Section title="Consentimento">
-        <p>Ao criar uma conta e responder ao questionário, você consente com o tratamento dos seus dados para os fins descritos nesta política.</p>
+        <p>Tratamos os dados necessários para fornecer a plataforma, manter sua conta, salvar seu progresso, prevenir abuso e melhorar o serviço. Recursos opcionais que exigem autorização específica, como compartilhamento com instituições de ensino, pedem consentimento separado.</p>
       </Section>
       <Section title="Compartilhamento com instituições de ensino">
         <p>O Conectaê oferece um recurso <strong>opcional</strong> de compartilhamento do seu perfil com faculdades participantes. Este recurso é totalmente voluntário e nenhuma funcionalidade da plataforma é bloqueada se você não autorizar.</p>
@@ -184,7 +185,7 @@ function Privacy() {
         <p><strong>Com quais tipos de instituições:</strong> Exclusivamente com faculdades participantes do programa, previamente cadastradas e autorizadas pela equipe do Conectaê.</p>
         <p><strong>O que nunca é compartilhado:</strong> Senha, dados de pagamento, informações técnicas de segurança ou qualquer dado que não seja necessário para essa finalidade.</p>
         <p><strong>Como retirar a autorização:</strong> A qualquer momento, em "Minha Conta" &gt; "Privacidade e compartilhamento", você pode alterar sua escolha ou revogar o consentimento. A revogação interrompe novos compartilhamentos imediatamente.</p>
-        <p><strong>Menores de idade:</strong> Para estudantes menores de 18 anos, o compartilhamento só é ativado após a autorização de um responsável legal. O sistema solicita o nome e e-mail do responsável no momento do consentimento.</p>
+        <p><strong>Menores de idade:</strong> O compartilhamento de perfis de menores permanece desativado enquanto o Conectaê não tiver uma verificação efetiva de autorização do responsável. O menor pode usar os demais recursos mantendo o perfil privado.</p>
         <p className="text-brand-400 font-medium">O compartilhamento é opcional. Você não precisa autorizá-lo para usar a plataforma, fazer o teste ou ver seus resultados.</p>
       </Section>
     </>
@@ -202,7 +203,7 @@ function Terms() {
         <p>Você concorda em fornecer informações verdadeiras e em não tentar manipular o resultado do questionário. O algoritmo é determinístico e neutro, projetado para refletir seu perfil real.</p>
       </Section>
       <Section title="Privacidade">
-        <p>Seus dados são tratados conforme nossa Política de Privacidade e a LGPD. Você pode excluir sua conta a qualquer momento.</p>
+        <p>Seus dados são tratados conforme nossa Política de Privacidade e a LGPD. Você pode excluir sua conta a qualquer momento; dados pessoais vinculados à conta são removidos conforme descrito na política.</p>
       </Section>
       <Section title="Limitação de responsabilidade">
         <p>O Conectaê é uma ferramenta de orientação. As decisões sobre qual faculdade buscar, como se preparar e onde se inscrever são de sua responsabilidade. Não nos responsabilizamos por decisões tomadas com base nos resultados.</p>

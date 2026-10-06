@@ -24,8 +24,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
   const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-  if (!supabaseUrl || !anonKey) return json(res, 500, { error: 'Servidor não configurado.' });
+  if (!supabaseUrl || !anonKey || !serviceRoleKey) return json(res, 500, { error: 'Servidor não configurado.' });
 
   const userClient = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
@@ -41,9 +42,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const rpcName = String(body?.rpc || '');
   if (!ALLOWED_RPCS.has(rpcName)) return json(res, 400, { error: 'RPC não permitida.' });
 
-  // Execute the RPC with the verified admin JWT so database-side auth.jwt()
-  // checks see the real admin identity instead of the service-role identity.
-  const { data, error } = await userClient.rpc(rpcName, body?.params || {});
+  // The caller was verified above with their own JWT. Execute privileged
+  // dashboard RPCs only with the server-side service role so ordinary signed-in
+  // users do not need EXECUTE on SECURITY DEFINER functions.
+  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+  const { data, error } = await adminClient.rpc(rpcName, body?.params || {});
 
   if (error) return json(res, 500, { error: error.message });
   return json(res, 200, { data });

@@ -19,6 +19,10 @@ for (const page of SEO_PAGES) {
   let html = baseHtml.replace(/<title>[^<]*<\/title>/i, `<title>${escape(page.title)}</title>`);
   for (const [selector, value] of [['name="description"', page.description], ['property="og:url"', url], ['property="og:title"', page.title], ['property="og:description"', page.description], ['name="twitter:title"', page.title], ['name="twitter:description"', page.description]]) html = replaceMeta(html, selector, value);
   html = html.replace(/<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/i, `<link rel="canonical" href="${url}"/>`);
+  if (page.indexable === false) {
+    html = replaceMeta(html, 'name="robots"', 'noindex, follow');
+    html = replaceMeta(html, 'name="googlebot"', 'noindex, follow');
+  }
   const schema = JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', '@id': `${url}#webpage`, name: page.heading, url, description: page.description, inLanguage: 'pt-BR', isPartOf: { '@id': `${SITE_ORIGIN}/#website` } }).replaceAll('<', '\\u003c');
   html = html.replace('</head>', `<script type="application/ld+json">${schema}</script></head>`);
   html = html.replace('<div id="root"></div>', `<div id="root">${render(page)}</div>`);
@@ -27,7 +31,7 @@ for (const page of SEO_PAGES) {
   await writeFile(join(targetDir, 'index.html'), html);
 }
 // Canonical public URLs only. Omit invented modification dates.
-const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${SEO_PAGES.map(page => `  <url><loc>${SITE_ORIGIN}${page.path}</loc></url>`).join('\n')}\n</urlset>\n`;
+const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${SEO_PAGES.filter(page => page.indexable !== false).map(page => `  <url><loc>${SITE_ORIGIN}${page.path}</loc></url>`).join('\n')}\n</urlset>\n`;
 await writeFile(join(distDir, 'sitemap.xml'), sitemap);
 await rm(temporaryDir, { recursive: true, force: true });
 console.log(`Prerendered ${SEO_PAGES.length} public pages and generated canonical sitemap.`);

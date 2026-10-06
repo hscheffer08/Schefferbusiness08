@@ -1,5 +1,6 @@
 import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
+import { enforceRateLimit } from './_rate-limit.js';
 
 const GATEWAY_MODELS=['google/gemini-2.5-flash-lite','google/gemini-2.5-flash'] as const;
 const AREAS={
@@ -46,6 +47,7 @@ async function runModel(prompt:string,sourceUrl:string){
 
 export default async function handler(req:any,res:any){
   if(req.method!=='GET')return res.status(405).json({error:'Método não permitido.'});
+  if(!await enforceRateLimit(req,res,{bucket:'enem-subject-map',limit:30,windowSeconds:300}))return;
   const year=Math.trunc(Number(req.query?.year));
   const area=String(req.query?.area||'') as Area;
   const sourceUrl=allowedUrl(req.query?.sourceUrl);

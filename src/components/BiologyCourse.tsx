@@ -29,6 +29,7 @@ type BiologyMaterial = {
   format: 'pdf' | 'pptx';
   mime_type: string;
   size_bytes: number | null;
+  url?: string | null;
 };
 
 type QuickStudyPage = {
@@ -223,7 +224,6 @@ const questions = [
 
 ];
 
-const BIOLOGY_PASSWORD = 'cursobiologiacissa';
 
   const allLessons = modules.flatMap(module => module.lessons.map(lesson => ({ ...lesson, moduleTitle: module.title })));
   const questionMap: Record<string, number[]> = {
@@ -248,9 +248,11 @@ const BIOLOGY_PASSWORD = 'cursobiologiacissa';
 
 
 export default function BiologyCourse() {
-  const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem('biology-course-unlocked') === 'true');
+  const [accessToken, setAccessToken] = useState(() => sessionStorage.getItem('biology-course-access-token') || '');
+  const [unlocked, setUnlocked] = useState(() => Boolean(sessionStorage.getItem('biology-course-access-token')));
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [unlocking, setUnlocking] = useState(false);
   const [query, setQuery] = useState('');
   const [selectedLesson, setSelectedLesson] = useState<string | null>(null);
   const [selectedQuickStudy, setSelectedQuickStudy] = useState<string | null>(null);
@@ -288,35 +290,40 @@ export default function BiologyCourse() {
   const currentLesson = allLessons.find(lesson => lesson.key === selectedLesson);
   const currentQuestions = currentLesson ? (questionMap[currentLesson.key] || []).map(i => ({...questions[i], index:i})) : [];
   const currentMaterials = currentLesson ? (materials[currentLesson.key] || []) : [];
-  const materialUrl = (file: BiologyMaterial) => supabase
-    ? supabase.storage.from('biology-course-materials').getPublicUrl(file.storage_path).data.publicUrl
-    : '';
+  const materialUrl = (file: BiologyMaterial) => file.url || '';
 
   useEffect(() => {
-    if (!unlocked || !supabase) return;
+    if (!unlocked || !accessToken) return;
     let active = true;
+    const controller = new AbortController();
     setMaterialsLoading(true);
     setMaterialsError('');
-    void supabase.from('biology_course_materials')
-      .select('id,lesson_key,file_name,storage_path,format,mime_type,size_bytes')
-      .order('lesson_key')
-      .order('format')
-      .then(({ data, error }) => {
-        if (!active) return;
-        if (error) {
-          setMaterialsError('Não foi possível carregar os materiais agora. Tente novamente.');
-          setMaterials({});
-        } else {
-          const grouped: Record<string, BiologyMaterial[]> = {};
-          for (const row of (data || []) as BiologyMaterial[]) {
-            (grouped[row.lesson_key] ||= []).push(row);
-          }
-          setMaterials(grouped);
+    void fetch('/api/biology-materials', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal: controller.signal,
+    }).then(async response => {
+      const body = await response.json();
+      if (!response.ok) {
+        if (response.status === 401) {
+          sessionStorage.removeItem('biology-course-access-token');
+          setAccessToken('');
+          setUnlocked(false);
         }
-        setMaterialsLoading(false);
-      });
-    return () => { active = false; };
-  }, [unlocked]);
+        throw new Error(body?.error || 'Não foi possível carregar os materiais.');
+      }
+      if (!active) return;
+      const grouped: Record<string, BiologyMaterial[]> = {};
+      for (const row of (body.materials || []) as BiologyMaterial[]) {
+        (grouped[row.lesson_key] ||= []).push(row);
+      }
+      setMaterials(grouped);
+    }).catch(error => {
+      if (!active || error?.name === 'AbortError') return;
+      setMaterialsError(error instanceof Error ? error.message : 'Não foi possível carregar os materiais agora.');
+      setMaterials({});
+    }).finally(() => { if (active) setMaterialsLoading(false); });
+    return () => { active = false; controller.abort(); };
+  }, [unlocked, accessToken]);
 
   useEffect(() => {
     setMaterialPreview(null);
@@ -410,13 +417,27 @@ export default function BiologyCourse() {
   }
 
   if (!unlocked) {
-    const unlock = () => {
-      if (password === BIOLOGY_PASSWORD) {
-        sessionStorage.setItem('biology-course-unlocked', 'true');
+    const unlock = async () => {
+      if (!password.trim() || unlocking) return;
+      setUnlocking(true);
+      setPasswordError('');
+      try {
+        const response = await fetch('/api/redeem-biology-access', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: password.trim() }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.error || 'Não foi possível validar a senha.');
+        if (!data?.token) throw new Error('Acesso inválido. Tente novamente.');
+        sessionStorage.setItem('biology-course-access-token', data.token);
+        setAccessToken(data.token);
         setUnlocked(true);
-        setPasswordError('');
-      } else {
-        setPasswordError('Senha incorreta. Tente novamente.');
+        setPassword('');
+      } catch (error) {
+        setPasswordError(error instanceof Error ? error.message : 'Não foi possível validar a senha.');
+      } finally {
+        setUnlocking(false);
       }
     };
 
@@ -428,9 +449,9 @@ export default function BiologyCourse() {
             <p className="text-xs font-black uppercase tracking-[0.16em] text-[#3155e7]">Curso particular</p>
             <h1 className="mt-2 text-3xl font-black tracking-[-0.035em]">Curso de Biologia</h1>
             <p className="mt-2 text-sm leading-relaxed text-[#69758f]">Digite a senha do curso para acessar as aulas, materiais e questões.</p>
-            <input aria-label="Senha do curso" type="password" value={password} onChange={e => { setPassword(e.target.value); setPasswordError(''); }} onKeyDown={e => e.key === 'Enter' && unlock()} placeholder="Senha do curso" autoFocus className="mt-6 w-full rounded-xl border border-[#d7deee] bg-[#f8f9fe] px-4 py-3 font-semibold outline-none focus:border-[#3155e7]" />
+            <input aria-label="Senha do curso" type="password" value={password} onChange={e => { setPassword(e.target.value); setPasswordError(''); }} onKeyDown={e => { if (e.key === 'Enter') void unlock(); }} placeholder="Senha do curso" autoFocus className="mt-6 w-full rounded-xl border border-[#d7deee] bg-[#f8f9fe] px-4 py-3 font-semibold outline-none focus:border-[#3155e7]" />
             {passwordError && <p className="mt-2 text-sm font-bold text-red-600">{passwordError}</p>}
-            <button onClick={unlock} className="mt-4 w-full rounded-xl bg-[#3155e7] px-5 py-3 font-black text-white">Entrar no curso</button>
+            <button onClick={() => void unlock()} disabled={unlocking || !password.trim()} className="mt-4 w-full rounded-xl bg-[#3155e7] px-5 py-3 font-black text-white disabled:opacity-50">{unlocking ? 'Verificando…' : 'Entrar no curso'}</button>
             <button onClick={() => window.location.assign('/cursos-particulares')} className="mt-4 flex w-full items-center justify-center gap-2 text-sm font-extrabold text-[#596681] hover:text-[#3155e7]"><ArrowLeft className="h-4 w-4" /> Voltar</button>
           </section>
         </div>
