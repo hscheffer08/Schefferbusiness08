@@ -1,7 +1,7 @@
 import { createCanvas } from '@napi-rs/canvas';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { WorkerMessageHandler } from 'pdfjs-dist/legacy/build/pdf.worker.mjs';
-import { enforceRateLimit } from './_rate-limit.js';
+import { enforceRateLimit } from './_rate-limit.ts';
 
 (globalThis as any).pdfjsWorker={WorkerMessageHandler};
 const OFFICIAL_HOSTS=new Set(['download.inep.gov.br','vestibular.cmmg.edu.br','www.fuvest.br','fuvest.br','backend.copeve.ufmg.br']);
