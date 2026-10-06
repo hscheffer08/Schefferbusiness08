@@ -12,7 +12,7 @@ import Admin from '@/components/Admin';
 import InfoPages from '@/components/InfoPages';
 import ConsentStep from '@/components/ConsentStep';
 import FacultyQuestionnaireHub from '@/components/FacultyQuestionnaireHub';
-import { AuthProvider, useAuth } from '@/lib/auth-context';
+import { useAuth } from '@/lib/auth-context';
 import type { AnswerMap, Screen, MatchResult, QuizMode, CountryCode } from '@/types';
 import { saveSession, clearProgress, getSharingConsent, validateReferralCode, createReferral, updateReferralStatus, findReferralByUser, type DatabaseData } from '@/lib/api';
 import { loadDatabaseDataSafe } from '@/lib/safe-database';
@@ -145,17 +145,19 @@ function AppContent() {
       setMatchResults(results);
 
       const consent = quizAnswers['Q40'] === 'sim';
-      saveSession(quizAnswers, consent).catch(() => {});
+      saveSession(quizAnswers, consent).then((sessionId) => {
+        if (!sessionId) console.warn('Quiz session was not persisted.');
+      }).catch((error) => console.warn('Quiz session persistence failed', error));
 
       if (user) {
-        clearProgress().catch(() => {});
+        clearProgress().catch((error) => console.warn('Questionnaire progress cleanup failed', error));
         findReferralByUser(user.id).then((ref) => {
           if (ref && !ref.quiz_completed) {
             updateReferralStatus({ referralId: ref.id, quizStarted: true, quizCompleted: true });
           } else if (ref && !ref.quiz_started) {
             updateReferralStatus({ referralId: ref.id, quizStarted: true });
           }
-        }).catch(() => {});
+        }).catch((error) => console.warn('Referral status update failed', error));
         if (quizMode === 'full' && countryCode === 'BR') {
           const existingConsent = await getSharingConsent();
           if (!existingConsent) {
@@ -403,7 +405,11 @@ function AppContent() {
 
   if (screen === 'detail' && selectedUniversityId) {
     const university = dbData.universities.find((u) => u.university_id === selectedUniversityId);
-    if (!university) return null;
+    if (!university) {
+      setSelectedUniversityId(null);
+      setScreen(matchResults.length > 0 ? 'results' : 'home');
+      return null;
+    }
     const evidence = dbData.officialEvidence.filter((e) => e.university_id === selectedUniversityId);
     const sources = dbData.sources.filter((s) => s.university_id === selectedUniversityId);
     const matchResult = matchResults.find((r) => r.university.university_id === selectedUniversityId) ?? null;
@@ -437,10 +443,8 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <div className="min-h-screen bg-ink-950">
-        <AppContent />
-      </div>
-    </AuthProvider>
+    <div className="min-h-screen bg-ink-950">
+      <AppContent />
+    </div>
   );
 }
