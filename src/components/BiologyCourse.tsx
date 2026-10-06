@@ -29,6 +29,7 @@ type BiologyMaterial = {
   format: 'pdf' | 'pptx';
   mime_type: string;
   size_bytes: number | null;
+  url?: string | null;
 };
 
 type QuickStudyPage = {
@@ -247,7 +248,8 @@ const questions = [
 
 
 export default function BiologyCourse() {
-  const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem('biology-course-unlocked') === 'true');
+  const [accessToken, setAccessToken] = useState(() => sessionStorage.getItem('biology-course-access-token') || '');
+  const [unlocked, setUnlocked] = useState(() => Boolean(sessionStorage.getItem('biology-course-access-token')));
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [unlocking, setUnlocking] = useState(false);
@@ -288,35 +290,40 @@ export default function BiologyCourse() {
   const currentLesson = allLessons.find(lesson => lesson.key === selectedLesson);
   const currentQuestions = currentLesson ? (questionMap[currentLesson.key] || []).map(i => ({...questions[i], index:i})) : [];
   const currentMaterials = currentLesson ? (materials[currentLesson.key] || []) : [];
-  const materialUrl = (file: BiologyMaterial) => supabase
-    ? supabase.storage.from('biology-course-materials').getPublicUrl(file.storage_path).data.publicUrl
-    : '';
+  const materialUrl = (file: BiologyMaterial) => file.url || '';
 
   useEffect(() => {
-    if (!unlocked || !supabase) return;
+    if (!unlocked || !accessToken) return;
     let active = true;
+    const controller = new AbortController();
     setMaterialsLoading(true);
     setMaterialsError('');
-    void supabase.from('biology_course_materials')
-      .select('id,lesson_key,file_name,storage_path,format,mime_type,size_bytes')
-      .order('lesson_key')
-      .order('format')
-      .then(({ data, error }) => {
-        if (!active) return;
-        if (error) {
-          setMaterialsError('Não foi possível carregar os materiais agora. Tente novamente.');
-          setMaterials({});
-        } else {
-          const grouped: Record<string, BiologyMaterial[]> = {};
-          for (const row of (data || []) as BiologyMaterial[]) {
-            (grouped[row.lesson_key] ||= []).push(row);
-          }
-          setMaterials(grouped);
+    void fetch('/api/biology-materials', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal: controller.signal,
+    }).then(async response => {
+      const body = await response.json();
+      if (!response.ok) {
+        if (response.status === 401) {
+          sessionStorage.removeItem('biology-course-access-token');
+          setAccessToken('');
+          setUnlocked(false);
         }
-        setMaterialsLoading(false);
-      });
-    return () => { active = false; };
-  }, [unlocked]);
+        throw new Error(body?.error || 'Não foi possível carregar os materiais.');
+      }
+      if (!active) return;
+      const grouped: Record<string, BiologyMaterial[]> = {};
+      for (const row of (body.materials || []) as BiologyMaterial[]) {
+        (grouped[row.lesson_key] ||= []).push(row);
+      }
+      setMaterials(grouped);
+    }).catch(error => {
+      if (!active || error?.name === 'AbortError') return;
+      setMaterialsError(error instanceof Error ? error.message : 'Não foi possível carregar os materiais agora.');
+      setMaterials({});
+    }).finally(() => { if (active) setMaterialsLoading(false); });
+    return () => { active = false; controller.abort(); };
+  }, [unlocked, accessToken]);
 
   useEffect(() => {
     setMaterialPreview(null);
@@ -422,7 +429,9 @@ export default function BiologyCourse() {
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data?.error || 'Não foi possível validar a senha.');
-        sessionStorage.setItem('biology-course-unlocked', 'true');
+        if (!data?.token) throw new Error('Acesso inválido. Tente novamente.');
+        sessionStorage.setItem('biology-course-access-token', data.token);
+        setAccessToken(data.token);
         setUnlocked(true);
         setPassword('');
       } catch (error) {
