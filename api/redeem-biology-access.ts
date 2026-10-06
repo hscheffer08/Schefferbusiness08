@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { enforceRateLimit } from './_rate-limit.ts';
-import { issueBiologyAccessToken } from './_biology-access.ts';
+import { enforceRateLimit } from './_rate-limit.js';
+import { issueBiologyAccessToken } from './_biology-access.js';
 
 const PASSWORD_HASH = 'd5079fb31cbfb819f31142c68d0ad3bd26772e60c208bcea2aecc1efb8df2cb6';
 
