@@ -45,6 +45,12 @@ export default function CourseHome() {
 
           <div id="home-account-controls" className="relative flex shrink-0 items-center justify-end" />
         </div>
+        <nav className="mx-auto flex max-w-6xl gap-2 overflow-x-auto px-5 pb-3 md:px-8 lg:hidden" aria-label="Navegação principal mobile">
+          <a href="/planejador-admissao" className="shrink-0 rounded-full bg-[#172344] px-3 py-2 text-xs font-extrabold text-white">Curso</a>
+          <a href="/vestibulares-oficiais" className="shrink-0 rounded-full border border-[#d7deee] bg-white px-3 py-2 text-xs font-extrabold text-[#273552]">Questões</a>
+          <a href="/treino-entrevista" className="shrink-0 rounded-full border border-[#9eafff] bg-[#eef1ff] px-3 py-2 text-xs font-extrabold text-[#3155e7]">Entrevistas</a>
+          <a href="/faculdades" className="shrink-0 rounded-full border border-[#d7deee] bg-white px-3 py-2 text-xs font-extrabold text-[#273552]">Faculdades</a>
+        </nav>
       </header>
 
       <main className="relative z-10">
