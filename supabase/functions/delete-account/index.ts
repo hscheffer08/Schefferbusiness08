@@ -53,6 +53,9 @@ Deno.serve(async (req: Request) => {
   // For tables without CASCADE, the explicit deletes below run first
   // so no FK violation blocks the auth user deletion.
   const tableOrder = [
+    // analytics_events uses ON DELETE SET NULL, so delete it explicitly before
+    // removing auth.users to honor account-deletion requests.
+    "analytics_events",
     "saved_universities",
     "questionnaire_progress",
     "sharing_consents",
