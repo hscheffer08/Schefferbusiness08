@@ -91,6 +91,7 @@ export default function Profile({ onBack, onSelectUniversity, universities }: Pr
   const savedUniversities = saved
     .map((s) => universities.find((u) => u.university_id === s.university_id))
     .filter(Boolean) as University[];
+  const minor = isMinor(profile?.age_range);
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -350,10 +351,17 @@ export default function Profile({ onBack, onSelectUniversity, universities }: Pr
                 ) : (
                   <div className="space-y-3">
                     <p className="text-sm text-ink-400 mb-2">Escolha o escopo de compartilhamento:</p>
+                    {minor && (
+                      <p className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-xs leading-relaxed text-amber-300">
+                        Para proteger menores, o compartilhamento com faculdades fica desativado até existir verificação real do responsável.
+                      </p>
+                    )}
                     {[
-                      { value: 'all_participating' as ConsentScope, label: 'Todas as faculdades participantes', icon: <Users className="w-4 h-4" /> },
-                      { value: 'my_ranking' as ConsentScope, label: 'Faculdades do meu ranking', icon: <Trophy className="w-4 h-4" /> },
-                      { value: 'top_match' as ConsentScope, label: 'Apenas minha faculdade #1', icon: <GraduationCap className="w-4 h-4" /> },
+                      ...(minor ? [] : [
+                        { value: 'all_participating' as ConsentScope, label: 'Todas as faculdades participantes', icon: <Users className="w-4 h-4" /> },
+                        { value: 'my_ranking' as ConsentScope, label: 'Faculdades do meu ranking', icon: <Trophy className="w-4 h-4" /> },
+                        { value: 'top_match' as ConsentScope, label: 'Apenas minha faculdade #1', icon: <GraduationCap className="w-4 h-4" /> },
+                      ]),
                       { value: 'none' as ConsentScope, label: 'Não compartilhar', icon: <Lock className="w-4 h-4" /> },
                     ].map((opt) => (
                       <button
@@ -380,8 +388,8 @@ export default function Profile({ onBack, onSelectUniversity, universities }: Pr
                           setConsentLoading(true);
                           const minorFlag = isMinor(profile?.age_range);
                           const result = await saveSharingConsent({
-                            consentStatus: editScope === 'none' ? 'declined' : 'accepted',
-                            consentScope: editScope,
+                            consentStatus: editScope === 'none' || minorFlag ? 'declined' : 'accepted',
+                            consentScope: minorFlag ? 'none' : editScope,
                             requiresGuardianConsent: minorFlag,
                           });
                           if (result) {
