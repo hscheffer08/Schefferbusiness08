@@ -262,7 +262,9 @@ export function getEvidenceForUniversity(
 
 export function isMinor(ageRange: string | null | undefined): boolean {
   if (!ageRange) return false;
-  const minorRanges = ['Menos de 15 anos', '15-16 anos', '17-18 anos'];
+  // Keep the legacy mixed range conservative: we cannot prove that a
+  // "17-18 anos" profile is already 18, so sharing remains disabled.
+  const minorRanges = ['Menos de 15 anos', '15-16 anos', '17 anos', '17-18 anos'];
   return minorRanges.includes(ageRange);
 }
 
@@ -286,13 +288,21 @@ export async function saveSharingConsent(params: {
   if (!supabase) return null;
 
   const now = new Date().toISOString();
-  const isAccepted = params.consentStatus === 'accepted' && params.consentScope !== 'none';
+  const requestedAccepted = params.consentStatus === 'accepted' && params.consentScope !== 'none';
+  // Guardian verification is not implemented end-to-end yet. Never mark a
+  // minor's profile as shareable based only on typed guardian details.
+  const guardianBlocked = params.requiresGuardianConsent && requestedAccepted;
+  const effectiveStatus: ConsentStatus = guardianBlocked ? 'declined' : params.consentStatus;
+  const effectiveScope: ConsentScope = guardianBlocked ? 'none' : params.consentScope;
+  const isAccepted = effectiveStatus === 'accepted' && effectiveScope !== 'none';
 
   const payload: Record<string, unknown> = {
-    consent_status: params.consentStatus,
-    consent_scope: params.consentScope,
+    consent_status: effectiveStatus,
+    consent_scope: effectiveScope,
     requires_guardian_consent: params.requiresGuardianConsent,
-    privacy_policy_version: '1.0',
+    guardian_consent_given: false,
+    guardian_consent_given_at: null,
+    privacy_policy_version: '1.1',
     updated_at: now,
   };
 
