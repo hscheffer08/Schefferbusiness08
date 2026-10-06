@@ -1,4 +1,4 @@
-import { enforceRateLimit } from './_rate-limit.js';
+import { enforceRateLimit } from './_rate-limit.ts';
 const OFFICIAL_HOSTS = new Set([
   'download.inep.gov.br',
   'vestibular.cmmg.edu.br',
