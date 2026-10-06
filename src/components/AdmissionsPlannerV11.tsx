@@ -3,7 +3,7 @@ import { sameStudySubject } from '@/lib/study-area-match';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ArrowLeft, BookOpen, CalendarDays, CheckCircle2, ExternalLink, Home, Loader2, Minus, PlayCircle, Plus, Save, Sparkles, Target, Trophy, Video, X, XCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { calculateExamScore, getExamModel, isEnemScoringModel, isSupportedInstitutionCourse, mergeRemoteExamModel, normalizeStoredScores, type ExamMetric, type ExamModel, type RemoteExamModelRow } from '@/lib/exam-models';
+import { calculateExamScore, getExamModel, isEnemScoringModel, isSupportedInstitutionCourse, mergeRemoteExamModel, normalizeStoredScores, type ExamMetric, type RemoteExamModelRow } from '@/lib/exam-models';
 import { buildRoadmap } from '@/lib/admissions-roadmap-balanced';
 import { isSupplementalQuestion, mergePracticeQuestions } from '@/lib/supplemental-practice-questions';
 import WeeklyPlanExperience from '@/components/WeeklyPlanExperience';
