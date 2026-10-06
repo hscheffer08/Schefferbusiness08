@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
-import { enforceRateLimit } from './_rate-limit.js';
+import { enforceRateLimit } from './_rate-limit.ts';
 
 const PASSWORD_HASH = '4097fd1d8435953124d3f836ca2ae42f5dd97168871d5107df2fb7370fbdfb9d';
 
