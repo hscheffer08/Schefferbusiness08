@@ -1,6 +1,6 @@
 import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
-import { enforceRateLimit } from './_rate-limit.ts';
+import { enforceRateLimit } from './_rate-limit.js';
 
 const GATEWAY_MODELS=['google/gemini-2.5-flash-lite','google/gemini-2.5-flash'] as const;
 const AREAS={
