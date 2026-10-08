@@ -33,14 +33,19 @@ function normalizeProductionOrigin() {
 
 normalizeProductionOrigin();
 
+// Browser reads only the public Supabase URL and publishable key. These are not secrets.
+// Keep a verified production fallback so a missing Vite build variable can never erase
+// the course catalog or question bank from the public app again.
+const publicFallbackUrl = 'https://kmognvgnfisdchzffkgh.supabase.co';
+const publicFallbackAnonKey = 'sb_publishable_2DCxkYOlTKqsVjDxYg5pxg_pf5YqdTA';
 const configuredUrl = normalizeSupabaseUrl(import.meta.env.VITE_SUPABASE_URL);
 const configuredAnonKey = cleanEnv(import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
 const hasPlaceholder = !configuredUrl || /x{4,}|seu-projeto/i.test(configuredUrl);
 const hasPlaceholderKey = !configuredAnonKey || /x{4,}|sua-chave/i.test(configuredAnonKey);
-const url = hasPlaceholder ? '' : configuredUrl;
-const anonKey = hasPlaceholderKey ? '' : configuredAnonKey;
+const url = hasPlaceholder ? publicFallbackUrl : configuredUrl;
+const anonKey = hasPlaceholderKey ? publicFallbackAnonKey : configuredAnonKey;
 
-if (!url || !anonKey) console.error('Supabase configuration is missing. Refusing to fall back to the production database. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel.');
+if (!configuredUrl || !configuredAnonKey) console.warn('Vite Supabase public configuration is missing; using the verified Conectaê public fallback.');
 
 const baseClient = url && anonKey
   ? createClient(url, anonKey, {
