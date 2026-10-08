@@ -123,8 +123,11 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
       supabase.from('course_exam_models').select('university_name,course_label,exam_id,route_key,route_label,practice_exam_id,source_confidence,cycle_label,structure_verified,notes,official_source_url,model').order('university_name'),
     ]);
     if(!alive)return;
-    const verifiedUniversities=((u??[]) as University[]).filter(x=>isSupportedInstitutionCourse(x.university_name,x.course_label));
-    const cleanAreas=(a??[]) as AcademicArea[];
+    const allUniversities=(u??[]) as University[];
+    const verifiedUniversities=allUniversities.filter(x=>isSupportedInstitutionCourse(x.university_name,x.course_label));
+    const directAreas=(a??[]) as AcademicArea[];
+    const derivedAreas=Array.from(new Map(allUniversities.map(row=>[row.area_id,{area_id:row.area_id,name:row.course_label||row.area_id,courses:row.course_label||row.area_id} as AcademicArea])).values()).sort((x,y)=>(x.courses||x.name).localeCompare(y.courses||y.name,'pt-BR'));
+    const cleanAreas=directAreas.length?directAreas:derivedAreas;
     const genericUniversities:University[]=cleanAreas.map((ar,index)=>({
       area_university_id:-100000-index,
       area_id:ar.area_id,
@@ -138,21 +141,23 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
     const user=userData.user;
     if(user){
       const{data:pref}=await supabase.from('student_exam_preferences').select('*').eq('user_id',user.id).order('updated_at',{ascending:false}).limit(1).maybeSingle();
-      const desiredArea=pref?.selected_area_id&&cleanAreas.some(x=>x.area_id===pref.selected_area_id)?pref.selected_area_id:'';
+      const desiredArea=pref?.selected_area_id&&cleanAreas.some(x=>x.area_id===pref.selected_area_id)?pref.selected_area_id:cleanAreas[0]?.area_id??'';
       setSelectedArea(desiredArea);
       const allowed=cleanUniversities.filter(x=>x.area_id===desiredArea);
       const savedLocal=guest.selectedArea===desiredArea&&guest.selectedUniversity&&allowed.some(x=>String(x.area_university_id)===String(guest.selectedUniversity))?String(guest.selectedUniversity):'';
-      const desiredUniversity=pref?.selected_university_id&&allowed.some(x=>x.area_university_id===pref.selected_university_id)?String(pref.selected_university_id):savedLocal;
+      const generic=allowed.find(x=>x.university_name===GENERIC_ENEM_UNIVERSITY);
+      const desiredUniversity=pref?.selected_university_id&&allowed.some(x=>x.area_university_id===pref.selected_university_id)?String(pref.selected_university_id):savedLocal||String(generic?.area_university_id??allowed[0]?.area_university_id??'');
       setSelectedUniversity(desiredUniversity);
       setSelectedRouteKey(String(pref?.selected_route_key??guest.selectedRouteKey??'primary'));
       const wh=Number(pref?.weekly_hours??guest.weeklyHours??9);setWeeklyHours(wh);setAppliedWeeklyHours(wh);
       if(guest.difficultyTopics&&typeof guest.difficultyTopics==='object')setDifficultyTopics(guest.difficultyTopics);
     }else{
-      const first='';
+      const first=cleanAreas[0]?.area_id??'';
       const desiredArea=guest.selectedArea&&cleanAreas.some(x=>x.area_id===guest.selectedArea)?guest.selectedArea:first;
       setSelectedArea(desiredArea);
       const allowed=cleanUniversities.filter(x=>x.area_id===desiredArea);
-      const desiredUniversity=guest.selectedUniversity&&allowed.some(x=>String(x.area_university_id)===String(guest.selectedUniversity))?String(guest.selectedUniversity):'';
+      const generic=allowed.find(x=>x.university_name===GENERIC_ENEM_UNIVERSITY);
+      const desiredUniversity=guest.selectedUniversity&&allowed.some(x=>String(x.area_university_id)===String(guest.selectedUniversity))?String(guest.selectedUniversity):String(generic?.area_university_id??allowed[0]?.area_university_id??'');
       setSelectedUniversity(desiredUniversity);
       setSelectedRouteKey(String(guest.selectedRouteKey??'primary'));
       const localHours=Number(localStorage.getItem('conectae:weekly-hours')||guest.weeklyHours||9);
@@ -163,7 +168,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   })();return()=>{alive=false}},[]);
 
   const filteredUniversities=useMemo(()=>universities.filter(u=>u.area_id===selectedArea),[universities,selectedArea]);
-  useEffect(()=>{if(selectedUniversity&&!filteredUniversities.some(u=>String(u.area_university_id)===selectedUniversity))setSelectedUniversity('')},[filteredUniversities,selectedUniversity]);
+  useEffect(()=>{if(!filteredUniversities.length)return;if(filteredUniversities.some(u=>String(u.area_university_id)===selectedUniversity))return;const generic=filteredUniversities.find(u=>u.university_name===GENERIC_ENEM_UNIVERSITY);setSelectedUniversity(String(generic?.area_university_id??filteredUniversities[0].area_university_id))},[filteredUniversities,selectedUniversity]);
   const university=filteredUniversities.find(u=>String(u.area_university_id)===selectedUniversity)??null;
   const area=areas.find(a=>a.area_id===selectedArea)??null;
   const course=university?.course_label||area?.courses||area?.name||'Curso';
@@ -322,8 +327,6 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   const miniSimulationSize=Math.max(1,Math.min(fullSimulationSize,Math.round(model.miniSimulationSize??(model.roadmapMode==='balanced'?Math.min(30,Math.ceil(fullSimulationSize/2)):fallbackMini))));
 
   if(loading)return <div className="plan6" style={{display:'grid',placeItems:'center'}}><Loader2 className="animate-spin"/></div>;
-
-  if(!area||!university)return <div className="plan6 plan6-goal-screen"><main className="plan6-shell plan6-goal-shell"><section className="plan6-goal-card"><div className="plan6-goal-kicker"><Target size={15}/>Monte seu plano</div><h1>Qual é o seu objetivo?</h1><p className="plan6-goal-lead">Escolha primeiro o curso e depois a faculdade. O Conectaê adapta provas, metas e cronograma para essa combinação.</p><div className="plan6-goal-progress" aria-label="Etapas para definir seu objetivo"><span className={area?'done':'active'}><b>{area?<CheckCircle2 size={16}/>:1}</b>Curso</span><i/><span className={university?'done':area?'active':''}><b>{university?<CheckCircle2 size={16}/>:2}</b>Faculdade</span></div><section className="plan6-goal-selectors"><div className="plan6-field plan6-goal-field"><label htmlFor="initial-course">1. Curso</label><select id="initial-course" value={selectedArea} onChange={e=>{setSelectedArea(e.target.value);setSelectedUniversity('')}}><option value="">Escolha seu curso</option>{areas.map(a=><option key={a.area_id} value={a.area_id}>{a.courses||a.name}</option>)}</select><small>{area?`${filteredUniversities.length} ${filteredUniversities.length===1?'opção':'opções'} de faculdade para este curso.`:'Comece escolhendo o curso que você quer prestar.'}</small></div><div className={`plan6-field plan6-goal-field ${!area?'is-disabled':''}`}><label htmlFor="initial-university">2. Faculdade</label><select id="initial-university" disabled={!area} value={selectedUniversity} onChange={e=>{setSelectedUniversity(e.target.value);setTab('hoje')}}><option value="">{area?'Escolha sua faculdade':'Escolha o curso primeiro'}</option>{filteredUniversities.map(u=><option key={u.area_university_id} value={u.area_university_id}>{u.university_name}</option>)}</select><small>{!area?'A faculdade será liberada depois da escolha do curso.':filteredUniversities.length?'Selecione a faculdade para abrir seu plano personalizado.':'Ainda não há uma faculdade cadastrada para este curso.'}</small></div></section><div className="plan6-goal-actions"><button className="plan6-btn plan6-goal-back" onClick={onBack}><ArrowLeft size={15}/>Voltar ao início</button></div></section></main></div>;
 
   return <div className="plan6">
     <header className="plan6-top"><div className="plan6-shell plan6-topin"><button className="plan6-back" onClick={onBack}><ArrowLeft size={17}/>Voltar</button><div className="plan6-brand"><span className="plan6-mark">C</span><span>Conectaê</span></div><div className="plan6-kicker plan6-desktop-only">Plano de aprovação</div></div></header>
