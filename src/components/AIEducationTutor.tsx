@@ -389,7 +389,7 @@ export default function AIEducationTutor({ mobileDocked = false }: { mobileDocke
   const statusText = authLoading ? 'verificando conta…' : signedIn ? 'Progresso sincronizado' : 'Sem conta';
 
   return <>
-    {open && <div className={`fixed z-[120] flex flex-col overflow-hidden border border-[#b9c7e2] bg-white text-[#13203d] shadow-2xl shadow-[#0c1d45]/20 ${expanded ? 'inset-2 md:inset-6 rounded-[22px]' : mobileDocked ? 'bottom-[calc(78px+env(safe-area-inset-bottom))] right-2 w-[calc(100vw-16px)] max-w-[460px] h-[min(720px,calc(100dvh-158px))] rounded-[22px] md:bottom-20 md:right-5 md:h-[min(720px,calc(100vh-100px))]' : 'bottom-20 right-2 w-[calc(100vw-16px)] max-w-[460px] h-[min(720px,calc(100vh-100px))] rounded-[22px] md:right-5'}`}>
+    {open && <div className={`fixed z-[320] flex flex-col overflow-hidden border border-[#b9c7e2] bg-white text-[#13203d] shadow-2xl shadow-[#0c1d45]/20 ${expanded ? 'inset-2 md:inset-6 rounded-[22px]' : mobileDocked ? 'bottom-[calc(78px+env(safe-area-inset-bottom))] right-2 w-[calc(100vw-16px)] max-w-[460px] h-[min(720px,calc(100dvh-158px))] rounded-[22px] md:bottom-20 md:right-5 md:h-[min(720px,calc(100vh-100px))]' : 'bottom-20 right-2 w-[calc(100vw-16px)] max-w-[460px] h-[min(720px,calc(100vh-100px))] rounded-[22px] md:right-5'}`}>
       <div className="flex items-center gap-3 border-b border-[#d7e0ef] bg-white px-4 py-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#315bea] text-white"><Bot size={21} /></div>
         <div className="min-w-0 flex-1">
@@ -456,6 +456,6 @@ export default function AIEducationTutor({ mobileDocked = false }: { mobileDocke
       </div>
     </div>}
 
-    <button onClick={() => { setError(''); setErrorKind(''); setOpen(true); }} aria-label="Abrir IA Conectaê" className={`fixed z-[119] inline-flex items-center gap-2 rounded-2xl bg-[#315bea] text-sm font-extrabold text-white shadow-xl shadow-[#163c92]/25 transition hover:bg-[#274bd0] ${mobileDocked ? 'bottom-[calc(78px+env(safe-area-inset-bottom))] right-3 h-12 w-12 justify-center p-0 md:bottom-4 md:right-4 md:h-auto md:w-auto md:px-4 md:py-3' : 'bottom-4 right-4 px-4 py-3'}`}><Bot size={18}/><span className={mobileDocked ? 'hidden md:inline' : 'inline'}>IA Conectaê</span></button>
+    <button onClick={() => { setError(''); setErrorKind(''); setOpen(true); }} aria-label="Abrir IA Conectaê" className={`fixed z-[319] inline-flex items-center gap-2 rounded-2xl bg-[#315bea] text-sm font-extrabold text-white shadow-xl shadow-[#163c92]/25 transition hover:bg-[#274bd0] ${mobileDocked ? 'bottom-[calc(78px+env(safe-area-inset-bottom))] right-3 h-12 w-12 justify-center p-0 md:bottom-4 md:right-4 md:h-auto md:w-auto md:px-4 md:py-3' : 'bottom-4 right-4 px-4 py-3'}`}><Bot size={18}/><span className={mobileDocked ? 'hidden md:inline' : 'inline'}>IA Conectaê</span></button>
   </>;
 }
