@@ -29,3 +29,47 @@
   .course-mobile-nav-grid{width:100%;grid-template-columns:repeat(4,minmax(0,1fr))!important}
   .course-mobile-nav-grid>button{width:100%!important;max-width:none!important;min-width:0!important;margin:0!important}
 }
+
+/* Course objective chooser: compact, readable and tablet-friendly. */
+#curso-planner .plan6-goal-screen{min-height:calc(100vh - 108px);background:radial-gradient(circle at 50% -20%,rgba(49,85,231,.10),transparent 42%),linear-gradient(180deg,#f7f9ff 0%,#f3f6fc 100%)}
+#curso-planner .plan6-goal-shell{max-width:900px;padding-top:clamp(28px,5vh,54px)!important;padding-bottom:64px!important}
+#curso-planner .plan6-goal-card{width:100%;border:1px solid #dbe4f1;border-radius:28px;background:#fff;padding:clamp(26px,4vw,42px);box-shadow:0 24px 70px -46px rgba(31,63,119,.42)}
+#curso-planner .plan6-goal-kicker{display:inline-flex;align-items:center;gap:8px;margin-bottom:12px;color:#3155e7;font-size:12px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
+#curso-planner .plan6-goal-card h1{max-width:none;color:#172344;font-size:clamp(34px,4vw,48px);font-weight:800;line-height:1.03;letter-spacing:-.045em}
+#curso-planner .plan6-goal-lead{max-width:680px;margin:12px 0 0;color:#596681;font-size:15px;line-height:1.65}
+#curso-planner .plan6-goal-progress{display:grid;grid-template-columns:auto minmax(42px,1fr) auto;align-items:center;gap:12px;margin:28px 0 24px;color:#7a879d;font-size:12px;font-weight:800}
+#curso-planner .plan6-goal-progress span{display:flex;align-items:center;gap:8px;white-space:nowrap}
+#curso-planner .plan6-goal-progress span b{display:grid;width:28px;height:28px;place-items:center;border:1px solid #d3ddeb;border-radius:999px;background:#f7f9fc;color:#64748b;font-size:12px}
+#curso-planner .plan6-goal-progress span.active{color:#2949cf}
+#curso-planner .plan6-goal-progress span.active b{border-color:#9eb4ff;background:#eef2ff;color:#3155e7}
+#curso-planner .plan6-goal-progress span.done{color:#2949cf}
+#curso-planner .plan6-goal-progress span.done b{border-color:#3155e7;background:#3155e7;color:#fff}
+#curso-planner .plan6-goal-progress i{display:block;height:1px;background:#dfe6f0}
+#curso-planner .plan6-goal-selectors{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:0;padding:0;border:0}
+#curso-planner .plan6-goal-field{min-width:0;border:1px solid #e0e7f1;border-radius:18px;background:#fbfcff;padding:16px}
+#curso-planner .plan6-goal-field label{margin:0 0 8px;color:#34445f;font-size:12px;font-weight:850}
+#curso-planner .plan6-goal-field select{width:100%;min-height:54px;border:1px solid #cfd9e8!important;border-radius:14px!important;background:#fff!important;padding:0 42px 0 14px!important;color:#172344!important;font-size:15px;font-weight:750;box-shadow:none!important}
+#curso-planner .plan6-goal-field select:focus{border-color:#3155e7!important;box-shadow:0 0 0 3px rgba(49,85,231,.10)!important}
+#curso-planner .plan6-goal-field select:disabled{cursor:not-allowed;background:#f2f5f9!important;color:#8a96a9!important;opacity:1}
+#curso-planner .plan6-goal-field small{display:block;min-height:34px;margin-top:9px;color:#69778e;font-size:11px;font-weight:650;line-height:1.45}
+#curso-planner .plan6-goal-field.is-disabled{background:#f7f9fc}
+#curso-planner .plan6-goal-actions{display:flex;justify-content:flex-start;margin-top:22px}
+#curso-planner .plan6-goal-back{min-height:46px;padding:0 16px;border-color:#d4deea;background:#fff;color:#43536c}
+#curso-planner .plan6-goal-back:hover{border-color:#9eb4ff;background:#f5f7ff;color:#2949cf}
+
+@media(max-width:767px){
+  #curso-planner .plan6-goal-screen{min-height:calc(100vh - 122px)}
+  #curso-planner .plan6-goal-shell{padding-top:22px!important;padding-bottom:104px!important}
+  #curso-planner .plan6-goal-card{border-radius:22px;padding:22px 18px}
+  #curso-planner .plan6-goal-card h1{font-size:34px}
+  #curso-planner .plan6-goal-lead{font-size:14px}
+  #curso-planner .plan6-goal-progress{margin:22px 0 18px;gap:8px}
+  #curso-planner .plan6-goal-progress span{gap:6px;font-size:11px}
+  #curso-planner .plan6-goal-progress span b{width:26px;height:26px}
+  #curso-planner .plan6-goal-selectors{grid-template-columns:1fr;gap:12px}
+  #curso-planner .plan6-goal-field{padding:14px;border-radius:16px}
+  #curso-planner .plan6-goal-field select{min-height:54px!important;font-size:16px!important}
+  #curso-planner .plan6-goal-field small{min-height:0}
+  #curso-planner .plan6-goal-actions{margin-top:18px}
+  #curso-planner .plan6-goal-back{width:100%;min-height:50px}
+}
