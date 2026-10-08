@@ -291,7 +291,7 @@ export function buildRoadmap(args: BuildArgs) {
       studyChecklist,
       sessionPlan,
       rationale,
-      evidenceLabel: 'Equilíbrio adaptativo: nota/meta + desempenho recente + dificuldades declaradas + diagnósticos + cobertura semanal',
+      evidenceLabel: 'Equilíbrio adaptativo: resultado/meta + desempenho recente + dificuldades declaradas + diagnósticos + cobertura semanal',
       successCriteria,
       focusMix,
       balanceSummary,

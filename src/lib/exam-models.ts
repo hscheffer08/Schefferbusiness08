@@ -90,6 +90,18 @@ const ENEM_METRICS: ExamMetric[] = [
   { key: 'Redação', label: 'Redação', max: 1000, defaultValue: 800, unit: 'pontos', weight: 1, studyArea: 'Redação' },
 ];
 
+// The generic ENEM study plan is driven by concrete question counts, not TRI
+// estimates. Redação remains in points because it is not an objective-question
+// section. University routes that actually admit through ENEM/SiSU (e.g. UFMG)
+// continue to use the official 0–1000 score model above.
+const ENEM_QUESTION_METRICS: ExamMetric[] = [
+  { key: 'Linguagens', label: 'Linguagens', max: 45, defaultValue: 0, unit: 'acertos', weight: 1, studyArea: 'Linguagens' },
+  { key: 'Humanas', label: 'Ciências Humanas', max: 45, defaultValue: 0, unit: 'acertos', weight: 1, studyArea: 'Humanas' },
+  { key: 'Natureza', label: 'Ciências da Natureza', max: 45, defaultValue: 0, unit: 'acertos', weight: 1, studyArea: 'Natureza' },
+  { key: 'Matemática', label: 'Matemática', max: 45, defaultValue: 0, unit: 'acertos', weight: 1, studyArea: 'Matemática' },
+  { key: 'Redação', label: 'Redação', max: 1000, defaultValue: 0, unit: 'pontos', weight: 1, studyArea: 'Redação' },
+];
+
 const CMMG_MEDICINA_METRICS: ExamMetric[] = [
   { key: 'Língua Portuguesa', label: 'Língua Portuguesa', max: 8, defaultValue: 5, unit: 'acertos' },
   { key: 'Literatura', label: 'Literatura', max: 4, defaultValue: 2, unit: 'acertos' },
@@ -543,6 +555,7 @@ export function getExamModel(university: string, course: string): ExamModel {
 
   const ufmg = university === 'UFMG';
   const genericInstitution = university && university !== 'ENEM — plano geral' ? university : null;
+  const questionBasedPlan = !ufmg;
   return {
     examId,
     admissionExamId: 'enem',
@@ -552,14 +565,16 @@ export function getExamModel(university: string, course: string): ExamModel {
     structure: ufmg
       ? 'Informe as cinco notas do seu boletim do ENEM, de 0 a 1000. A classificação do SiSU usa as notas e os pesos definidos para o curso; o plano prioriza as áreas de maior peso e maior distância da meta.'
       : genericInstitution
-        ? `Esta faculdade já está disponível como meta, mas o Conectaê ainda não possui um modelo institucional verificado do processo seletivo de ${genericInstitution}. Enquanto isso, o cronograma usa as cinco notas do ENEM como referência geral e não finge reproduzir um vestibular específico.`
-        : 'Informe as cinco notas do seu boletim do ENEM, de 0 a 1000. O plano usa essas notas para distribuir o estudo entre Linguagens, Humanas, Natureza, Matemática e Redação.',
-    scoreInputHelp: 'Digite exatamente as cinco notas do seu boletim do ENEM (0–1000), não o número de acertos.',
-    metrics: ENEM_METRICS,
+        ? `Esta faculdade já está disponível como meta, mas o Conectaê ainda não possui um modelo institucional verificado do processo seletivo de ${genericInstitution}. Enquanto isso, o cronograma usa seus acertos nas 180 questões objetivas do ENEM como referência prática de estudo, sem fingir reproduzir um vestibular específico.`
+        : 'Informe quantas questões você acerta em cada área do ENEM: 45 de Linguagens, 45 de Humanas, 45 de Natureza e 45 de Matemática. A Redação continua em pontos, pois não é uma seção de questões objetivas.',
+    scoreInputHelp: ufmg
+      ? 'Digite exatamente as cinco notas do seu boletim do ENEM (0–1000), não o número de acertos.'
+      : 'Digite o número de acertos em cada área objetiva (0–45). Para Redação, informe a nota de 0–1000.',
+    metrics: questionBasedPlan ? ENEM_QUESTION_METRICS : ENEM_METRICS,
     allowedQuestionAreas: ['Linguagens', 'Humanas', 'Natureza', 'Matemática', 'Redação'],
     officialSource: ufmg ? 'https://www.ufmg.br/sisu/' : 'https://www.gov.br/inep/pt-br/areas-de-atuacao/avaliacao-e-exames-educacionais/enem',
-    overall: { method: 'weighted_average' as const, max: 1000 },
-    scoreProfile: 'enem_1000',
+    overall: questionBasedPlan ? undefined : { method: 'weighted_average' as const, max: 1000 },
+    scoreProfile: questionBasedPlan ? 'component' : 'enem_1000',
     roadmapMode: 'core',
   };
 }
