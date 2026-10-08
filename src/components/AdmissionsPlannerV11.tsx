@@ -125,9 +125,11 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
     if(!alive)return;
     const allUniversities=(u??[]) as University[];
     const verifiedUniversities=allUniversities.filter(x=>isSupportedInstitutionCourse(x.university_name,x.course_label));
-    const directAreas=(a??[]) as AcademicArea[];
-    const derivedAreas=Array.from(new Map(allUniversities.map(row=>[row.area_id,{area_id:row.area_id,name:row.course_label||row.area_id,courses:row.course_label||row.area_id} as AcademicArea])).values()).sort((x,y)=>(x.courses||x.name).localeCompare(y.courses||y.name,'pt-BR'));
-    const cleanAreas=directAreas.length?directAreas:derivedAreas;
+    const cleanAreas=(a??[]) as AcademicArea[];
+    if(!cleanAreas.length){
+      const derivedAreas=Array.from(new Map(allUniversities.map(row=>[row.area_id,{area_id:row.area_id,name:row.course_label||row.area_id,courses:row.course_label||row.area_id} as AcademicArea])).values()).sort((x,y)=>(x.courses||x.name).localeCompare(y.courses||y.name,'pt-BR'));
+      cleanAreas.push(...derivedAreas);
+    }
     const genericUniversities:University[]=cleanAreas.map((ar,index)=>({
       area_university_id:-100000-index,
       area_id:ar.area_id,
