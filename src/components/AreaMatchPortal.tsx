@@ -26,7 +26,7 @@ const CARD_TONES = [
   'from-emerald-300/15 via-cyan-500/10 to-transparent border-emerald-300/15',
 ];
 
-export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
+export default function AreaMatchPortal({ onClose, initialAreaId = new URLSearchParams(window.location.search).get('area') }: Props) {
   const fallback = useMemo(() => ACADEMIC_AREAS.map((a,index)=>({ ...a, dimensionWeights:{}, questions:[], universities:a.universities.map((u,i)=>({...u,areaUniversityId:index*20+i,dataConfidence:40,evidenceCount:0})) })), []);
   const [areas, setAreas] = useState<ProfessionalArea[]>(fallback);
   const [step, setStep] = useState<Step>(initialAreaId ? 'quiz' : 'areas');
@@ -56,7 +56,8 @@ export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
   const adaptiveArea = useMemo(() => area ? applyAdaptiveCalibration(area, answers, calibration) : null, [area, answers, calibration]);
   const matches = useMemo(() => dataReady && adaptiveArea ? calculateProfessionalMatches(adaptiveArea, answers) : [], [dataReady, adaptiveArea, answers]);
   const learningStatus = adaptiveLearningStatus(calibration);
-  const filtered = areas.filter(item => `${item.name} ${item.courses}`.toLowerCase().includes(query.toLowerCase()));
+  const normalizedQuery = query.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
+  const filtered = areas.filter(item => `${item.name} ${item.courses}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').includes(normalizedQuery));
   const totalOptions = areas.reduce((sum, item) => sum + item.universities.length, 0);
 
   useEffect(() => {
