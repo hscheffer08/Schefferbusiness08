@@ -48,6 +48,19 @@ Deno.serve(async (req: Request) => {
   const userId = userData.user.id;
   const admin = createClient(supabaseUrl, serviceRoleKey);
 
+  // Do not remove the Stripe customer mapping while a recurring subscription
+  // might still charge the user. The web API cancels billing before deletion.
+  const { data: billing, error: billingError } = await admin.from('premium_subscriptions')
+    .select('status,stripe_subscription_id,stripe_customer_id')
+    .eq('user_id', userId).maybeSingle();
+  if (billingError) return json({ error: 'Não foi possível verificar a assinatura.' }, 503);
+  if (billing?.stripe_customer_id && billing.status !== 'canceled' && billing.status !== 'inactive') {
+    return json({ error: 'Cancele primeiro a assinatura no portal da sua conta.' }, 409);
+  }
+  if (billing?.stripe_customer_id && !billing?.stripe_subscription_id) {
+    return json({ error: 'Existe um pagamento pendente de confirmação.' }, 409);
+  }
+
   // Delete the auth user first. Most tables have ON DELETE CASCADE
   // on user_id, so this atomically removes all dependent rows.
   // For tables without CASCADE, the explicit deletes below run first
