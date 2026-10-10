@@ -29,7 +29,7 @@ export function serverError(res: any, error: unknown) {
   console.error('Billing request failed', error instanceof Error ? error.message : 'Unknown');
   return res.status(503).json({ error: 'Não foi possível acessar a cobrança agora. Tente novamente.' });
 }
-export async function stripeRequest(path: string, method: 'GET' | 'POST' = 'GET', form?: URLSearchParams) {
+export async function stripeRequest(path: string, method: 'GET' | 'POST' | 'DELETE' = 'GET', form?: URLSearchParams) {
   const secret = process.env.STRIPE_SECRET_KEY;
   if (!secret || !/^(sk|rk)_(test|live)_/.test(secret)) throw new Error('Stripe não configurado.');
   const controller = new AbortController();
