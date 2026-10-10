@@ -111,6 +111,11 @@ function PremiumPage({ onClose }: { onClose: () => void }) {
 
 export default function PremiumDemoMount() {
   const [open, setOpen] = useState(() => new URLSearchParams(window.location.search).has('billing'));
+  useEffect(() => {
+    const show = () => setOpen(true);
+    window.addEventListener('conectae:open-premium', show);
+    return () => window.removeEventListener('conectae:open-premium', show);
+  }, []);
   if (!SHOW_PREMIUM) return null;
   return <>
     <button type="button" onClick={() => setOpen(true)}
