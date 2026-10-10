@@ -74,7 +74,7 @@ function PremiumPage({ onClose }: { onClose: () => void }) {
         <div>
           <p className="text-xs font-extrabold uppercase tracking-[.2em] text-amber-300">Mais profundidade, quando precisar</p>
           <h1 className="mt-5 text-4xl font-black tracking-tight md:text-5xl">Seu estudo, em outro nível.</h1>
-          <p className="mt-5 text-slate-300">O plano gratuito continua disponível. O Premium será opcional e contará com recursos adicionais de IA e estudo personalizado, conforme a oferta exibida na contratação.</p>
+          <p className="mt-5 text-slate-300">O acesso ao curso será pago a partir de janeiro de 2027. Contrate antecipadamente por R$ 9,99 por mês nas cobranças de 2026. As renovações a partir de janeiro de 2027 serão de R$ 19,99 por mês. O Match de faculdades continua gratuito.</p>
           <div className="mt-6 space-y-3 text-sm text-slate-200">
             {['IA sem limite diário de perguntas (com limites de segurança)','Planos de estudo aprofundados','Simulados e análise avançada de desempenho','Gerenciamento e cancelamento online'].map(item =>
               <p key={item} className="flex gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-300"/>{item}</p>
@@ -84,7 +84,7 @@ function PremiumPage({ onClose }: { onClose: () => void }) {
         <section className="rounded-[28px] border border-amber-300/20 bg-white/[.05] p-7">
           <h2 className="text-lg font-black">Conectaê Premium</h2>
           <p className="mt-4 text-4xl font-black">{PRICE}<span className="text-base font-normal text-slate-400"> / mês</span></p>
-          <p className="mt-3 text-sm leading-relaxed text-slate-300">Assinatura mensal com renovação automática. Cancelável no portal, sem multa por cancelar a renovação.</p>
+          <p className="mt-3 text-sm leading-relaxed text-slate-300">Promoção de R$ 9,99 nas cobranças mensais feitas até dezembro de 2026. A primeira renovação a partir de janeiro de 2027 custará R$ 19,99 por mês. Renovação automática; cancelável no portal antes da próxima cobrança.</p>
           {hasPremium && <p className="mt-5 rounded-xl border border-emerald-700/40 p-3 text-sm text-emerald-200">
             Seu Premium está ativo{billing?.cancelAtPeriodEnd ? ' e será encerrado ao final do ciclo.' : '.'}
           </p>}
