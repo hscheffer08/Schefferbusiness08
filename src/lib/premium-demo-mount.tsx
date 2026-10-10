@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { ArrowLeft, CheckCircle2, Crown, Lock } from 'lucide-react';
 import { useAuth } from './auth-context';
 
-const SHOW_PREMIUM = import.meta.env.VITE_PREMIUM_BILLING_ENABLED === 'true';
-const PRICE = 'R$ 19,90';
+const SHOW_PREMIUM = true;
+const PRICE = Date.now() < Date.parse('2027-01-01T03:00:00Z') ? 'R$ 9,99' : 'R$ 19,99';
 
 type BillingStatus = {
   premium: boolean;
