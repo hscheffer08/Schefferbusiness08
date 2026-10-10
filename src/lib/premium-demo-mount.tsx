@@ -94,11 +94,11 @@ function PremiumPage({ onClose }: { onClose: () => void }) {
             disabled={busy || (Boolean(user) && (loading || (!hasPremium && !canBuy)))}
             onClick={() => {
               if (!user) { window.location.assign('/?auth=login&next=course'); return; }
-              void goToBilling(hasPremium || billing?.hasCustomer ? 'portal' : 'checkout');
+              void goToBilling(hasPremium ? 'portal' : 'checkout');
             }}
             className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-300 px-5 py-4 text-sm font-black text-[#171006] disabled:cursor-not-allowed disabled:opacity-50">
             {loading ? 'Verificando seu plano…' : busy ? 'Abrindo ambiente seguro…' :
-              hasPremium || billing?.hasCustomer ? 'Gerenciar assinatura' :
+              hasPremium ? 'Gerenciar assinatura' :
               !user ? 'Entrar para conhecer a assinatura' :
               !canBuy ? <><Lock className="h-4 w-4"/> Contratação ainda não liberada</> : 'Assinar Premium'}
           </button>
@@ -114,7 +114,7 @@ export default function PremiumDemoMount() {
   if (!SHOW_PREMIUM) return null;
   return <>
     <button type="button" onClick={() => setOpen(true)}
-      className="fixed bottom-5 right-5 z-[90] rounded-full border border-amber-300/40 bg-[#111b30] px-5 py-3 text-sm font-black text-amber-200 shadow-xl hover:bg-[#1c2a47]">
+      className="fixed bottom-[88px] right-5 z-[90] md:bottom-5 rounded-full border border-amber-300/40 bg-[#111b30] px-5 py-3 text-sm font-black text-amber-200 shadow-xl hover:bg-[#1c2a47]">
       <Crown className="mr-2 inline h-4 w-4"/>Premium
     </button>
     {open && <PremiumPage onClose={() => setOpen(false)}/>}
