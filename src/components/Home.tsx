@@ -121,7 +121,7 @@ export default function Home({ onStart, onProfile, onAuth, country, universityCo
           <FeatureCard icon={<Trophy className="w-5 h-5" />} title="Ranking personalizado" desc="Veja quais faculdades têm mais a ver com você" delay="0.5s" />
         </div>
 
-        <div className="mt-12 max-w-2xl glass rounded-2xl border border-ink-800 p-5 text-left"><h3 className="font-semibold text-ink-200 text-sm mb-1.5">🎓 Período de lançamento</h3><p className="text-sm text-ink-400 leading-relaxed">Faça seu match gratuitamente. Quando as assinaturas forem liberadas, o Conectaê Premium custará R$ 19,90 por mês, com contratação opcional.</p></div>
+        <div className="mt-12 max-w-2xl glass rounded-2xl border border-ink-800 p-5 text-left"><h3 className="font-semibold text-ink-200 text-sm mb-1.5">🎓 Período de lançamento</h3><p className="text-sm text-ink-400 leading-relaxed">O match de faculdades continua gratuito. O Curso terá assinatura a partir de janeiro de 2027 por R$ 19,99/mês. Quem contratar até dezembro de 2026 paga R$ 9,99/mês nas cobranças de 2026, passando a R$ 19,99 nas renovações de janeiro.</p></div>
       </main>
 
       <footer className="relative z-10 border-t border-ink-800/50 px-6 py-8 md:px-12">
