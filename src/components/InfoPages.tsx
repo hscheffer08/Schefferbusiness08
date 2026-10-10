@@ -118,7 +118,7 @@ function FAQ() {
     { q: 'Como o match é calculado?', a: 'Através de um algoritmo determinístico que analisa dezenas de características do seu perfil e as compara com os dados de cada universidade. O resultado é uma porcentagem de compatibilidade de 0 a 100%.' },
     { q: 'O resultado significa que vou ser aprovado?', a: 'Não. O Conectaê mede compatibilidade de perfil, não chance de aprovação. Ele é uma orientação para te ajudar a escolher, não uma garantia.' },
     { q: 'Quais faculdades estão incluídas?', a: 'A plataforma reúne faculdades brasileiras e americanas selecionadas para comparação por perfil, com o banco sendo ampliado continuamente.' },
-    { q: 'Quanto custa?', a: 'O Match continua gratuito. O Premium é opcional, tem preço previsto de R$ 19,90 por mês e a cobrança só será iniciada após a ativação do checkout e sua confirmação expressa.' },
+    { q: 'Quanto custa?', a: 'O Match continua gratuito. O Curso custará R$ 19,99/mês a partir de janeiro de 2027. Contratando em 2026, as mensalidades cobradas até dezembro ficam em R$ 9,99; as renovações em janeiro passam para R$ 19,99. Nenhuma cobrança é automática sem contratação expressa.' },
     { q: 'Por que está gratuito agora?', a: 'Estamos em período de lançamento. Queremos que você experimente e nos ajude a melhorar a ferramenta antes de ativar a cobrança.' },
     { q: 'Minhas informações estão seguras?', a: 'Sim. Seus dados são armazenados com criptografia e protegidos por Row Level Security no Supabase. Cada usuário só acessa seus próprios dados.' },
     { q: 'Posso fazer o teste novamente?', a: 'Sim! Você pode refazer o questionário quantas vezes quiser. Seu histórico de matches fica salvo na sua conta.' },
@@ -200,7 +200,7 @@ function Terms() {
         <p>O Conectaê é uma ferramenta de orientação que mede compatibilidade de perfil entre estudantes e faculdades. O resultado não é uma garantia de aprovação, admissão ou sucesso acadêmico.</p>
       </Section>
       <Section title="Assinatura Premium e cobrança">
-        <p>O acesso gratuito permanece disponível. O Premium, quando liberado, será uma assinatura opcional de R$ 19,90 por mês, renovada automaticamente a cada ciclo até ser cancelada. O valor, periodicidade e condições serão exibidos antes da confirmação da contratação.</p>
+        <p>O Match continua gratuito. O acesso ao Curso passa a ser contratado por assinatura a partir de janeiro de 2027: R$ 19,99 por mês. Até dezembro de 2026 é possível contratar antecipadamente por R$ 9,99 em cada cobrança de 2026; na primeira renovação em janeiro de 2027, o valor passa a R$ 19,99 por mês. A assinatura é renovada automaticamente até o cancelamento, conforme as condições apresentadas antes da confirmação.</p>
         <p>A contratação e a gestão de pagamentos ocorrerão em ambiente seguro do Stripe. A liberação dos recursos depende da confirmação do pagamento pelo provedor. Não solicitamos nem armazenamos dados completos do cartão.</p>
         <p>É possível gerenciar ou cancelar renovações pelo portal de assinatura. O cancelamento interrompe cobranças futuras e, em regra, mantém o acesso já pago até o fim do período vigente, sem prejuízo dos direitos previstos em lei.</p>
         <p>Nas contratações realizadas pela internet, respeitamos o direito de arrependimento de sete dias previsto no artigo 49 do Código de Defesa do Consumidor, com restituição dos valores cabíveis. O canal de atendimento e a identificação completa do fornecedor devem estar disponíveis antes da ativação das cobranças.</p>
