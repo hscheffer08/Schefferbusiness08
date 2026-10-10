@@ -118,7 +118,7 @@ function FAQ() {
     { q: 'Como o match é calculado?', a: 'Através de um algoritmo determinístico que analisa dezenas de características do seu perfil e as compara com os dados de cada universidade. O resultado é uma porcentagem de compatibilidade de 0 a 100%.' },
     { q: 'O resultado significa que vou ser aprovado?', a: 'Não. O Conectaê mede compatibilidade de perfil, não chance de aprovação. Ele é uma orientação para te ajudar a escolher, não uma garantia.' },
     { q: 'Quais faculdades estão incluídas?', a: 'A plataforma reúne faculdades brasileiras e americanas selecionadas para comparação por perfil, com o banco sendo ampliado continuamente.' },
-    { q: 'Quanto custa?', a: 'O Conectaê está em período promocional gratuito. Se houver cobrança no futuro, o preço e as condições serão mostrados na plataforma antes da contratação.' },
+    { q: 'Quanto custa?', a: 'O Match continua gratuito. O Premium é opcional, tem preço previsto de R$ 19,90 por mês e a cobrança só será iniciada após a ativação do checkout e sua confirmação expressa.' },
     { q: 'Por que está gratuito agora?', a: 'Estamos em período de lançamento. Queremos que você experimente e nos ajude a melhorar a ferramenta antes de ativar a cobrança.' },
     { q: 'Minhas informações estão seguras?', a: 'Sim. Seus dados são armazenados com criptografia e protegidos por Row Level Security no Supabase. Cada usuário só acessa seus próprios dados.' },
     { q: 'Posso fazer o teste novamente?', a: 'Sim! Você pode refazer o questionário quantas vezes quiser. Seu histórico de matches fica salvo na sua conta.' },
@@ -198,6 +198,12 @@ function Terms() {
       <h1 className="text-3xl font-bold tracking-tight mb-6">Termos de Uso</h1>
       <Section title="Sobre o serviço">
         <p>O Conectaê é uma ferramenta de orientação que mede compatibilidade de perfil entre estudantes e faculdades. O resultado não é uma garantia de aprovação, admissão ou sucesso acadêmico.</p>
+      </Section>
+      <Section title="Assinatura Premium e cobrança">
+        <p>O acesso gratuito permanece disponível. O Premium, quando liberado, será uma assinatura opcional de R$ 19,90 por mês, renovada automaticamente a cada ciclo até ser cancelada. O valor, periodicidade e condições serão exibidos antes da confirmação da contratação.</p>
+        <p>A contratação e a gestão de pagamentos ocorrerão em ambiente seguro do Stripe. A liberação dos recursos depende da confirmação do pagamento pelo provedor. Não solicitamos nem armazenamos dados completos do cartão.</p>
+        <p>É possível gerenciar ou cancelar renovações pelo portal de assinatura. O cancelamento interrompe cobranças futuras e, em regra, mantém o acesso já pago até o fim do período vigente, sem prejuízo dos direitos previstos em lei.</p>
+        <p>Nas contratações realizadas pela internet, respeitamos o direito de arrependimento de sete dias previsto no artigo 49 do Código de Defesa do Consumidor, com restituição dos valores cabíveis. O canal de atendimento e a identificação completa do fornecedor devem estar disponíveis antes da ativação das cobranças.</p>
       </Section>
       <Section title="Uso responsável">
         <p>Você concorda em fornecer informações verdadeiras e em não tentar manipular o resultado do questionário. O algoritmo é determinístico e neutro, projetado para refletir seu perfil real.</p>
