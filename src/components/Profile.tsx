@@ -38,6 +38,7 @@ export default function Profile({ onBack, onSelectUniversity, universities }: Pr
   const [saved, setSaved] = useState<SavedUniversity[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [consent, setConsent] = useState<SharingConsent | null>(null);
   const [consentLoading, setConsentLoading] = useState(false);
@@ -74,11 +75,13 @@ export default function Profile({ onBack, onSelectUniversity, universities }: Pr
   };
 
   const handleDeleteAccount = async () => {
+    setDeleteError('');
     setDeleting(true);
     const { error } = await deleteAccount();
     if (!error) {
       onBack();
     } else {
+      setDeleteError(error || 'Não foi possível excluir a conta.');
       setDeleting(false);
     }
   };
@@ -434,6 +437,7 @@ export default function Profile({ onBack, onSelectUniversity, universities }: Pr
                       <p className="text-sm text-ink-400">Esta ação é irreversível. Todos os seus dados (perfil, respostas, matches, favoritos) serão permanentemente excluídos.</p>
                     </div>
                   </div>
+                  {deleteError && <p role="alert" className="mb-3 text-xs text-red-300">{deleteError}</p>}
                   <div className="flex gap-3">
                     <button
                       onClick={handleDeleteAccount}
