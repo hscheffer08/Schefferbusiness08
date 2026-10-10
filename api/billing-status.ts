@@ -1,4 +1,4 @@
-import { premiumActive, requireBillingUser, serverError } from './_billing.js';
+import { billingEnabled, premiumActive, requireBillingUser, serverError } from './_billing.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido.' });
@@ -12,6 +12,7 @@ export default async function handler(req: any, res: any) {
     if (error) throw error;
     return res.status(200).json({
       premium: premiumActive(data),
+      checkoutEnabled: billingEnabled() && Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PREMIUM_PRICE_ID && process.env.STRIPE_WEBHOOK_SECRET),
       status: data?.status || 'inactive',
       currentPeriodEnd: data?.current_period_end || null,
       cancelAtPeriodEnd: Boolean(data?.cancel_at_period_end),
