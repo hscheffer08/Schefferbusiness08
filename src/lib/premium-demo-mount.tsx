@@ -1,40 +1,122 @@
 import { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { ArrowLeft, BrainCircuit, CheckCircle2, Crown, FileCheck2, GraduationCap, Lock, Sparkles, Target, Trophy } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Crown, Lock } from 'lucide-react';
+import { useAuth } from './auth-context';
 
-const PREMIUM_PRICE='R$ 19,90';
-const PREMIUM_BILLING_ENABLED=import.meta.env.VITE_PREMIUM_BILLING_ENABLED==='true';
+const SHOW_PREMIUM = import.meta.env.VITE_PREMIUM_BILLING_ENABLED === 'true';
+const PRICE = 'R$ 19,90';
 
-function PremiumPage({onClose}:{onClose:()=>void}){
-  const benefits=[
-    {icon:BrainCircuit,title:'IA sem limite diário',text:'Pergunte, envie fotos e peça explicações aprofundadas sem o limite diário do plano gratuito.'},
-    {icon:Target,title:'Plano de aprovação aprofundado',text:'Mais detalhe por semana, habilidade e matéria, com metas de questões, acertos, revisão espaçada e checkpoints sem ultrapassar suas horas disponíveis.'},
-    {icon:Trophy,title:'Simulados autorais Premium',text:'Blocos de prova construídos a partir das habilidades e padrões do vestibular ativo, priorizando exatamente o que mais derruba sua nota.'},
-    {icon:FileCheck2,title:'Correção avançada de simulados',text:'Diagnóstico por área e habilidade, leitura dos padrões de erro e transformação automática dos resultados em prioridades do plano.'},
-  ];
-  return <div className="fixed inset-0 z-[180] overflow-y-auto bg-[#030817] text-white">
-    <header className="sticky top-0 z-20 border-b border-white/10 bg-[#030817]/90 px-5 py-4 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4"><button onClick={onClose} className="inline-flex items-center gap-2 text-sm font-bold text-slate-300 hover:text-white"><ArrowLeft className="h-4 w-4"/>Voltar</button><div className="flex items-center gap-2 font-black"><Crown className="h-5 w-5 text-amber-300"/>Conectaê Premium</div><div className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-xs font-black text-amber-200">{PREMIUM_PRICE}/mês</div></div>
+type BillingStatus = {
+  premium: boolean;
+  checkoutEnabled: boolean;
+  hasCustomer: boolean;
+  status: string;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+};
+
+function PremiumPage({ onClose }: { onClose: () => void }) {
+  const { user, session } = useAuth();
+  const [billing, setBilling] = useState<BillingStatus | null>(null);
+  const [loading, setLoading] = useState(Boolean(session?.access_token));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!session?.access_token) { setLoading(false); setBilling(null); return; }
+    let cancelled = false;
+    setLoading(true);
+    fetch('/api/billing-status', { headers: { Authorization: `Bearer ${session.access_token}` }, cache: 'no-store' })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Não foi possível verificar a assinatura.');
+        return await res.json();
+      })
+      .then((value) => { if (!cancelled) setBilling(value as BillingStatus); })
+      .catch(() => { if (!cancelled) setError('Não foi possível verificar sua assinatura. Tente novamente.'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [session?.access_token]);
+
+  const goToBilling = async (action: 'checkout' | 'portal') => {
+    if (!session?.access_token || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const result = await fetch(action === 'checkout' ? '/api/billing-checkout' : '/api/billing-portal', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await result.json();
+      if (!result.ok || typeof data?.url !== 'string') throw new Error(data?.error || 'Falha ao abrir a assinatura.');
+      const url = new URL(data.url);
+      if (url.protocol !== 'https:' || !['checkout.stripe.com', 'billing.stripe.com'].includes(url.hostname)) {
+        throw new Error('O destino de pagamento não é confiável.');
+      }
+      window.location.assign(url.href);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Não foi possível prosseguir.');
+      setBusy(false);
+    }
+  };
+
+  const hasPremium = Boolean(billing?.premium);
+  const canBuy = Boolean(billing?.checkoutEnabled);
+  return <div role="dialog" aria-modal="true" aria-label="Conectaê Premium"
+    className="fixed inset-0 z-[180] overflow-y-auto bg-[#030817] text-white">
+    <header className="sticky top-0 z-20 border-b border-white/10 bg-[#030817]/95 px-5 py-4">
+      <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
+        <button onClick={onClose} className="inline-flex items-center gap-2 text-sm font-bold text-slate-300"><ArrowLeft className="h-4 w-4"/>Voltar</button>
+        <div className="flex items-center gap-2 font-black"><Crown className="h-5 w-5 text-amber-300"/>Conectaê Premium</div>
+        <span className="text-sm font-bold text-amber-200">{PRICE}/mês</span>
+      </div>
     </header>
-    <main className="mx-auto max-w-6xl px-5 py-12 md:py-16">
-      <section className="grid gap-8 lg:grid-cols-[1.1fr_.9fr] lg:items-center">
-        <div><div className="inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-300/10 px-4 py-2 text-sm font-black text-amber-200"><Sparkles className="h-4 w-4"/>PREMIUM</div><h1 className="mt-5 text-4xl font-black leading-tight tracking-tight md:text-6xl">Mais profundidade para transformar estudo em <span className="text-amber-300">aprovação.</span></h1><p className="mt-5 max-w-2xl text-lg leading-relaxed text-slate-300">Para quem quer usar o Conectaê como cursinho principal: IA sem limite diário, plano muito mais detalhado, simulados autorais e correção que recalcula suas prioridades.</p></div>
-        <div className="rounded-[30px] border border-amber-300/20 bg-gradient-to-br from-amber-300/10 to-white/[.03] p-7 shadow-2xl"><div className="text-sm font-black uppercase tracking-[.14em] text-amber-200">Conectaê Premium</div><div className="mt-3 flex items-end gap-2"><span className="text-5xl font-black">{PREMIUM_PRICE}</span><span className="pb-1 text-slate-400">/mês</span></div><div className="mt-5 space-y-3 text-sm text-slate-200">{['IA sem limite diário de produto','Planos semanais aprofundados e personalizados','Simulados autorais Premium','Correção avançada + diagnóstico de erros','Resultados dos simulados alimentam o plano'].map(x=><div key={x} className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300"/>{x}</div>)}</div><button disabled className="mt-7 w-full cursor-not-allowed rounded-2xl bg-amber-300 px-5 py-4 font-black text-[#171006] opacity-60"><Lock className="mr-2 inline h-4 w-4"/>Pagamento sendo habilitado</button><p className="mt-3 text-center text-xs leading-relaxed text-slate-500">O plano já está configurado em R$ 19,90/mês. A contratação será aberta quando a cobrança for lançada.</p></div>
-      </section>
-      <section className="mt-12 grid gap-4 md:grid-cols-2">{benefits.map(({icon:Icon,title,text})=><article key={title} className="rounded-[24px] border border-white/10 bg-white/[.035] p-6"><div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-300/10 text-amber-200"><Icon className="h-5 w-5"/></div><h2 className="mt-4 text-xl font-black">{title}</h2><p className="mt-2 text-sm leading-relaxed text-slate-400">{text}</p></article>)}</section>
-      <section className="mt-10 rounded-[28px] border border-[#24508a] bg-[#071a38] p-7"><div className="grid gap-6 md:grid-cols-[.8fr_1.2fr] md:items-center"><div><GraduationCap className="h-8 w-8 text-[#72a5ff]"/><h2 className="mt-3 text-2xl font-black">Grátis continua útil.</h2><p className="mt-2 text-sm text-slate-400">O Premium existe para quem quer intensidade e profundidade extras, não para inutilizar o plano gratuito.</p></div><div className="grid gap-3 sm:grid-cols-2"><div className="rounded-2xl border border-white/10 bg-black/15 p-4"><div className="text-xs font-black text-slate-500">GRÁTIS</div><div className="mt-2 font-black">IA com limite diário + plano essencial</div></div><div className="rounded-2xl border border-amber-300/20 bg-amber-300/[.06] p-4"><div className="text-xs font-black text-amber-200">PREMIUM</div><div className="mt-2 font-black">IA sem limite diário + plano profundo + simulados autorais</div></div></div></div></section>
+    <main className="mx-auto max-w-5xl px-5 py-12">
+      <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
+        <div>
+          <p className="text-xs font-extrabold uppercase tracking-[.2em] text-amber-300">Mais profundidade, quando precisar</p>
+          <h1 className="mt-5 text-4xl font-black tracking-tight md:text-5xl">Seu estudo, em outro nível.</h1>
+          <p className="mt-5 text-slate-300">O plano gratuito continua disponível. O Premium será opcional e contará com recursos adicionais de IA e estudo personalizado, conforme a oferta exibida na contratação.</p>
+          <div className="mt-6 space-y-3 text-sm text-slate-200">
+            {['IA sem limite diário de perguntas (com limites de segurança)','Planos de estudo aprofundados','Simulados e análise avançada de desempenho','Gerenciamento e cancelamento online'].map(item =>
+              <p key={item} className="flex gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-300"/>{item}</p>
+            )}
+          </div>
+        </div>
+        <section className="rounded-[28px] border border-amber-300/20 bg-white/[.05] p-7">
+          <h2 className="text-lg font-black">Conectaê Premium</h2>
+          <p className="mt-4 text-4xl font-black">{PRICE}<span className="text-base font-normal text-slate-400"> / mês</span></p>
+          <p className="mt-3 text-sm leading-relaxed text-slate-300">Assinatura mensal com renovação automática. Cancelável no portal, sem multa por cancelar a renovação.</p>
+          {hasPremium && <p className="mt-5 rounded-xl border border-emerald-700/40 p-3 text-sm text-emerald-200">
+            Seu Premium está ativo{billing?.cancelAtPeriodEnd ? ' e será encerrado ao final do ciclo.' : '.'}
+          </p>}
+          {error && <p role="alert" className="mt-5 text-sm text-red-300">{error}</p>}
+          <button
+            type="button"
+            disabled={busy || (Boolean(user) && (loading || (!hasPremium && !canBuy)))}
+            onClick={() => {
+              if (!user) { window.location.assign('/?auth=login&next=course'); return; }
+              void goToBilling(hasPremium || billing?.hasCustomer ? 'portal' : 'checkout');
+            }}
+            className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-300 px-5 py-4 text-sm font-black text-[#171006] disabled:cursor-not-allowed disabled:opacity-50">
+            {loading ? 'Verificando seu plano…' : busy ? 'Abrindo ambiente seguro…' :
+              hasPremium || billing?.hasCustomer ? 'Gerenciar assinatura' :
+              !user ? 'Entrar para conhecer a assinatura' :
+              !canBuy ? <><Lock className="h-4 w-4"/> Contratação ainda não liberada</> : 'Assinar Premium'}
+          </button>
+          <p className="mt-4 text-xs leading-relaxed text-slate-400">Antes de contratar, confira os <a href="/termos" className="underline">Termos de Uso</a> e a <a href="/privacidade" className="underline">Política de Privacidade</a>. Pagamentos são processados pelo Stripe, sem armazenamento dos dados de cartão no Conectaê.</p>
+        </section>
+      </div>
     </main>
   </div>;
 }
 
-export default function PremiumDemoMount(){
-  const[host,setHost]=useState<HTMLElement|null>(null);const[open,setOpen]=useState(false);
-  useEffect(()=>{
-    if(!PREMIUM_BILLING_ENABLED)return;
-    const attach=()=>{if(document.querySelector('[data-conectae-premium-demo]'))return;const main=Array.from(document.querySelectorAll('main')).find(el=>el.textContent?.includes('Seu futuro não cabe em um')) as HTMLElement|undefined;if(!main)return;const node=document.createElement('div');node.dataset.conectaePremiumDemo='true';node.className='mt-8';main.insertBefore(node,main.children[1]??null);setHost(node)};
-    attach();const observer=new MutationObserver(attach);observer.observe(document.body,{childList:true,subtree:true});return()=>observer.disconnect();
-  },[]);
-  if(!PREMIUM_BILLING_ENABLED)return null;
-  const teaser=host?createPortal(<section className="relative overflow-hidden rounded-[30px] border border-amber-300/20 bg-gradient-to-r from-amber-300/[.08] via-white/[.03] to-[#246cff]/10 p-6 md:p-8"><div className="relative flex flex-col justify-between gap-6 lg:flex-row lg:items-center"><div className="max-w-3xl"><div className="mb-3 inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[.14em] text-amber-100"><Crown className="h-3.5 w-3.5"/>Conectaê Premium</div><h2 className="text-2xl font-black md:text-3xl">IA sem limite diário + plano aprofundado por {PREMIUM_PRICE}/mês.</h2><p className="mt-2 text-sm leading-relaxed text-slate-400 md:text-base">Inclui simulados autorais Premium e correção avançada que transforma seus erros em prioridade no plano.</p></div><button onClick={()=>setOpen(true)} className="shrink-0 rounded-2xl bg-amber-300 px-5 py-3.5 font-black text-[#171006] transition hover:-translate-y-0.5">Conhecer Premium</button></div></section>,host):null;
-  return <>{teaser}{open&&<PremiumPage onClose={()=>setOpen(false)}/>}</>;
+export default function PremiumDemoMount() {
+  const [open, setOpen] = useState(() => new URLSearchParams(window.location.search).has('billing'));
+  if (!SHOW_PREMIUM) return null;
+  return <>
+    <button type="button" onClick={() => setOpen(true)}
+      className="fixed bottom-5 right-5 z-[90] rounded-full border border-amber-300/40 bg-[#111b30] px-5 py-3 text-sm font-black text-amber-200 shadow-xl hover:bg-[#1c2a47]">
+      <Crown className="mr-2 inline h-4 w-4"/>Premium
+    </button>
+    {open && <PremiumPage onClose={() => setOpen(false)}/>}
+  </>;
 }
