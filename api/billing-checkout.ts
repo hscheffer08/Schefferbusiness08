@@ -30,7 +30,7 @@ export default async function handler(req: any, res: any) {
       const env = month === 10 ? 'STRIPE_OCTOBER_COUPON_ID' :
         month === 11 ? 'STRIPE_NOVEMBER_COUPON_ID' : 'STRIPE_DECEMBER_COUPON_ID';
       const couponId = process.env[env] || '';
-      if (!/^([a-zA-Z0-9_\-]{3,})$/.test(couponId)) {
+      if (!/^([a-zA-Z0-9_-]{3,})$/.test(couponId)) {
         throw new Error('Cupom promocional não configurado.');
       }
       const coupon: any = await stripeRequest('coupons/' + encodeURIComponent(couponId));
