@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { enforceRateLimit } from './_rate-limit.js';
 import { billingEnabled, origin, premiumActive, premiumPrice, requireBillingUser, serverError, stripeRequest } from './_billing.js';
 
@@ -41,6 +41,10 @@ export default async function handler(req: any, res: any) {
       }
       promotionalCoupon = couponId;
     }
+    const checkoutBucket = Math.floor(Date.now() / 600000);
+    const checkoutDigest = createHash('sha256').update(user.id + ':' + checkoutBucket + ':' + premiumPrice()).digest();
+    const checkoutKey = 'conectae-' + checkoutDigest.toString('hex');
+    const checkoutLabel = [...checkoutDigest.subarray(0, 8)].map(n => String.fromCharCode(97 + n % 26)).join('');
     const form = new URLSearchParams({
       mode: 'subscription',
       'line_items[0][price]': premiumPrice(),
@@ -50,12 +54,12 @@ export default async function handler(req: any, res: any) {
       success_url: origin() + '/?billing=success',
       cancel_url: origin() + '/?billing=cancel',
       'metadata[conectae_user_id]': user.id,
-      integration_identifier: 'conectae-' + [...randomBytes(8)].map(n => String.fromCharCode(97 + n % 26)).join(''),
+      integration_identifier: 'conectae-' + checkoutLabel,
     });
     if (promotionalCoupon) form.set('discounts[0][coupon]', promotionalCoupon);
     if (current?.stripe_customer_id) form.set('customer', current.stripe_customer_id);
     else form.set('customer_email', user.email || '');
-    const session = await stripeRequest('checkout/sessions', 'POST', form);
+    const session = await stripeRequest('checkout/sessions', 'POST', form, checkoutKey);
     if (!/^https:\/\/checkout\.stripe\.com\//.test(session.url || '')) throw new Error('Invalid checkout URL');
     return res.status(200).json({ url: session.url });
   } catch (error) { return serverError(res, error); }
