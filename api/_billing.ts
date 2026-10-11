@@ -75,6 +75,9 @@ export async function syncSubscription(id: string, providedUserId?: string) {
   if (!/^sub_[a-zA-Z0-9]+$/.test(id)) throw new Error('Invalid subscription ID');
   const db = serviceClient();
   const sub: any = await stripeRequest('subscriptions/' + encodeURIComponent(id));
+  const priceId = sub.items?.data?.[0]?.price?.id || null;
+  // Ignore subscriptions for other Stripe products; only a configured Conectaê price grants access.
+  if (priceId !== premiumPrice()) return { userId: null, status: 'ignored' };
   const stripeCustomerId = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id;
   if (!stripeCustomerId) throw new Error('Stripe customer missing');
   // Prefer durable provider IDs; subscription metadata is only a first-time bootstrap.
@@ -101,9 +104,7 @@ export async function syncSubscription(id: string, providedUserId?: string) {
     const old: any = await stripeRequest('subscriptions/' + encodeURIComponent(existing.stripe_subscription_id)).catch(() => null);
     if (old && (old.status === 'active' || old.status === 'trialing')) throw new Error('Conflicting active subscription');
   }
-  const priceId = sub.items?.data?.[0]?.price?.id || null;
-  // Ignore subscriptions for other Stripe products; only a configured Conectaê price grants access.
-  if (priceId !== premiumPrice()) return { userId: null, status: 'ignored' };
+
   const status = normalizeStripeStatus(sub.status);
   const { error: writeError } = await db.from('premium_subscriptions').upsert({
     user_id: candidate,
