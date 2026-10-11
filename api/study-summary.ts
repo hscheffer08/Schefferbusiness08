@@ -231,7 +231,7 @@ async function runJson(args: {
       model: MODEL,
       system: commonSystem(true),
       prompt: args.prompt,
-      maxOutputTokens: Math.max(args.maxOutputTokens, args.compact ? 2400 : 3600),
+      maxOutputTokens: Math.max(args.maxOutputTokens, args.compact ? 3200 : 5200),
       maxRetries: 1,
       abortSignal: AbortSignal.timeout(args.timeoutMs),
       output: Output.json({ name: args.name }),

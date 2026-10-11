@@ -28,6 +28,8 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { enforceRateLimit } from './_rate-limit.js';
+import { premiumActive, serviceClient } from './_billing.js';
 
 const FALLBACK_SUPABASE_URL = 'https://kmognvgnfisdchzffkgh.supabase.co';
 const VERCEL_AI_GATEWAY_URL = 'https://ai-gateway.vercel.sh/v1';
@@ -278,7 +280,11 @@ export default async function handler(req: any, res: any) {
   const userId = userData?.user?.id || '';
   if (!userId) return json(res, 401, { error: userError?.message || 'Sessão inválida.' });
 
-  const body = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {}) as Record<string, unknown>;
+  if (!await enforceRateLimit(req, res, { bucket: 'education-tutor', limit: 12, windowSeconds: 60 })) return;
+
+  let body: Record<string, unknown>;
+  try { body = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {}) as Record<string, unknown>; }
+  catch { return json(res, 400, { error: 'Envie uma solicitação válida.' }); }
   const question = resolveQuestion(body);
   const rawImages = Array.isArray(body.imageDataUrls)
     ? body.imageDataUrls
@@ -310,9 +316,25 @@ export default async function handler(req: any, res: any) {
     buildSeenQuestionContext(supabase, userId, examId),
   ]);
 
-  if (usageError) console.warn('education-tutor usage read failed', usageError.message);
-
-  const remainingQuestions: number | null = null;
+  if (usageError) return json(res, 503, { error: 'Não foi possível verificar seu limite de uso agora.' });
+  let isPremium = false;
+  try {
+    const { data: subscription, error: subscriptionError } = await serviceClient()
+      .from('premium_subscriptions').select('status,current_period_end')
+      .eq('user_id', userId).maybeSingle();
+    if (subscriptionError) throw subscriptionError;
+    isPremium = premiumActive(subscription);
+  } catch (error) {
+    console.error('Premium entitlement verification failed', error instanceof Error ? error.message : 'unknown');
+    return json(res, 503, { error: 'Não foi possível verificar seu plano agora.' });
+  }
+  const DAILY_LIMIT = 10;
+  const usedToday = (usage || []).filter((entry: any) => entry.feature === 'tutor').length;
+  const remainingQuestions: number | null = isPremium ? null : Math.max(0, DAILY_LIMIT - usedToday);
+  if (remainingQuestions === 0) return json(res, 429, {
+    error: 'Você atingiu o limite de 10 perguntas de IA nas últimas 24 horas. Tente novamente amanhã.',
+    remainingQuestions: 0, dailyQuestionLimit: DAILY_LIMIT,
+  });
 
   try {
     const result = await callTutorModel(question, examId, context, imageDataUrls, seenContext);
@@ -334,8 +356,8 @@ export default async function handler(req: any, res: any) {
       webVerified: false,
       sources: [],
       offerPlan: false,
-      remainingQuestions: null,
-      dailyQuestionLimit: null,
+      remainingQuestions: remainingQuestions === null ? null : Math.max(0, remainingQuestions - 1),
+      dailyQuestionLimit: isPremium ? null : DAILY_LIMIT,
     });
   } catch (error) {
     console.error('education-tutor request failed', error);
