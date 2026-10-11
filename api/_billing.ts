@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const allowedOrigin = 'https://conectaê.app';
+// Stripe requires internationalized domains in their ASCII (IDNA) form.
+const allowedOrigin = 'https://xn--conecta-pya.app';
 
 export function billingEnabled() {
   return process.env.BILLING_LIVE_ENABLED === 'true';
