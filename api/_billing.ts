@@ -29,7 +29,7 @@ export function serverError(res: any, error: unknown) {
   console.error('Billing request failed', error instanceof Error ? error.message : 'Unknown');
   return res.status(503).json({ error: 'Não foi possível acessar a cobrança agora. Tente novamente.' });
 }
-export async function stripeRequest(path: string, method: 'GET' | 'POST' | 'DELETE' = 'GET', form?: URLSearchParams) {
+export async function stripeRequest(path: string, method: 'GET' | 'POST' | 'DELETE' = 'GET', form?: URLSearchParams, idempotencyKey?: string) {
   const secret = process.env.STRIPE_SECRET_KEY;
   if (!secret || !/^(sk|rk)_(test|live)_/.test(secret)) throw new Error('Stripe não configurado.');
   const controller = new AbortController();
@@ -39,6 +39,7 @@ export async function stripeRequest(path: string, method: 'GET' | 'POST' | 'DELE
       method,
       headers: {
         Authorization: 'Bearer ' + secret,
+        ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
         ...(form ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
       },
       body: form?.toString(),
@@ -101,6 +102,8 @@ export async function syncSubscription(id: string, providedUserId?: string) {
     if (old && (old.status === 'active' || old.status === 'trialing')) throw new Error('Conflicting active subscription');
   }
   const priceId = sub.items?.data?.[0]?.price?.id || null;
+  // Ignore subscriptions for other Stripe products; only a configured Conectaê price grants access.
+  if (priceId !== premiumPrice()) return { userId: null, status: 'ignored' };
   const status = normalizeStripeStatus(sub.status);
   const { error: writeError } = await db.from('premium_subscriptions').upsert({
     user_id: candidate,
