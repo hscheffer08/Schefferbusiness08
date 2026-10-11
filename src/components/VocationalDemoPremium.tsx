@@ -262,8 +262,7 @@ export default function VocationalDemoPremium({ onBack }: VocationalDemoProps) {
                 type="button"
                 onClick={() => {
                   trackEvent('vocational_college_match_cta_clicked', { course: top.course.name, area_id: matchedAcademicArea.id });
-                  window.dispatchEvent(new CustomEvent('conectae:close-vocational'));
-                  window.dispatchEvent(new CustomEvent('conectae:open-area-match', { detail: { areaId: matchedAcademicArea.id } }));
+                  window.location.assign(`/match-faculdades?area=${encodeURIComponent(matchedAcademicArea.id)}`);
                 }}
                 className="shrink-0 inline-flex items-center justify-center gap-2 rounded-2xl bg-cyan-300 hover:brightness-110 text-[#06131c] font-black px-6 py-4 shadow-lg shadow-cyan-950/20 transition-all hover:scale-[1.02] active:scale-95"
               >

@@ -1,0 +1,4 @@
+/** Match Portuguese search text with or without accents and extra spaces. */
+export function normalizeSearchText(value: string): string {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim().replace(/\s+/g, ' ');
+}

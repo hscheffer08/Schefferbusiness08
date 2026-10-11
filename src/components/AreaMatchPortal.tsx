@@ -5,6 +5,7 @@ import { professionalQuestionsForArea } from '@/lib/professional-area-matching';
 import { calculateProfessionalMatches, loadProfessionalAreas, type ProfessionalArea } from '@/lib/professional-area-match';
 import { adaptiveLearningStatus, applyAdaptiveCalibration, loadAreaCalibration, orderQuestionsAdaptively, recordAreaResponses, type AreaCalibration } from '@/lib/adaptive-area-match';
 import CommercialAreaResults from '@/components/CommercialAreaResults';
+import { normalizeSearchText } from '@/lib/search-text';
 import { trackEvent } from '@/lib/analytics';
 
 interface Props { onClose: () => void; initialAreaId?: string | null; }
@@ -26,10 +27,10 @@ const CARD_TONES = [
   'from-emerald-300/15 via-cyan-500/10 to-transparent border-emerald-300/15',
 ];
 
-export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
+export default function AreaMatchPortal({ onClose, initialAreaId = new URLSearchParams(window.location.search).get('area') }: Props) {
   const fallback = useMemo(() => ACADEMIC_AREAS.map((a,index)=>({ ...a, dimensionWeights:{}, questions:[], universities:a.universities.map((u,i)=>({...u,areaUniversityId:index*20+i,dataConfidence:40,evidenceCount:0})) })), []);
   const [areas, setAreas] = useState<ProfessionalArea[]>(fallback);
-  const [step, setStep] = useState<Step>(initialAreaId ? 'quiz' : 'areas');
+  const [step, setStep] = useState<Step>(fallback.some(a => a.id === initialAreaId) ? 'quiz' : 'areas');
   const [area, setArea] = useState<ProfessionalArea | null>(fallback.find(a=>a.id===initialAreaId) ?? null);
   const [query, setQuery] = useState('');
   const [answers, setAnswers] = useState<Record<string, number>>({});
@@ -43,7 +44,11 @@ export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
     loadProfessionalAreas(ACADEMIC_AREAS).then(loaded => {
       if (!active) return;
       setAreas(loaded);
-      if (initialAreaId) setArea(loaded.find(a=>a.id===initialAreaId) ?? fallback.find(a=>a.id===initialAreaId) ?? null);
+      if (initialAreaId) {
+        const selected = loaded.find(a=>a.id===initialAreaId) ?? fallback.find(a=>a.id===initialAreaId) ?? null;
+        setArea(selected);
+        setStep(selected ? 'quiz' : 'areas');
+      }
       setDataReady(true);
     });
     return () => { active = false; };
@@ -56,7 +61,7 @@ export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
   const adaptiveArea = useMemo(() => area ? applyAdaptiveCalibration(area, answers, calibration) : null, [area, answers, calibration]);
   const matches = useMemo(() => dataReady && adaptiveArea ? calculateProfessionalMatches(adaptiveArea, answers) : [], [dataReady, adaptiveArea, answers]);
   const learningStatus = adaptiveLearningStatus(calibration);
-  const filtered = areas.filter(item => `${item.name} ${item.courses}`.toLowerCase().includes(query.toLowerCase()));
+  const filtered = areas.filter(item => normalizeSearchText(`${item.name} ${item.courses}`).includes(normalizeSearchText(query)));
   const totalOptions = areas.reduce((sum, item) => sum + item.universities.length, 0);
 
   useEffect(() => {
@@ -77,9 +82,7 @@ export default function AreaMatchPortal({ onClose, initialAreaId }: Props) {
     trackEvent('area_selected', { area_id:selected.id, area_name:selected.name, courses:selected.courses });
   };
   const openPlanner = () => {
-    const url = new URL(window.location.href);
-    url.searchParams.set('planner','aprovacao');
-    window.location.assign(`${url.pathname}${url.search}${url.hash}`);
+    window.location.assign('/planejador-admissao');
   };
 
   if (step === 'areas') return <div className="min-h-screen bg-[#070b16] text-ink-50 relative">

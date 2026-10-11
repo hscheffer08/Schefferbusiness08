@@ -1,3 +1,4 @@
+import { normalizeSearchText } from '@/lib/search-text';
 import QuestionPrompt from '@/components/QuestionPrompt';
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -293,11 +294,10 @@ export default function OfficialQuestionWorkspaceV5() {
         if (area !== "Todas" && qa !== area) return false;
         const y = mode === "official" ? q.year : q.source_exam_year;
         if (year !== "Todos" && String(y) !== year) return false;
-        const t = search.trim().toLowerCase();
+        const t = normalizeSearchText(search);
         return (
           !t ||
-          `${qa} ${q.skill_name || ""} ${q.subject || ""} ${q.prompt || ""} ${q.question_number || q.source_question_number || ""} ${y || ""}`
-            .toLowerCase()
+          normalizeSearchText(`${qa} ${q.skill_name || ""} ${q.subject || ""} ${q.prompt_text || q.prompt || ""} ${q.question_number || q.source_question_number || ""} ${y || ""}`)
             .includes(t)
         );
       }),

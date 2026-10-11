@@ -1,3 +1,4 @@
+import { normalizeSearchText } from '@/lib/search-text';
 import OfficialReadingContext from '@/components/OfficialReadingContext';
 import { useEffect, useMemo, useState } from 'react';
 import QuestionPrompt from '@/components/QuestionPrompt';
@@ -102,7 +103,7 @@ export default function OfficialQuestionWorkspaceV3(){
     return Array.from(new Set(base.map(q=>officialSubject(q,enemSubjectMaps)).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'pt-BR'));
   },[official,area,mode,exam,enemSubjectMaps]);
   const years=useMemo(()=>['Todos',...Array.from(new Set(rows.map((q:any)=>mode==='official'?q.year:q.source_exam_year).filter((v:any)=>Number.isFinite(v)))).sort((a:any,b:any)=>b-a).map(String)],[rows,mode]);
-  const filtered=useMemo(()=>rows.filter((q:any)=>{if(area!=='Todas'&&q.area!==area)return false;if(mode==='official'&&subject!=='Todas'&&officialSubject(q,enemSubjectMaps)!==subject)return false;const y=mode==='official'?q.year:q.source_exam_year;if(year!=='Todos'&&String(y)!==year)return false;const t=search.trim().toLowerCase();if(!t)return true;const h=mode==='official'?`${q.area||''} ${officialSubject(q,enemSubjectMaps)} ${q.subject||''} ${q.skill_name||''} ${q.question_number} ${q.year} ${q.series_id==='cmmg'?semester(q):''}`:`${q.area||''} ${q.skill_name||''} ${q.prompt||''} ${q.source_question_number||''}`;return h.toLowerCase().includes(t)}),[rows,area,subject,year,search,mode,enemSubjectMaps]);
+  const filtered=useMemo(()=>rows.filter((q:any)=>{if(area!=='Todas'&&q.area!==area)return false;if(mode==='official'&&subject!=='Todas'&&officialSubject(q,enemSubjectMaps)!==subject)return false;const y=mode==='official'?q.year:q.source_exam_year;if(year!=='Todos'&&String(y)!==year)return false;const t=normalizeSearchText(search);if(!t)return true;const h=mode==='official'?`${q.area||''} ${officialSubject(q,enemSubjectMaps)} ${q.subject||''} ${q.skill_name||''} ${q.prompt_text||''} ${q.question_number} ${q.year} ${q.series_id==='cmmg'?semester(q):''}`:`${q.area||''} ${q.skill_name||''} ${q.prompt||''} ${q.source_question_number||''}`;return normalizeSearchText(h).includes(t)}),[rows,area,subject,year,search,mode,enemSubjectMaps]);
   const counts=useMemo(()=>Object.fromEntries(cfg.areas.map(a=>[a,official.filter(q=>q.area===a).length])),[official,cfg.areas]);
   const subjectCounts=useMemo(()=>Object.fromEntries(availableSubjects.map(s=>[s,official.filter(q=>(area==='Todas'||q.area===area)&&(year==='Todos'||String(q.year)===year)&&officialSubject(q,enemSubjectMaps)===s).length])),[official,area,year,availableSubjects,enemSubjectMaps]);
   const modalOpen=Boolean(activeOfficial||activePractice);
