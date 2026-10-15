@@ -65,12 +65,15 @@ if (/from ['\"]@\/components\/AdmissionsPlannerV\d+['\"]/.test(main)) {
   process.exit(1);
 }
 
-const courseGate = fs.readFileSync('src/components/CourseAccountGate.tsx', 'utf8');
-if (!/if \(loading\)/.test(courseGate) || !/!user \|\| user.is_anonymous/.test(courseGate) || !main.includes('plannerOpen?<CourseAccountGate>')) {
-  throw new Error('Course routes must wait for the shared session and require a registered user.');
+if (main.includes('CourseAccountGate')) {
+  throw new Error('Course routes must not require a registered account to enter.');
 }
 for (const component of ['EssayCourse', 'PrivateCoursesHub', 'BiologyCourse']) {
-  if (!main.includes(`<CourseAccountGate><${component}/></CourseAccountGate>`)) throw new Error(`${component} is missing its account gate`);
+  if (!main.includes(`<${component}/>`)) throw new Error(`${component} route must stay reachable without a course account gate`);
 }
-if (!account.includes("url.searchParams.get('planner') === 'aprovacao'")) throw new Error('Preserve course deep links after login');
-console.log('Planner access invariant OK: course entry requires the shared account; authenticated tools keep the same session.');
+if (!main.includes('plannerOpen?') || !main.includes('<AdmissionsPlannerGate onBack={closePlanner}/>')) {
+  throw new Error('Planner route must remain directly reachable.');
+}
+if (!gate.includes('Salvar progresso')) throw new Error('Preserve optional account action for cloud sync.');
+if (!account.includes("url.searchParams.get('planner') === 'aprovacao'")) throw new Error('Preserve course deep links after optional login');
+console.log('Planner access invariant OK: course entry is public and account login is optional.');
