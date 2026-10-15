@@ -170,7 +170,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
     try{guest=JSON.parse(localStorage.getItem(GUEST_PREF_KEY)||'{}')}catch{guest={}}
     const user=userData.user;
     if(user){
-      const{data:pref,error:prefError}=await supabase.from('student_exam_preferences').select('*').eq('user_id',user.id).order('updated_at',{ascending:false}).limit(1).maybeSingle();
+      const{data:pref,error:prefError}=await supabase.from('student_exam_preferences').select('*').eq('user_id',user.id).not('selected_area_id','is',null).order('updated_at',{ascending:false}).limit(1).maybeSingle();
       if(prefError)throw prefError;
       if(!alive)return;
       if(pref?.selected_area_id&&!cleanAreas.some(x=>x.area_id===pref.selected_area_id))throw new Error('O curso salvo não está no catálogo carregado');
