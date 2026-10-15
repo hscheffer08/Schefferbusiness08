@@ -138,7 +138,7 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
     const[
       {data:a,error:areasError},
       allUniversities,
-      {data:userData,error:authError},
+      {data:userData},
       {data:cutoffRows,error:cutoffError},
       {data:modelRows,error:modelsError},
     ]=await Promise.all([
