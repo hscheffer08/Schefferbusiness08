@@ -77,3 +77,21 @@ if (!main.includes('plannerOpen?') || !main.includes('<AdmissionsPlannerGate onB
 if (!gate.includes('Salvar progresso')) throw new Error('Preserve optional account action for cloud sync.');
 if (!account.includes("url.searchParams.get('planner') === 'aprovacao'")) throw new Error('Preserve course deep links after optional login');
 console.log('Planner access invariant OK: course entry is public and account login is optional.');
+
+const planner = fs.readFileSync('src/components/AdmissionsPlannerV11.tsx', 'utf8');
+const dashboard = fs.readFileSync('src/components/CourseDashboard.tsx', 'utf8');
+const restorationChecks = [
+  ['fetch all catalog pages', planner.includes('async function fetchAllCourseUniversities()') && planner.includes('.range(from,from+pageSize-1)')],
+  ['stable ordering for pagination', planner.includes(".order('university_name').order('area_university_id')")],
+  ['never silently replace a saved institution', planner.includes('A faculdade salva não está no catálogo carregado')],
+  ['surface planner restoration errors', planner.includes('if(loadError)return')],
+  ['guests may still enter the planner', !planner.includes('if(!userData.user)throw')],
+  ['prefer complete saved dashboard course', dashboard.includes(".not('selected_area_id','is',null)")],
+  ['scope weekly-hour updates to one exam', dashboard.includes(".eq('exam_id',pref.exam_id)")],
+  ['do not reorder exams on hours change', dashboard.includes('update({weekly_hours:hours})')],
+  ['surface dashboard restoration errors', dashboard.includes('if(loadError)return')],
+];
+for (const [name, passed] of restorationChecks) {
+  if (!passed) throw new Error('Course restoration regression: ' + name);
+}
+console.log('Course restoration invariants OK: full catalog, saved selection, optional login, scoped hours and visible errors.');
