@@ -73,4 +73,20 @@ for (const component of ['EssayCourse', 'PrivateCoursesHub', 'BiologyCourse']) {
   if (!main.includes(`<CourseAccountGate><${component}/></CourseAccountGate>`)) throw new Error(`${component} is missing its account gate`);
 }
 if (!account.includes("url.searchParams.get('planner') === 'aprovacao'")) throw new Error('Preserve course deep links after login');
+const planner = fs.readFileSync('src/components/AdmissionsPlannerV11.tsx', 'utf8');
+const dashboard = fs.readFileSync('src/components/CourseDashboard.tsx', 'utf8');
+const restorationChecks = [
+  ['fetch all catalog pages', planner.includes('async function fetchAllCourseUniversities()') && planner.includes('.range(from,from+pageSize-1)')],
+  ['stable ordering for pagination', planner.includes(".order('university_name').order('area_university_id')")],
+  ['never silently replace a saved institution', planner.includes('A faculdade salva não está no catálogo carregado')],
+  ['surface planner restoration errors', planner.includes('if(loadError)return')],
+  ['prefer complete saved dashboard course', dashboard.includes(".not('selected_area_id','is',null)")],
+  ['scope weekly-hour updates to one exam', dashboard.includes(".eq('exam_id',pref.exam_id)")],
+  ['do not reorder exams on hours change', dashboard.includes("update({weekly_hours:hours})")],
+  ['surface dashboard restoration errors', dashboard.includes('if(loadError)return')],
+];
+for (const [name, passed] of restorationChecks) {
+  if (!passed) throw new Error('Course restoration regression: ' + name);
+}
 console.log('Planner access invariant OK: course entry requires the shared account; authenticated tools keep the same session.');
+console.log('Course restoration invariants OK: full catalog, saved selection, scoped hours and visible errors.');
