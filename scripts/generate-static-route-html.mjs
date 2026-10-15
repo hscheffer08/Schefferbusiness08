@@ -25,6 +25,22 @@ for (const page of SEO_PAGES) {
   }
   const schema = JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', '@id': `${url}#webpage`, name: page.heading, url, description: page.description, inLanguage: 'pt-BR', isPartOf: { '@id': `${SITE_ORIGIN}/#website` } }).replaceAll('<', '\\u003c');
   html = html.replace('</head>', `<script type="application/ld+json">${schema}</script></head>`);
+  if (page.path === '/') {
+    const applicationSchema = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'WebApplication',
+      '@id': `${SITE_ORIGIN}/#app`,
+      name: 'Conectaê App',
+      alternateName: ['Conectaê', 'Conectae', 'Conectae App'],
+      url: `${SITE_ORIGIN}/`,
+      applicationCategory: 'EducationalApplication',
+      operatingSystem: 'Web',
+      inLanguage: 'pt-BR',
+      description: page.description,
+      publisher: { '@id': `${SITE_ORIGIN}/#organization` },
+    }).replaceAll('<', '\\u003c');
+    html = html.replace('</head>', `<script type="application/ld+json">${applicationSchema}</script></head>`);
+  }
   html = html.replace('<div id="root"></div>', `<div id="root">${render(page)}</div>`);
   const targetDir = page.path === '/' ? distDir : join(distDir, page.path.slice(1));
   await mkdir(targetDir, { recursive: true });

@@ -21,6 +21,8 @@ const benefits = [
   { icon: Camera, title: 'Dúvidas por foto', text: 'Envie uma questão e transforme a dificuldade em prática.' },
 ];
 
+const homeSeo = SEO_PAGES.find(page => page.path === '/');
+
 export default function CourseHome() {
   return (
     <div className="min-h-screen overflow-hidden bg-[#f6f8ff] font-['Plus_Jakarta_Sans'] text-[#101a36]">
@@ -61,10 +63,10 @@ export default function CourseHome() {
             </div>
 
             <h1 className="mt-6 max-w-3xl text-4xl font-black leading-[1.02] tracking-[-.052em] sm:text-5xl md:text-6xl">
-              Conectaê: estude com <span className="text-[#3155e7]">inteligência artificial.</span>
+              Conectaê App: estude com <span className="text-[#3155e7]">inteligência artificial.</span>
             </h1>
             <p className="mt-6 max-w-xl text-base leading-7 text-[#596681] md:text-lg">
-              O Conectaê (Conectae) reúne plano adaptativo, questões, simulados, redação e resumos com IA para ENEM e vestibulares. Escolha sua meta e organize uma rotina que se adapta ao seu desempenho.
+              O Conectaê App (também buscado como Conectae App) reúne plano adaptativo, questões, simulados, redação e resumos com IA para ENEM e vestibulares. Escolha sua meta e organize uma rotina que se adapta ao seu desempenho.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -184,6 +186,14 @@ export default function CourseHome() {
             </div>
           </div>
         </section>
+        <section className="mx-auto max-w-6xl px-5 pb-14 md:px-8 md:pb-20" aria-labelledby="about-conectae-app">
+          <div className="rounded-[28px] border border-[#dbe2f0] bg-white/75 p-6 shadow-sm md:p-8">
+            <h2 id="about-conectae-app" className="text-2xl font-black tracking-[-.035em] text-[#172344] md:text-3xl">O que é o Conectaê App?</h2>
+            <div className="mt-5 grid gap-4 text-sm leading-7 text-[#66738c] md:grid-cols-3 md:text-base">
+              {homeSeo?.paragraphs.map(text => <p key={text}>{text}</p>)}
+            </div>
+          </div>
+        </section>
         <section className="mx-auto max-w-6xl px-5 pb-14 md:px-8">
           <h2 className="text-2xl font-black text-[#172344]">Explore sua preparação</h2>
           <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -194,7 +204,7 @@ export default function CourseHome() {
 
       <footer className="relative z-10 border-t border-[#e0e5f1] bg-white/60 px-5 py-6">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 text-sm text-[#66738c] sm:flex-row">
-          <span className="font-black text-[#172344]">Conectaê (Conectae)</span>
+          <span className="font-black text-[#172344]">Conectaê App (Conectae App)</span>
           <div className="flex flex-wrap justify-center gap-5 font-semibold">
             <a href="/vestibulares-oficiais" className="hover:text-[#3155e7]">Questões</a>
             <a href="/treino-entrevista" className="inline-flex items-center gap-1.5 hover:text-[#3155e7]"><MessageSquareText className="h-4 w-4" /> Entrevistas</a>
