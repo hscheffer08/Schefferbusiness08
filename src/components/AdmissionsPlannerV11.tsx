@@ -69,8 +69,28 @@ function recoveryAction(type:string|null,area:string,skill:string){
   return map[type||'outro']||map.outro;
 }
 
+// Load the complete institution catalog. Supabase's REST API can cap a single
+// select at 1,000 rows; a truncated catalog must never replace a saved course.
+async function fetchAllCourseUniversities():Promise<University[]> {
+  if(!supabase)throw new Error('Banco de dados indisponível');
+  const pageSize=500;
+  const result:University[]=[];
+  for(let from=0;from<20000;from+=pageSize){
+    const{data,error}=await supabase.from('area_universities')
+      .select('area_university_id,area_id,university_name,course_label')
+      .order('university_name').order('area_university_id')
+      .range(from,from+pageSize-1);
+    if(error)throw error;
+    const page=(data??[]) as University[];
+    result.push(...page);
+    if(page.length<pageSize)return result;
+  }
+  throw new Error('Catálogo de faculdades excedeu o limite de paginação');
+}
+
 export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   const[loading,setLoading]=useState(true);
+  const[loadError,setLoadError]=useState('');
   const[areas,setAreas]=useState<AcademicArea[]>([]);
   const[universities,setUniversities]=useState<University[]>([]);
   const[questions,setQuestions]=useState<Question[]>([]);
@@ -114,16 +134,25 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   };
 
   useEffect(()=>{let alive=true;(async()=>{
-    if(!supabase){setLoading(false);return}
-    const[{data:a},{data:u},{data:userData},{data:cutoffRows},{data:modelRows}]=await Promise.all([
+    if(!supabase)throw new Error('Banco de dados indisponível');
+    const[
+      {data:a,error:areasError},
+      allUniversities,
+      {data:userData,error:authError},
+      {data:cutoffRows,error:cutoffError},
+      {data:modelRows,error:modelsError},
+    ]=await Promise.all([
       supabase.from('academic_areas').select('area_id,name,courses').order('name'),
-      supabase.from('area_universities').select('area_university_id,area_id,university_name,course_label').order('university_name'),
+      fetchAllCourseUniversities(),
       supabase.auth.getUser(),
       supabase.from('admission_cutoff_references').select('institution,exam_id,course_label,variant,year,modality,target_kind,target_value,max_value,confidence,source_url,notes').order('year',{ascending:false}),
       supabase.from('course_exam_models').select('university_name,course_label,exam_id,route_key,route_label,practice_exam_id,source_confidence,cycle_label,structure_verified,notes,official_source_url,model').order('university_name'),
     ]);
     if(!alive)return;
-    const allUniversities=(u??[]) as University[];
+    if(areasError||cutoffError||modelsError)throw new Error('Falha ao buscar os dados do curso');
+    // Visiting the course without an account is supported. Only recover cloud
+    // preferences when a valid user session is available.
+    if(!a?.length||!allUniversities.length)throw new Error('Catálogo de cursos vazio');
     const verifiedUniversities=allUniversities.filter(x=>isSupportedInstitutionCourse(x.university_name,x.course_label));
     const cleanAreas=(a??[]) as AcademicArea[];
     if(!cleanAreas.length){
@@ -142,10 +171,15 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
     try{guest=JSON.parse(localStorage.getItem(GUEST_PREF_KEY)||'{}')}catch{guest={}}
     const user=userData.user;
     if(user){
-      const{data:pref}=await supabase.from('student_exam_preferences').select('*').eq('user_id',user.id).order('updated_at',{ascending:false}).limit(1).maybeSingle();
-      const desiredArea=pref?.selected_area_id&&cleanAreas.some(x=>x.area_id===pref.selected_area_id)?pref.selected_area_id:cleanAreas[0]?.area_id??'';
-      setSelectedArea(desiredArea);
+      const{data:pref,error:prefError}=await supabase.from('student_exam_preferences').select('*').eq('user_id',user.id).not('selected_area_id','is',null).order('updated_at',{ascending:false}).limit(1).maybeSingle();
+      if(prefError)throw prefError;
+      if(!alive)return;
+      if(pref?.selected_area_id&&!cleanAreas.some(x=>x.area_id===pref.selected_area_id))throw new Error('O curso salvo não está no catálogo carregado');
+      const desiredArea=pref?.selected_area_id??(guest.selectedArea&&cleanAreas.some(x=>x.area_id===guest.selectedArea)?guest.selectedArea:null)??cleanAreas[0]?.area_id??'';
       const allowed=cleanUniversities.filter(x=>x.area_id===desiredArea);
+      // Never silently replace a saved institution with the generic ENEM plan.
+      if(pref?.selected_university_id&&!allowed.some(x=>x.area_university_id===pref.selected_university_id))throw new Error('A faculdade salva não está no catálogo carregado');
+      setSelectedArea(desiredArea);
       const savedLocal=guest.selectedArea===desiredArea&&guest.selectedUniversity&&allowed.some(x=>String(x.area_university_id)===String(guest.selectedUniversity))?String(guest.selectedUniversity):'';
       const generic=allowed.find(x=>x.university_name===GENERIC_ENEM_UNIVERSITY);
       const desiredUniversity=pref?.selected_university_id&&allowed.some(x=>x.area_university_id===pref.selected_university_id)?String(pref.selected_university_id):savedLocal||String(generic?.area_university_id??allowed[0]?.area_university_id??'');
@@ -166,8 +200,11 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
       if(Number.isFinite(localHours)){setWeeklyHours(localHours);setAppliedWeeklyHours(localHours)}
       if(guest.difficultyTopics&&typeof guest.difficultyTopics==='object')setDifficultyTopics(guest.difficultyTopics);
     }
-    setLoading(false);
-  })();return()=>{alive=false}},[]);
+  })().catch(error=>{
+    console.error('Não foi possível restaurar o curso',error);
+    if(alive)setLoadError('Não foi possível recuperar seu curso salvo. Nenhuma preferência foi alterada. Tente novamente.');
+  }).finally(()=>{if(alive)setLoading(false)});
+  return()=>{alive=false}},[]);
 
   const filteredUniversities=useMemo(()=>universities.filter(u=>u.area_id===selectedArea),[universities,selectedArea]);
   useEffect(()=>{if(!filteredUniversities.length)return;if(filteredUniversities.some(u=>String(u.area_university_id)===selectedUniversity))return;const generic=filteredUniversities.find(u=>u.university_name===GENERIC_ENEM_UNIVERSITY);setSelectedUniversity(String(generic?.area_university_id??filteredUniversities[0].area_university_id))},[filteredUniversities,selectedUniversity]);
@@ -333,6 +370,11 @@ export default function AdmissionsPlannerV11({onBack}:{onBack:()=>void}){
   const miniSimulationSize=Math.max(1,Math.min(fullSimulationSize,Math.round(model.miniSimulationSize??(model.roadmapMode==='balanced'?Math.min(30,Math.ceil(fullSimulationSize/2)):fallbackMini))));
 
   if(loading)return <div className="plan6" style={{display:'grid',placeItems:'center'}}><Loader2 className="animate-spin"/></div>;
+  if(loadError)return <main className="plan6" style={{minHeight:'55vh',display:'grid',placeItems:'center',padding:'24px',textAlign:'center'}}>
+    <div><h2>Não foi possível restaurar seu curso</h2><p role="alert">{loadError}</p>
+      <button type="button" className="plan6-save" onClick={()=>window.location.reload()}>Tentar novamente</button>
+    </div>
+  </main>;
 
   return <div className="plan6">
     <header className="plan6-top"><div className="plan6-shell plan6-topin"><button className="plan6-back" onClick={onBack}><ArrowLeft size={17}/>Voltar</button><div className="plan6-brand"><span className="plan6-mark">C</span><span>Conectaê</span></div><div className="plan6-kicker plan6-desktop-only">Plano de aprovação</div></div></header>
