@@ -13,7 +13,6 @@ const requiredGatePatterns = [
   /if\s*\(\s*loading\s*\)/,
   /auth['\"],\s*['\"]login/,
   /next['\"],\s*['\"]course/,
-  /Criar uma conta ajuda a salvar e sincronizar seu progresso/,
   /<Gate\b/,
 ];
 
@@ -66,4 +65,12 @@ if (/from ['\"]@\/components\/AdmissionsPlannerV\d+['\"]/.test(main)) {
   process.exit(1);
 }
 
-console.log('Planner access invariant OK: the course is public, while account login is optional for saving and syncing progress.');
+const courseGate = fs.readFileSync('src/components/CourseAccountGate.tsx', 'utf8');
+if (!/if \(loading\)/.test(courseGate) || !/!user \|\| user.is_anonymous/.test(courseGate) || !main.includes('plannerOpen?<CourseAccountGate>')) {
+  throw new Error('Course routes must wait for the shared session and require a registered user.');
+}
+for (const component of ['EssayCourse', 'PrivateCoursesHub', 'BiologyCourse']) {
+  if (!main.includes(`<CourseAccountGate><${component}/></CourseAccountGate>`)) throw new Error(`${component} is missing its account gate`);
+}
+if (!account.includes("url.searchParams.get('planner') === 'aprovacao'")) throw new Error('Preserve course deep links after login');
+console.log('Planner access invariant OK: course entry requires the shared account; authenticated tools keep the same session.');

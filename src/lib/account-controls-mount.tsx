@@ -30,8 +30,13 @@ function AccountControls() {
     const url = new URL(window.location.href);
     const next = url.searchParams.get('next');
     if (next === 'course') {
-      window.location.assign('/?planner=aprovacao');
-      return;
+      // Keep deep links (including summaries and UFMG) after shared login.
+      const isCourse = url.searchParams.get('planner') === 'aprovacao' ||
+        ['/planejador-admissao', '/curso-redacao', '/curso-biologia', '/cursos-particulares'].includes(url.pathname.replace(/\/+$/, ''));
+      if (!isCourse) {
+        window.location.assign('/?planner=aprovacao');
+        return;
+      }
     }
     url.searchParams.delete('auth');
     url.searchParams.delete('next');
