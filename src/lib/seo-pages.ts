@@ -1,5 +1,5 @@
 export const SITE_ORIGIN = 'https://xn--conecta-pya.app';
-export type PublicPage = { path: string; title: string; description: string; heading: string; paragraphs: string[]; action?: string; actionLabel?: string; landing?: boolean; indexable?: boolean };
+export type PublicPage = { path: string; title: string; description: string; heading: string; paragraphs: string[]; action?: string; actionLabel?: string; landing?: boolean; indexable?: boolean; lastModified?: string };
 const page = (path: string, heading: string, description: string, paragraphs: string[], action = '/planejador-admissao', actionLabel = 'Montar meu plano de estudos', landing = false, indexable = true): PublicPage => ({ path, heading, title: `${heading} | Conectaê`, description, paragraphs, action, actionLabel, landing, indexable });
 export const SEO_PAGES: PublicPage[] = [
   {
@@ -12,6 +12,7 @@ export const SEO_PAGES: PublicPage[] = [
       'Monte um plano de estudos adaptativo a partir da sua meta, rotina e desempenho. Treine com questões, simulados, redação e resumos gerados com apoio de inteligência artificial.',
       'A plataforma também oferece teste vocacional, comparação de faculdades e ferramentas de preparação para processos seletivos. Conectaê e Conectae App são nomes usados para encontrar esta plataforma.',
     ],
+    lastModified: '2026-10-15',
   },
   page('/enem', 'Estude para o ENEM com IA', 'Organize a preparação para o ENEM com plano adaptativo, questões, simulados, redação e resumos com IA no Conectaê.', ['O ENEM reúne Linguagens, Ciências Humanas, Ciências da Natureza, Matemática e redação. Uma preparação organizada combina prática, revisão e acompanhamento dos erros.', 'No Conectaê, você informa sua meta e sua rotina para organizar o plano de estudos. Use o banco de questões, registre o desempenho e revise os conteúdos em que encontrou dificuldades.', 'A redação também faz parte da preparação. A plataforma reúne treino de escrita, materiais de estudo e ferramentas de apoio por inteligência artificial.'], undefined, undefined, true),
   page('/medicina', 'Preparação para Medicina', 'Prepare-se para vestibulares de Medicina com plano de estudos, questões, simulados e revisão de dificuldades no Conectaê.', ['A preparação para Medicina começa pela escolha das instituições e das formas de ingresso. Conteúdos, pesos, etapas e critérios variam entre processos seletivos.', 'No curso adaptativo do Conectaê, escolha Medicina e a instituição disponível que deseja prestar. Informe suas notas e o tempo para estudar para orientar o planejamento.', 'Combine questões, simulados, Biologia, redação e revisão dos erros. Consulte sempre o edital oficial da instituição para confirmar datas e regras da sua edição.'], undefined, undefined, true),
